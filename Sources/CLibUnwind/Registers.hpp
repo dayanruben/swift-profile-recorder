@@ -125,8 +125,8 @@ private:
 };
 
 inline Registers_x86::Registers_x86(const void *registers) {
-  static_assert((check_fit<Registers_x86, unw_context_t>::does_fit),
-                "x86 registers do not fit into unw_context_t");
+  static_assert((check_fit<Registers_x86, swift_unwind_unw_context_t>::does_fit),
+                "x86 registers do not fit into swift_unwind_unw_context_t");
   memcpy(&_registers, registers, sizeof(_registers));
 }
 
@@ -351,8 +351,8 @@ private:
 };
 
 inline Registers_x86_64::Registers_x86_64(const void *registers) {
-  static_assert((check_fit<Registers_x86_64, unw_context_t>::does_fit),
-                "x86_64 registers do not fit into unw_context_t");
+  static_assert((check_fit<Registers_x86_64, swift_unwind_unw_context_t>::does_fit),
+                "x86_64 registers do not fit into swift_unwind_unw_context_t");
   memcpy(&_registers, registers, sizeof(_registers));
 }
 
@@ -679,8 +679,8 @@ private:
 };
 
 inline Registers_ppc::Registers_ppc(const void *registers) {
-  static_assert((check_fit<Registers_ppc, unw_context_t>::does_fit),
-                "ppc registers do not fit into unw_context_t");
+  static_assert((check_fit<Registers_ppc, swift_unwind_unw_context_t>::does_fit),
+                "ppc registers do not fit into swift_unwind_unw_context_t");
   memcpy(&_registers, static_cast<const uint8_t *>(registers),
          sizeof(_registers));
   static_assert(sizeof(ppc_thread_state_t) == 160,
@@ -1246,8 +1246,8 @@ private:
 };
 
 inline Registers_ppc64::Registers_ppc64(const void *registers) {
-  static_assert((check_fit<Registers_ppc64, unw_context_t>::does_fit),
-                "ppc64 registers do not fit into unw_context_t");
+  static_assert((check_fit<Registers_ppc64, swift_unwind_unw_context_t>::does_fit),
+                "ppc64 registers do not fit into swift_unwind_unw_context_t");
   memcpy(&_registers, static_cast<const uint8_t *>(registers),
          sizeof(_registers));
   static_assert(sizeof(_registers) == 312,
@@ -1854,8 +1854,8 @@ private:
 };
 
 inline Registers_arm64::Registers_arm64(const void *registers) {
-  static_assert((check_fit<Registers_arm64, unw_context_t>::does_fit),
-                "arm64 registers do not fit into unw_context_t");
+  static_assert((check_fit<Registers_arm64, swift_unwind_unw_context_t>::does_fit),
+                "arm64 registers do not fit into swift_unwind_unw_context_t");
   memcpy(&_registers, registers, sizeof(_registers));
   static_assert(sizeof(GPRs) == 0x110,
                 "expected VFP registers to be at offset 272");
@@ -2105,8 +2105,8 @@ public:
   uint32_t    getRegister(int num) const;
   void        setRegister(int num, uint32_t value);
   bool        validFloatRegister(int num) const;
-  unw_fpreg_t getFloatRegister(int num);
-  void        setFloatRegister(int num, unw_fpreg_t value);
+  swift_unwind_unw_fpreg_t getFloatRegister(int num);
+  void        setFloatRegister(int num, swift_unwind_unw_fpreg_t value);
   bool        validVectorRegister(int num) const;
   v128        getVectorRegister(int num) const;
   void        setVectorRegister(int num, v128 value);
@@ -2183,16 +2183,16 @@ private:
   // Whether VFPv3 D16-D31 are saved.
   bool _saved_vfp_d16_d31;
   // VFP registers D0-D15, + padding if saved using FSTMX
-  unw_fpreg_t _vfp_d0_d15_pad[17];
+  swift_unwind_unw_fpreg_t _vfp_d0_d15_pad[17];
   // VFPv3 registers D16-D31, always saved using FSTMD
-  unw_fpreg_t _vfp_d16_d31[16];
+  swift_unwind_unw_fpreg_t _vfp_d16_d31[16];
 #if defined(__ARM_WMMX)
   // Whether iWMMX data registers are saved.
   bool _saved_iwmmx;
   // Whether iWMMX control registers are saved.
   mutable bool _saved_iwmmx_control;
   // iWMMX registers
-  unw_fpreg_t _iwmmx[16];
+  swift_unwind_unw_fpreg_t _iwmmx[16];
   // iWMMX control registers
   mutable uint32_t _iwmmx_control[4];
 #endif
@@ -2202,9 +2202,9 @@ inline Registers_arm::Registers_arm(const void *registers)
   : _use_X_for_vfp_save(false),
     _saved_vfp_d0_d15(false),
     _saved_vfp_d16_d31(false) {
-  static_assert((check_fit<Registers_arm, unw_context_t>::does_fit),
-                "arm registers do not fit into unw_context_t");
-  // See __unw_getcontext() note about data.
+  static_assert((check_fit<Registers_arm, swift_unwind_unw_context_t>::does_fit),
+                "arm registers do not fit into swift_unwind_unw_context_t");
+  // See __swift_unwind_unw_getcontext() note about data.
   memcpy(&_registers, registers, sizeof(_registers));
   memset(&_vfp_d0_d15_pad, 0, sizeof(_vfp_d0_d15_pad));
   memset(&_vfp_d16_d31, 0, sizeof(_vfp_d16_d31));
@@ -2483,7 +2483,7 @@ inline const char *Registers_arm::getRegisterName(int regNum) {
 
 inline bool Registers_arm::validFloatRegister(int regNum) const {
   // NOTE: Consider the intel MMX registers floating points so the
-  // __unw_get_fpreg can be used to transmit the 64-bit data back.
+  // __swift_unwind_unw_get_fpreg can be used to transmit the 64-bit data back.
   return ((regNum >= UNW_ARM_D0) && (regNum <= UNW_ARM_D31))
 #if defined(__ARM_WMMX)
       || ((regNum >= UNW_ARM_WR0) && (regNum <= UNW_ARM_WR15))
@@ -2491,7 +2491,7 @@ inline bool Registers_arm::validFloatRegister(int regNum) const {
       ;
 }
 
-inline unw_fpreg_t Registers_arm::getFloatRegister(int regNum) {
+inline swift_unwind_unw_fpreg_t Registers_arm::getFloatRegister(int regNum) {
   if (regNum >= UNW_ARM_D0 && regNum <= UNW_ARM_D15) {
     if (!_saved_vfp_d0_d15) {
       _saved_vfp_d0_d15 = true;
@@ -2524,7 +2524,7 @@ inline unw_fpreg_t Registers_arm::getFloatRegister(int regNum) {
   _LIBUNWIND_ABORT("Unknown ARM float register");
 }
 
-inline void Registers_arm::setFloatRegister(int regNum, unw_fpreg_t value) {
+inline void Registers_arm::setFloatRegister(int regNum, swift_unwind_unw_fpreg_t value) {
   if (regNum >= UNW_ARM_D0 && regNum <= UNW_ARM_D15) {
     if (!_saved_vfp_d0_d15) {
       _saved_vfp_d0_d15 = true;
@@ -2612,8 +2612,8 @@ private:
 };
 
 inline Registers_or1k::Registers_or1k(const void *registers) {
-  static_assert((check_fit<Registers_or1k, unw_context_t>::does_fit),
-                "or1k registers do not fit into unw_context_t");
+  static_assert((check_fit<Registers_or1k, swift_unwind_unw_context_t>::does_fit),
+                "or1k registers do not fit into swift_unwind_unw_context_t");
   memcpy(&_registers, static_cast<const uint8_t *>(registers),
          sizeof(_registers));
 }
@@ -2818,8 +2818,8 @@ private:
 };
 
 inline Registers_mips_o32::Registers_mips_o32(const void *registers) {
-  static_assert((check_fit<Registers_mips_o32, unw_context_t>::does_fit),
-                "mips_o32 registers do not fit into unw_context_t");
+  static_assert((check_fit<Registers_mips_o32, swift_unwind_unw_context_t>::does_fit),
+                "mips_o32 registers do not fit into swift_unwind_unw_context_t");
   memcpy(&_registers, static_cast<const uint8_t *>(registers),
          sizeof(_registers));
 }
@@ -3140,8 +3140,8 @@ private:
 };
 
 inline Registers_mips_newabi::Registers_mips_newabi(const void *registers) {
-  static_assert((check_fit<Registers_mips_newabi, unw_context_t>::does_fit),
-                "mips_newabi registers do not fit into unw_context_t");
+  static_assert((check_fit<Registers_mips_newabi, swift_unwind_unw_context_t>::does_fit),
+                "mips_newabi registers do not fit into swift_unwind_unw_context_t");
   memcpy(&_registers, static_cast<const uint8_t *>(registers),
          sizeof(_registers));
 }
@@ -3429,8 +3429,8 @@ private:
 };
 
 inline Registers_sparc::Registers_sparc(const void *registers) {
-  static_assert((check_fit<Registers_sparc, unw_context_t>::does_fit),
-                "sparc registers do not fit into unw_context_t");
+  static_assert((check_fit<Registers_sparc, swift_unwind_unw_context_t>::does_fit),
+                "sparc registers do not fit into swift_unwind_unw_context_t");
   memcpy(&_registers, static_cast<const uint8_t *>(registers),
          sizeof(_registers));
 }
@@ -3613,8 +3613,8 @@ private:
 };
 
 inline Registers_hexagon::Registers_hexagon(const void *registers) {
-  static_assert((check_fit<Registers_hexagon, unw_context_t>::does_fit),
-                "hexagon registers do not fit into unw_context_t");
+  static_assert((check_fit<Registers_hexagon, swift_unwind_unw_context_t>::does_fit),
+                "hexagon registers do not fit into swift_unwind_unw_context_t");
   memcpy(&_registers, static_cast<const uint8_t *>(registers),
          sizeof(_registers));
 }
@@ -3826,8 +3826,8 @@ private:
 };
 
 inline Registers_riscv::Registers_riscv(const void *registers) {
-  static_assert((check_fit<Registers_riscv, unw_context_t>::does_fit),
-                "riscv registers do not fit into unw_context_t");
+  static_assert((check_fit<Registers_riscv, swift_unwind_unw_context_t>::does_fit),
+                "riscv registers do not fit into swift_unwind_unw_context_t");
   memcpy(&_registers, registers, sizeof(_registers));
 # if __riscv_xlen == 32
   static_assert(sizeof(_registers) == 0x80,
@@ -4121,8 +4121,8 @@ private:
 };
 
 inline Registers_ve::Registers_ve(const void *registers) {
-  static_assert((check_fit<Registers_ve, unw_context_t>::does_fit),
-                "ve registers do not fit into unw_context_t");
+  static_assert((check_fit<Registers_ve, swift_unwind_unw_context_t>::does_fit),
+                "ve registers do not fit into swift_unwind_unw_context_t");
   memcpy(&_registers, static_cast<const uint8_t *>(registers),
          sizeof(_registers));
   static_assert(sizeof(_registers) == 536,

@@ -676,7 +676,7 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm20restoreCoreAndJumpToEv)
   JMP(lr)
 
 @
-@ static void libunwind::Registers_arm::restoreVFPWithFLDMD(unw_fpreg_t* values)
+@ static void libunwind::Registers_arm::restoreVFPWithFLDMD(swift_unwind_unw_fpreg_t* values)
 @
 @ On entry:
 @  values pointer is in r0
@@ -697,7 +697,7 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm19restoreVFPWithFLDMDEPv)
   JMP(lr)
 
 @
-@ static void libunwind::Registers_arm::restoreVFPWithFLDMX(unw_fpreg_t* values)
+@ static void libunwind::Registers_arm::restoreVFPWithFLDMX(swift_unwind_unw_fpreg_t* values)
 @
 @ On entry:
 @  values pointer is in r0
@@ -711,7 +711,7 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm19restoreVFPWithFLDMXEPv)
   JMP(lr)
 
 @
-@ static void libunwind::Registers_arm::restoreVFPv3(unw_fpreg_t* values)
+@ static void libunwind::Registers_arm::restoreVFPv3(swift_unwind_unw_fpreg_t* values)
 @
 @ On entry:
 @  values pointer is in r0
@@ -727,7 +727,7 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm12restoreVFPv3EPv)
 #if defined(__ARM_WMMX)
 
 @
-@ static void libunwind::Registers_arm::restoreiWMMX(unw_fpreg_t* values)
+@ static void libunwind::Registers_arm::restoreiWMMX(swift_unwind_unw_fpreg_t* values)
 @
 @ On entry:
 @  values pointer is in r0
@@ -756,7 +756,7 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm12restoreiWMMXEPv)
   JMP(lr)
 
 @
-@ static void libunwind::Registers_arm::restoreiWMMXControl(unw_uint32_t* values)
+@ static void libunwind::Registers_arm::restoreiWMMXControl(swift_unwind_unw_uint32_t* values)
 @
 @ On entry:
 @  values pointer is in r0

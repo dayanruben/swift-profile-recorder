@@ -24,9 +24,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-// ARM EHABI does not specify _Unwind_{Get,Set}{GR,IP}().  Thus, we are
+// ARM EHABI does not specify _swift_unwind_Unwind_{Get,Set}{GR,IP}().  Thus, we are
 // defining inline functions to delegate the function calls to
-// _Unwind_VRS_{Get,Set}().  However, some applications might declare the
+// _swift_unwind_Unwind_VRS_{Get,Set}().  However, some applications might declare the
 // function protetype directly (instead of including <unwind.h>), thus we need
 // to export these functions from libunwind.so as well.
 #define _LIBUNWIND_UNWIND_LEVEL1_EXTERNAL_LINKAGE 1
@@ -57,9 +57,9 @@
 // directly jump to __libunwind_Registerts_x86/x86_64_jumpto instead of using
 // a regular function call to avoid pushing to CET shadow stack again.
 #if !defined(_LIBUNWIND_USE_CET)
-#define __unw_phase2_resume(cursor, fn) __unw_resume((cursor))
+#define __swift_unwind_unw_phase2_resume(cursor, fn) __swift_unwind_unw_resume((cursor))
 #elif defined(_LIBUNWIND_TARGET_I386)
-#define __unw_phase2_resume(cursor, fn)                                        \
+#define __swift_unwind_unw_phase2_resume(cursor, fn)                                        \
   do {                                                                         \
     _LIBUNWIND_POP_CET_SSP((fn));                                              \
     void *cetRegContext = __libunwind_cet_get_registers((cursor));             \
@@ -70,7 +70,7 @@
                      "d"(cetJumpAddress));                                     \
   } while (0)
 #elif defined(_LIBUNWIND_TARGET_X86_64)
-#define __unw_phase2_resume(cursor, fn)                                        \
+#define __swift_unwind_unw_phase2_resume(cursor, fn)                                        \
   do {                                                                         \
     _LIBUNWIND_POP_CET_SSP((fn));                                              \
     void *cetRegContext = __libunwind_cet_get_registers((cursor));             \
@@ -80,35 +80,35 @@
   } while (0)
 #endif
 
-static _Unwind_Reason_Code
-unwind_phase1(unw_context_t *uc, unw_cursor_t *cursor, _Unwind_Exception *exception_object) {
-  __unw_init_local(cursor, uc);
+static _swift_unwind_Unwind_Reason_Code
+unwind_phase1(swift_unwind_unw_context_t *uc, swift_unwind_unw_cursor_t *cursor, _swift_unwind_Unwind_Exception *exception_object) {
+  __swift_unwind_unw_init_local(cursor, uc);
 
   // Walk each frame looking for a place to stop.
   while (true) {
     // Ask libunwind to get next frame (skip over first which is
-    // _Unwind_RaiseException).
-    int stepResult = __unw_step(cursor);
+    // _swift_unwind_Unwind_RaiseException).
+    int stepResult = __swift_unwind_unw_step(cursor);
     if (stepResult == 0) {
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase1(ex_ojb=%p): __unw_step() reached "
+          "unwind_phase1(ex_ojb=%p): __swift_unwind_unw_step() reached "
           "bottom => _URC_END_OF_STACK",
           (void *)exception_object);
       return _URC_END_OF_STACK;
     } else if (stepResult < 0) {
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase1(ex_ojb=%p): __unw_step failed => "
+          "unwind_phase1(ex_ojb=%p): __swift_unwind_unw_step failed => "
           "_URC_FATAL_PHASE1_ERROR",
           (void *)exception_object);
       return _URC_FATAL_PHASE1_ERROR;
     }
 
     // See if frame has code to run (has personality routine).
-    unw_proc_info_t frameInfo;
-    unw_word_t sp;
-    if (__unw_get_proc_info(cursor, &frameInfo) != UNW_ESUCCESS) {
+    swift_unwind_unw_proc_info_t frameInfo;
+    swift_unwind_unw_word_t sp;
+    if (__swift_unwind_unw_get_proc_info(cursor, &frameInfo) != UNW_ESUCCESS) {
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase1(ex_ojb=%p): __unw_get_proc_info "
+          "unwind_phase1(ex_ojb=%p): __swift_unwind_unw_get_proc_info "
           "failed => _URC_FATAL_PHASE1_ERROR",
           (void *)exception_object);
       return _URC_FATAL_PHASE1_ERROR;
@@ -119,13 +119,13 @@ unwind_phase1(unw_context_t *uc, unw_cursor_t *cursor, _Unwind_Exception *except
     if (_LIBUNWIND_TRACING_UNWINDING) {
       char functionBuf[512];
       const char *functionName = functionBuf;
-      unw_word_t offset;
-      if ((__unw_get_proc_name(cursor, functionBuf, sizeof(functionBuf),
+      swift_unwind_unw_word_t offset;
+      if ((__swift_unwind_unw_get_proc_name(cursor, functionBuf, sizeof(functionBuf),
                                &offset) != UNW_ESUCCESS) ||
           (frameInfo.start_ip + offset > frameInfo.end_ip))
         functionName = ".anonymous.";
-      unw_word_t pc;
-      __unw_get_reg(cursor, UNW_REG_IP, &pc);
+      swift_unwind_unw_word_t pc;
+      __swift_unwind_unw_get_reg(cursor, UNW_REG_IP, &pc);
       _LIBUNWIND_TRACE_UNWINDING(
           "unwind_phase1(ex_ojb=%p): pc=0x%" PRIxPTR ", start_ip=0x%" PRIxPTR
           ", func=%s, lsda=0x%" PRIxPTR ", personality=0x%" PRIxPTR "",
@@ -137,19 +137,19 @@ unwind_phase1(unw_context_t *uc, unw_cursor_t *cursor, _Unwind_Exception *except
     // If there is a personality routine, ask it if it will want to stop at
     // this frame.
     if (frameInfo.handler != 0) {
-      _Unwind_Personality_Fn p =
-          (_Unwind_Personality_Fn)(uintptr_t)(frameInfo.handler);
+      _swift_unwind_Unwind_Personality_Fn p =
+          (_swift_unwind_Unwind_Personality_Fn)(uintptr_t)(frameInfo.handler);
       _LIBUNWIND_TRACE_UNWINDING(
           "unwind_phase1(ex_ojb=%p): calling personality function %p",
           (void *)exception_object, (void *)(uintptr_t)p);
-      _Unwind_Reason_Code personalityResult =
+      _swift_unwind_Unwind_Reason_Code personalityResult =
           (*p)(1, _UA_SEARCH_PHASE, exception_object->exception_class,
-               exception_object, (struct _Unwind_Context *)(cursor));
+               exception_object, (struct _swift_unwind_Unwind_Context *)(cursor));
       switch (personalityResult) {
       case _URC_HANDLER_FOUND:
         // found a catch clause or locals that need destructing in this frame
         // stop search and remember stack pointer at the frame
-        __unw_get_reg(cursor, UNW_REG_SP, &sp);
+        __swift_unwind_unw_get_reg(cursor, UNW_REG_SP, &sp);
         exception_object->private_2 = (uintptr_t)sp;
         _LIBUNWIND_TRACE_UNWINDING(
             "unwind_phase1(ex_ojb=%p): _URC_HANDLER_FOUND",
@@ -176,43 +176,43 @@ unwind_phase1(unw_context_t *uc, unw_cursor_t *cursor, _Unwind_Exception *except
 }
 
 
-static _Unwind_Reason_Code
-unwind_phase2(unw_context_t *uc, unw_cursor_t *cursor, _Unwind_Exception *exception_object) {
-  __unw_init_local(cursor, uc);
+static _swift_unwind_Unwind_Reason_Code
+unwind_phase2(swift_unwind_unw_context_t *uc, swift_unwind_unw_cursor_t *cursor, _swift_unwind_Unwind_Exception *exception_object) {
+  __swift_unwind_unw_init_local(cursor, uc);
 
   _LIBUNWIND_TRACE_UNWINDING("unwind_phase2(ex_ojb=%p)",
                              (void *)exception_object);
 
-  // uc is initialized by __unw_getcontext in the parent frame. The first stack
+  // uc is initialized by __swift_unwind_unw_getcontext in the parent frame. The first stack
   // frame walked is unwind_phase2.
   unsigned framesWalked = 1;
   // Walk each frame until we reach where search phase said to stop.
   while (true) {
 
     // Ask libunwind to get next frame (skip over first which is
-    // _Unwind_RaiseException).
-    int stepResult = __unw_step(cursor);
+    // _swift_unwind_Unwind_RaiseException).
+    int stepResult = __swift_unwind_unw_step(cursor);
     if (stepResult == 0) {
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase2(ex_ojb=%p): __unw_step() reached "
+          "unwind_phase2(ex_ojb=%p): __swift_unwind_unw_step() reached "
           "bottom => _URC_END_OF_STACK",
           (void *)exception_object);
       return _URC_END_OF_STACK;
     } else if (stepResult < 0) {
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase2(ex_ojb=%p): __unw_step failed => "
+          "unwind_phase2(ex_ojb=%p): __swift_unwind_unw_step failed => "
           "_URC_FATAL_PHASE1_ERROR",
           (void *)exception_object);
       return _URC_FATAL_PHASE2_ERROR;
     }
 
     // Get info about this frame.
-    unw_word_t sp;
-    unw_proc_info_t frameInfo;
-    __unw_get_reg(cursor, UNW_REG_SP, &sp);
-    if (__unw_get_proc_info(cursor, &frameInfo) != UNW_ESUCCESS) {
+    swift_unwind_unw_word_t sp;
+    swift_unwind_unw_proc_info_t frameInfo;
+    __swift_unwind_unw_get_reg(cursor, UNW_REG_SP, &sp);
+    if (__swift_unwind_unw_get_proc_info(cursor, &frameInfo) != UNW_ESUCCESS) {
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase2(ex_ojb=%p): __unw_get_proc_info "
+          "unwind_phase2(ex_ojb=%p): __swift_unwind_unw_get_proc_info "
           "failed => _URC_FATAL_PHASE1_ERROR",
           (void *)exception_object);
       return _URC_FATAL_PHASE2_ERROR;
@@ -223,8 +223,8 @@ unwind_phase2(unw_context_t *uc, unw_cursor_t *cursor, _Unwind_Exception *except
     if (_LIBUNWIND_TRACING_UNWINDING) {
       char functionBuf[512];
       const char *functionName = functionBuf;
-      unw_word_t offset;
-      if ((__unw_get_proc_name(cursor, functionBuf, sizeof(functionBuf),
+      swift_unwind_unw_word_t offset;
+      if ((__swift_unwind_unw_get_proc_name(cursor, functionBuf, sizeof(functionBuf),
                                &offset) != UNW_ESUCCESS) ||
           (frameInfo.start_ip + offset > frameInfo.end_ip))
         functionName = ".anonymous.";
@@ -240,16 +240,16 @@ unwind_phase2(unw_context_t *uc, unw_cursor_t *cursor, _Unwind_Exception *except
     ++framesWalked;
     // If there is a personality routine, tell it we are unwinding.
     if (frameInfo.handler != 0) {
-      _Unwind_Personality_Fn p =
-          (_Unwind_Personality_Fn)(uintptr_t)(frameInfo.handler);
-      _Unwind_Action action = _UA_CLEANUP_PHASE;
+      _swift_unwind_Unwind_Personality_Fn p =
+          (_swift_unwind_Unwind_Personality_Fn)(uintptr_t)(frameInfo.handler);
+      _swift_unwind_Unwind_Action action = _UA_CLEANUP_PHASE;
       if (sp == exception_object->private_2) {
         // Tell personality this was the frame it marked in phase 1.
-        action = (_Unwind_Action)(_UA_CLEANUP_PHASE | _UA_HANDLER_FRAME);
+        action = (_swift_unwind_Unwind_Action)(_UA_CLEANUP_PHASE | _UA_HANDLER_FRAME);
       }
-       _Unwind_Reason_Code personalityResult =
+       _swift_unwind_Unwind_Reason_Code personalityResult =
           (*p)(1, action, exception_object->exception_class, exception_object,
-               (struct _Unwind_Context *)(cursor));
+               (struct _swift_unwind_Unwind_Context *)(cursor));
       switch (personalityResult) {
       case _URC_CONTINUE_UNWIND:
         // Continue unwinding
@@ -267,19 +267,19 @@ unwind_phase2(unw_context_t *uc, unw_cursor_t *cursor, _Unwind_Exception *except
             "unwind_phase2(ex_ojb=%p): _URC_INSTALL_CONTEXT",
             (void *)exception_object);
         // Personality routine says to transfer control to landing pad.
-        // We may get control back if landing pad calls _Unwind_Resume().
+        // We may get control back if landing pad calls _swift_unwind_Unwind_Resume().
         if (_LIBUNWIND_TRACING_UNWINDING) {
-          unw_word_t pc;
-          __unw_get_reg(cursor, UNW_REG_IP, &pc);
-          __unw_get_reg(cursor, UNW_REG_SP, &sp);
+          swift_unwind_unw_word_t pc;
+          __swift_unwind_unw_get_reg(cursor, UNW_REG_IP, &pc);
+          __swift_unwind_unw_get_reg(cursor, UNW_REG_SP, &sp);
           _LIBUNWIND_TRACE_UNWINDING("unwind_phase2(ex_ojb=%p): re-entering "
                                      "user code with ip=0x%" PRIxPTR
                                      ", sp=0x%" PRIxPTR,
                                      (void *)exception_object, pc, sp);
         }
 
-        __unw_phase2_resume(cursor, framesWalked);
-        // __unw_phase2_resume() only returns if there was an error.
+        __swift_unwind_unw_phase2_resume(cursor, framesWalked);
+        // __swift_unwind_unw_phase2_resume() only returns if there was an error.
         return _URC_FATAL_PHASE2_ERROR;
       default:
         // Personality routine returned an unknown result code.
@@ -295,22 +295,22 @@ unwind_phase2(unw_context_t *uc, unw_cursor_t *cursor, _Unwind_Exception *except
   return _URC_FATAL_PHASE2_ERROR;
 }
 
-static _Unwind_Reason_Code
-unwind_phase2_forced(unw_context_t *uc, unw_cursor_t *cursor,
-                     _Unwind_Exception *exception_object,
-                     _Unwind_Stop_Fn stop, void *stop_parameter) {
-  __unw_init_local(cursor, uc);
+static _swift_unwind_Unwind_Reason_Code
+unwind_phase2_forced(swift_unwind_unw_context_t *uc, swift_unwind_unw_cursor_t *cursor,
+                     _swift_unwind_Unwind_Exception *exception_object,
+                     _swift_unwind_Unwind_Stop_Fn stop, void *stop_parameter) {
+  __swift_unwind_unw_init_local(cursor, uc);
 
-  // uc is initialized by __unw_getcontext in the parent frame. The first stack
+  // uc is initialized by __swift_unwind_unw_getcontext in the parent frame. The first stack
   // frame walked is unwind_phase2_forced.
   unsigned framesWalked = 1;
   // Walk each frame until we reach where search phase said to stop
-  while (__unw_step(cursor) > 0) {
+  while (__swift_unwind_unw_step(cursor) > 0) {
 
     // Update info about this frame.
-    unw_proc_info_t frameInfo;
-    if (__unw_get_proc_info(cursor, &frameInfo) != UNW_ESUCCESS) {
-      _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_ojb=%p): __unw_step "
+    swift_unwind_unw_proc_info_t frameInfo;
+    if (__swift_unwind_unw_get_proc_info(cursor, &frameInfo) != UNW_ESUCCESS) {
+      _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_ojb=%p): __swift_unwind_unw_step "
                                  "failed => _URC_END_OF_STACK",
                                  (void *)exception_object);
       return _URC_FATAL_PHASE2_ERROR;
@@ -321,8 +321,8 @@ unwind_phase2_forced(unw_context_t *uc, unw_cursor_t *cursor,
     if (_LIBUNWIND_TRACING_UNWINDING) {
       char functionBuf[512];
       const char *functionName = functionBuf;
-      unw_word_t offset;
-      if ((__unw_get_proc_name(cursor, functionBuf, sizeof(functionBuf),
+      swift_unwind_unw_word_t offset;
+      if ((__swift_unwind_unw_get_proc_name(cursor, functionBuf, sizeof(functionBuf),
                                &offset) != UNW_ESUCCESS) ||
           (frameInfo.start_ip + offset > frameInfo.end_ip))
         functionName = ".anonymous.";
@@ -335,11 +335,11 @@ unwind_phase2_forced(unw_context_t *uc, unw_cursor_t *cursor,
 #endif
 
     // Call stop function at each frame.
-    _Unwind_Action action =
-        (_Unwind_Action)(_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE);
-    _Unwind_Reason_Code stopResult =
+    _swift_unwind_Unwind_Action action =
+        (_swift_unwind_Unwind_Action)(_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE);
+    _swift_unwind_Unwind_Reason_Code stopResult =
         (*stop)(1, action, exception_object->exception_class, exception_object,
-                (struct _Unwind_Context *)(cursor), stop_parameter);
+                (struct _swift_unwind_Unwind_Context *)(cursor), stop_parameter);
     _LIBUNWIND_TRACE_UNWINDING(
         "unwind_phase2_forced(ex_ojb=%p): stop function returned %d",
         (void *)exception_object, stopResult);
@@ -353,14 +353,14 @@ unwind_phase2_forced(unw_context_t *uc, unw_cursor_t *cursor,
     ++framesWalked;
     // If there is a personality routine, tell it we are unwinding.
     if (frameInfo.handler != 0) {
-      _Unwind_Personality_Fn p =
-          (_Unwind_Personality_Fn)(intptr_t)(frameInfo.handler);
+      _swift_unwind_Unwind_Personality_Fn p =
+          (_swift_unwind_Unwind_Personality_Fn)(intptr_t)(frameInfo.handler);
       _LIBUNWIND_TRACE_UNWINDING(
           "unwind_phase2_forced(ex_ojb=%p): calling personality function %p",
           (void *)exception_object, (void *)(uintptr_t)p);
-      _Unwind_Reason_Code personalityResult =
+      _swift_unwind_Unwind_Reason_Code personalityResult =
           (*p)(1, action, exception_object->exception_class, exception_object,
-               (struct _Unwind_Context *)(cursor));
+               (struct _swift_unwind_Unwind_Context *)(cursor));
       switch (personalityResult) {
       case _URC_CONTINUE_UNWIND:
         _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_ojb=%p): "
@@ -374,8 +374,8 @@ unwind_phase2_forced(unw_context_t *uc, unw_cursor_t *cursor,
                                    "personality returned "
                                    "_URC_INSTALL_CONTEXT",
                                    (void *)exception_object);
-        // We may get control back if landing pad calls _Unwind_Resume().
-        __unw_phase2_resume(cursor, framesWalked);
+        // We may get control back if landing pad calls _swift_unwind_Unwind_Resume().
+        __swift_unwind_unw_phase2_resume(cursor, framesWalked);
         break;
       default:
         // Personality routine returned an unknown result code.
@@ -393,10 +393,10 @@ unwind_phase2_forced(unw_context_t *uc, unw_cursor_t *cursor,
   _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_ojb=%p): calling stop "
                              "function with _UA_END_OF_STACK",
                              (void *)exception_object);
-  _Unwind_Action lastAction =
-      (_Unwind_Action)(_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE | _UA_END_OF_STACK);
+  _swift_unwind_Unwind_Action lastAction =
+      (_swift_unwind_Unwind_Action)(_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE | _UA_END_OF_STACK);
   (*stop)(1, lastAction, exception_object->exception_class, exception_object,
-          (struct _Unwind_Context *)(cursor), stop_parameter);
+          (struct _swift_unwind_Unwind_Context *)(cursor), stop_parameter);
 
   // Clean up phase did not resume at the frame that the search phase said it
   // would.
@@ -405,21 +405,21 @@ unwind_phase2_forced(unw_context_t *uc, unw_cursor_t *cursor,
 
 
 /// Called by __cxa_throw.  Only returns if there is a fatal error.
-_LIBUNWIND_EXPORT _Unwind_Reason_Code
-_Unwind_RaiseException(_Unwind_Exception *exception_object) {
-  _LIBUNWIND_TRACE_API("_Unwind_RaiseException(ex_obj=%p)",
+_LIBUNWIND_EXPORT _swift_unwind_Unwind_Reason_Code
+_swift_unwind_Unwind_RaiseException(_swift_unwind_Unwind_Exception *exception_object) {
+  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_RaiseException(ex_obj=%p)",
                        (void *)exception_object);
-  unw_context_t uc;
-  unw_cursor_t cursor;
-  __unw_getcontext(&uc);
+  swift_unwind_unw_context_t uc;
+  swift_unwind_unw_cursor_t cursor;
+  __swift_unwind_unw_getcontext(&uc);
 
-  // Mark that this is a non-forced unwind, so _Unwind_Resume()
+  // Mark that this is a non-forced unwind, so _swift_unwind_Unwind_Resume()
   // can do the right thing.
   exception_object->private_1 = 0;
   exception_object->private_2 = 0;
 
   // phase 1: the search phase
-  _Unwind_Reason_Code phase1 = unwind_phase1(&uc, &cursor, exception_object);
+  _swift_unwind_Unwind_Reason_Code phase1 = unwind_phase1(&uc, &cursor, exception_object);
   if (phase1 != _URC_NO_REASON)
     return phase1;
 
@@ -429,33 +429,33 @@ _Unwind_RaiseException(_Unwind_Exception *exception_object) {
 
 
 
-/// When _Unwind_RaiseException() is in phase2, it hands control
+/// When _swift_unwind_Unwind_RaiseException() is in phase2, it hands control
 /// to the personality function at each frame.  The personality
 /// may force a jump to a landing pad in that function, the landing
-/// pad code may then call _Unwind_Resume() to continue with the
-/// unwinding.  Note: the call to _Unwind_Resume() is from compiler
-/// geneated user code.  All other _Unwind_* routines are called
+/// pad code may then call _swift_unwind_Unwind_Resume() to continue with the
+/// unwinding.  Note: the call to _swift_unwind_Unwind_Resume() is from compiler
+/// geneated user code.  All other _swift_unwind_Unwind_* routines are called
 /// by the C++ runtime __cxa_* routines.
 ///
 /// Note: re-throwing an exception (as opposed to continuing the unwind)
 /// is implemented by having the code call __cxa_rethrow() which
-/// in turn calls _Unwind_Resume_or_Rethrow().
+/// in turn calls _swift_unwind_Unwind_Resume_or_Rethrow().
 _LIBUNWIND_EXPORT void
-_Unwind_Resume(_Unwind_Exception *exception_object) {
-  _LIBUNWIND_TRACE_API("_Unwind_Resume(ex_obj=%p)", (void *)exception_object);
-  unw_context_t uc;
-  unw_cursor_t cursor;
-  __unw_getcontext(&uc);
+_swift_unwind_Unwind_Resume(_swift_unwind_Unwind_Exception *exception_object) {
+  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_Resume(ex_obj=%p)", (void *)exception_object);
+  swift_unwind_unw_context_t uc;
+  swift_unwind_unw_cursor_t cursor;
+  __swift_unwind_unw_getcontext(&uc);
 
   if (exception_object->private_1 != 0)
     unwind_phase2_forced(&uc, &cursor, exception_object,
-                         (_Unwind_Stop_Fn) exception_object->private_1,
+                         (_swift_unwind_Unwind_Stop_Fn) exception_object->private_1,
                          (void *)exception_object->private_2);
   else
     unwind_phase2(&uc, &cursor, exception_object);
 
-  // Clients assume _Unwind_Resume() does not return, so all we can do is abort.
-  _LIBUNWIND_ABORT("_Unwind_Resume() can't return");
+  // Clients assume _swift_unwind_Unwind_Resume() does not return, so all we can do is abort.
+  _LIBUNWIND_ABORT("_swift_unwind_Unwind_Resume() can't return");
 }
 
 
@@ -463,16 +463,16 @@ _Unwind_Resume(_Unwind_Exception *exception_object) {
 /// Not used by C++.
 /// Unwinds stack, calling "stop" function at each frame.
 /// Could be used to implement longjmp().
-_LIBUNWIND_EXPORT _Unwind_Reason_Code
-_Unwind_ForcedUnwind(_Unwind_Exception *exception_object,
-                     _Unwind_Stop_Fn stop, void *stop_parameter) {
-  _LIBUNWIND_TRACE_API("_Unwind_ForcedUnwind(ex_obj=%p, stop=%p)",
+_LIBUNWIND_EXPORT _swift_unwind_Unwind_Reason_Code
+_swift_unwind_Unwind_ForcedUnwind(_swift_unwind_Unwind_Exception *exception_object,
+                     _swift_unwind_Unwind_Stop_Fn stop, void *stop_parameter) {
+  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_ForcedUnwind(ex_obj=%p, stop=%p)",
                        (void *)exception_object, (void *)(uintptr_t)stop);
-  unw_context_t uc;
-  unw_cursor_t cursor;
-  __unw_getcontext(&uc);
+  swift_unwind_unw_context_t uc;
+  swift_unwind_unw_cursor_t cursor;
+  __swift_unwind_unw_getcontext(&uc);
 
-  // Mark that this is a forced unwind, so _Unwind_Resume() can do
+  // Mark that this is a forced unwind, so _swift_unwind_Unwind_Resume() can do
   // the right thing.
   exception_object->private_1 = (uintptr_t) stop;
   exception_object->private_2 = (uintptr_t) stop_parameter;
@@ -484,14 +484,14 @@ _Unwind_ForcedUnwind(_Unwind_Exception *exception_object,
 
 /// Called by personality handler during phase 2 to get LSDA for current frame.
 _LIBUNWIND_EXPORT uintptr_t
-_Unwind_GetLanguageSpecificData(struct _Unwind_Context *context) {
-  unw_cursor_t *cursor = (unw_cursor_t *)context;
-  unw_proc_info_t frameInfo;
+_swift_unwind_Unwind_GetLanguageSpecificData(struct _swift_unwind_Unwind_Context *context) {
+  swift_unwind_unw_cursor_t *cursor = (swift_unwind_unw_cursor_t *)context;
+  swift_unwind_unw_proc_info_t frameInfo;
   uintptr_t result = 0;
-  if (__unw_get_proc_info(cursor, &frameInfo) == UNW_ESUCCESS)
+  if (__swift_unwind_unw_get_proc_info(cursor, &frameInfo) == UNW_ESUCCESS)
     result = (uintptr_t)frameInfo.lsda;
   _LIBUNWIND_TRACE_API(
-      "_Unwind_GetLanguageSpecificData(context=%p) => 0x%" PRIxPTR,
+      "_swift_unwind_Unwind_GetLanguageSpecificData(context=%p) => 0x%" PRIxPTR,
       (void *)context, result);
   if (result != 0) {
     if (*((uint8_t *)result) != 0xFF)
@@ -505,13 +505,13 @@ _Unwind_GetLanguageSpecificData(struct _Unwind_Context *context) {
 /// Called by personality handler during phase 2 to find the start of the
 /// function.
 _LIBUNWIND_EXPORT uintptr_t
-_Unwind_GetRegionStart(struct _Unwind_Context *context) {
-  unw_cursor_t *cursor = (unw_cursor_t *)context;
-  unw_proc_info_t frameInfo;
+_swift_unwind_Unwind_GetRegionStart(struct _swift_unwind_Unwind_Context *context) {
+  swift_unwind_unw_cursor_t *cursor = (swift_unwind_unw_cursor_t *)context;
+  swift_unwind_unw_proc_info_t frameInfo;
   uintptr_t result = 0;
-  if (__unw_get_proc_info(cursor, &frameInfo) == UNW_ESUCCESS)
+  if (__swift_unwind_unw_get_proc_info(cursor, &frameInfo) == UNW_ESUCCESS)
     result = (uintptr_t)frameInfo.start_ip;
-  _LIBUNWIND_TRACE_API("_Unwind_GetRegionStart(context=%p) => 0x%" PRIxPTR,
+  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_GetRegionStart(context=%p) => 0x%" PRIxPTR,
                        (void *)context, result);
   return result;
 }
@@ -521,8 +521,8 @@ _Unwind_GetRegionStart(struct _Unwind_Context *context) {
 /// Called by personality handler during phase 2 if a foreign exception
 // is caught.
 _LIBUNWIND_EXPORT void
-_Unwind_DeleteException(_Unwind_Exception *exception_object) {
-  _LIBUNWIND_TRACE_API("_Unwind_DeleteException(ex_obj=%p)",
+_swift_unwind_Unwind_DeleteException(_swift_unwind_Unwind_Exception *exception_object) {
+  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_DeleteException(ex_obj=%p)",
                        (void *)exception_object);
   if (exception_object->exception_cleanup != NULL)
     (*exception_object->exception_cleanup)(_URC_FOREIGN_EXCEPTION_CAUGHT,
@@ -531,44 +531,44 @@ _Unwind_DeleteException(_Unwind_Exception *exception_object) {
 
 /// Called by personality handler during phase 2 to get register values.
 _LIBUNWIND_EXPORT uintptr_t
-_Unwind_GetGR(struct _Unwind_Context *context, int index) {
-  unw_cursor_t *cursor = (unw_cursor_t *)context;
-  unw_word_t result;
-  __unw_get_reg(cursor, index, &result);
-  _LIBUNWIND_TRACE_API("_Unwind_GetGR(context=%p, reg=%d) => 0x%" PRIxPTR,
+_swift_unwind_Unwind_GetGR(struct _swift_unwind_Unwind_Context *context, int index) {
+  swift_unwind_unw_cursor_t *cursor = (swift_unwind_unw_cursor_t *)context;
+  swift_unwind_unw_word_t result;
+  __swift_unwind_unw_get_reg(cursor, index, &result);
+  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_GetGR(context=%p, reg=%d) => 0x%" PRIxPTR,
                        (void *)context, index, result);
   return (uintptr_t)result;
 }
 
 /// Called by personality handler during phase 2 to alter register values.
-_LIBUNWIND_EXPORT void _Unwind_SetGR(struct _Unwind_Context *context, int index,
+_LIBUNWIND_EXPORT void _swift_unwind_Unwind_SetGR(struct _swift_unwind_Unwind_Context *context, int index,
                                      uintptr_t value) {
-  _LIBUNWIND_TRACE_API("_Unwind_SetGR(context=%p, reg=%d, value=0x%0" PRIxPTR
+  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_SetGR(context=%p, reg=%d, value=0x%0" PRIxPTR
                        ")",
                        (void *)context, index, value);
-  unw_cursor_t *cursor = (unw_cursor_t *)context;
-  __unw_set_reg(cursor, index, value);
+  swift_unwind_unw_cursor_t *cursor = (swift_unwind_unw_cursor_t *)context;
+  __swift_unwind_unw_set_reg(cursor, index, value);
 }
 
 /// Called by personality handler during phase 2 to get instruction pointer.
-_LIBUNWIND_EXPORT uintptr_t _Unwind_GetIP(struct _Unwind_Context *context) {
-  unw_cursor_t *cursor = (unw_cursor_t *)context;
-  unw_word_t result;
-  __unw_get_reg(cursor, UNW_REG_IP, &result);
-  _LIBUNWIND_TRACE_API("_Unwind_GetIP(context=%p) => 0x%" PRIxPTR,
+_LIBUNWIND_EXPORT uintptr_t _swift_unwind_Unwind_GetIP(struct _swift_unwind_Unwind_Context *context) {
+  swift_unwind_unw_cursor_t *cursor = (swift_unwind_unw_cursor_t *)context;
+  swift_unwind_unw_word_t result;
+  __swift_unwind_unw_get_reg(cursor, UNW_REG_IP, &result);
+  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_GetIP(context=%p) => 0x%" PRIxPTR,
                        (void *)context, result);
   return (uintptr_t)result;
 }
 
 /// Called by personality handler during phase 2 to alter instruction pointer,
-/// such as setting where the landing pad is, so _Unwind_Resume() will
+/// such as setting where the landing pad is, so _swift_unwind_Unwind_Resume() will
 /// start executing in the landing pad.
-_LIBUNWIND_EXPORT void _Unwind_SetIP(struct _Unwind_Context *context,
+_LIBUNWIND_EXPORT void _swift_unwind_Unwind_SetIP(struct _swift_unwind_Unwind_Context *context,
                                      uintptr_t value) {
-  _LIBUNWIND_TRACE_API("_Unwind_SetIP(context=%p, value=0x%0" PRIxPTR ")",
+  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_SetIP(context=%p, value=0x%0" PRIxPTR ")",
                        (void *)context, value);
-  unw_cursor_t *cursor = (unw_cursor_t *)context;
-  __unw_set_reg(cursor, UNW_REG_IP, value);
+  swift_unwind_unw_cursor_t *cursor = (swift_unwind_unw_cursor_t *)context;
+  __swift_unwind_unw_set_reg(cursor, UNW_REG_IP, value);
 }
 
 #endif // !defined(_LIBUNWIND_ARM_EHABI) && !defined(__USING_SJLJ_EXCEPTIONS__)

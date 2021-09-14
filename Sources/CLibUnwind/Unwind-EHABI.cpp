@@ -83,10 +83,10 @@ struct Descriptor {
   } Kind;
 };
 
-_Unwind_Reason_Code ProcessDescriptors(
-    _Unwind_State state,
-    _Unwind_Control_Block* ucbp,
-    struct _Unwind_Context* context,
+_swift_unwind_Unwind_Reason_Code ProcessDescriptors(
+    _swift_unwind_Unwind_State state,
+    _swift_unwind_Unwind_Control_Block* ucbp,
+    struct _swift_unwind_Unwind_Context* context,
     Descriptor::Format format,
     const char* descriptorStart,
     uint32_t flags) {
@@ -129,7 +129,7 @@ _Unwind_Reason_Code ProcessDescriptors(
     offset &= ~1u;
     uintptr_t scopeStart = ucbp->pr_cache.fnstart + offset;
     uintptr_t scopeEnd = scopeStart + length;
-    uintptr_t pc = _Unwind_GetIP(context);
+    uintptr_t pc = _swift_unwind_Unwind_GetIP(context);
     bool isInScope = (scopeStart <= pc) && (pc < scopeEnd);
 
     switch (kind) {
@@ -179,9 +179,9 @@ _Unwind_Reason_Code ProcessDescriptors(
   return _URC_CONTINUE_UNWIND;
 }
 
-static _Unwind_Reason_Code unwindOneFrame(_Unwind_State state,
-                                          _Unwind_Control_Block* ucbp,
-                                          struct _Unwind_Context* context) {
+static _swift_unwind_Unwind_Reason_Code unwindOneFrame(_swift_unwind_Unwind_State state,
+                                          _swift_unwind_Unwind_Control_Block* ucbp,
+                                          struct _swift_unwind_Unwind_Context* context) {
   // Read the compact model EHT entry's header # 6.3
   const uint32_t* unwindingData = ucbp->pr_cache.ehtp;
   assert((*unwindingData & 0xf0000000) == 0x80000000 && "Must be a compact entry");
@@ -189,29 +189,29 @@ static _Unwind_Reason_Code unwindOneFrame(_Unwind_State state,
       static_cast<Descriptor::Format>((*unwindingData & 0x0f000000) >> 24);
 
   const char *lsda =
-      reinterpret_cast<const char *>(_Unwind_GetLanguageSpecificData(context));
+      reinterpret_cast<const char *>(_swift_unwind_Unwind_GetLanguageSpecificData(context));
 
   // Handle descriptors before unwinding so they are processed in the context
   // of the correct stack frame.
-  _Unwind_Reason_Code result =
+  _swift_unwind_Unwind_Reason_Code result =
       ProcessDescriptors(state, ucbp, context, format, lsda,
                          ucbp->pr_cache.additional);
 
   if (result != _URC_CONTINUE_UNWIND)
     return result;
 
-  if (__unw_step(reinterpret_cast<unw_cursor_t *>(context)) != UNW_STEP_SUCCESS)
+  if (__swift_unwind_unw_step(reinterpret_cast<swift_unwind_unw_cursor_t *>(context)) != UNW_STEP_SUCCESS)
     return _URC_FAILURE;
   return _URC_CONTINUE_UNWIND;
 }
 
-// Generates mask discriminator for _Unwind_VRS_Pop, e.g. for _UVRSC_CORE /
+// Generates mask discriminator for _swift_unwind_Unwind_VRS_Pop, e.g. for _UVRSC_CORE /
 // _UVRSD_UINT32.
 uint32_t RegisterMask(uint8_t start, uint8_t count_minus_one) {
   return ((1U << (count_minus_one + 1)) - 1) << start;
 }
 
-// Generates mask discriminator for _Unwind_VRS_Pop, e.g. for _UVRSC_VFP /
+// Generates mask discriminator for _swift_unwind_Unwind_VRS_Pop, e.g. for _UVRSC_VFP /
 // _UVRSD_DOUBLE.
 uint32_t RegisterRange(uint8_t start, uint8_t count_minus_one) {
   return ((uint32_t)start << 16) | ((uint32_t)count_minus_one + 1);
@@ -264,8 +264,8 @@ decode_eht_entry(const uint32_t* data, size_t* off, size_t* len) {
   return data;
 }
 
-_LIBUNWIND_EXPORT _Unwind_Reason_Code
-_Unwind_VRS_Interpret(_Unwind_Context *context, const uint32_t *data,
+_LIBUNWIND_EXPORT _swift_unwind_Unwind_Reason_Code
+_swift_unwind_Unwind_VRS_Interpret(_swift_unwind_Unwind_Context *context, const uint32_t *data,
                       size_t offset, size_t len) {
   bool wrotePC = false;
   bool finish = false;
@@ -273,12 +273,12 @@ _Unwind_VRS_Interpret(_Unwind_Context *context, const uint32_t *data,
     uint8_t byte = getByte(data, offset++);
     if ((byte & 0x80) == 0) {
       uint32_t sp;
-      _Unwind_VRS_Get(context, _UVRSC_CORE, UNW_ARM_SP, _UVRSD_UINT32, &sp);
+      _swift_unwind_Unwind_VRS_Get(context, _UVRSC_CORE, UNW_ARM_SP, _UVRSD_UINT32, &sp);
       if (byte & 0x40)
         sp -= (((uint32_t)byte & 0x3f) << 2) + 4;
       else
         sp += ((uint32_t)byte << 2) + 4;
-      _Unwind_VRS_Set(context, _UVRSC_CORE, UNW_ARM_SP, _UVRSD_UINT32, &sp);
+      _swift_unwind_Unwind_VRS_Set(context, _UVRSC_CORE, UNW_ARM_SP, _UVRSD_UINT32, &sp);
     } else {
       switch (byte & 0xf0) {
         case 0x80: {
@@ -291,7 +291,7 @@ _Unwind_VRS_Interpret(_Unwind_Context *context, const uint32_t *data,
             return _URC_FAILURE;
           if (registers & (1 << 15))
             wrotePC = true;
-          _Unwind_VRS_Pop(context, _UVRSC_CORE, registers, _UVRSD_UINT32);
+          _swift_unwind_Unwind_VRS_Pop(context, _UVRSC_CORE, registers, _UVRSD_UINT32);
           break;
         }
         case 0x90: {
@@ -299,9 +299,9 @@ _Unwind_VRS_Interpret(_Unwind_Context *context, const uint32_t *data,
           if (reg == 13 || reg == 15)
             return _URC_FAILURE;
           uint32_t sp;
-          _Unwind_VRS_Get(context, _UVRSC_CORE, UNW_ARM_R0 + reg,
+          _swift_unwind_Unwind_VRS_Get(context, _UVRSC_CORE, UNW_ARM_R0 + reg,
                           _UVRSD_UINT32, &sp);
-          _Unwind_VRS_Set(context, _UVRSC_CORE, UNW_ARM_SP, _UVRSD_UINT32,
+          _swift_unwind_Unwind_VRS_Set(context, _UVRSC_CORE, UNW_ARM_SP, _UVRSD_UINT32,
                           &sp);
           break;
         }
@@ -309,7 +309,7 @@ _Unwind_VRS_Interpret(_Unwind_Context *context, const uint32_t *data,
           uint32_t registers = RegisterMask(4, byte & 0x07);
           if (byte & 0x08)
             registers |= 1 << 14;
-          _Unwind_VRS_Pop(context, _UVRSC_CORE, registers, _UVRSD_UINT32);
+          _swift_unwind_Unwind_VRS_Pop(context, _UVRSC_CORE, registers, _UVRSD_UINT32);
           break;
         }
         case 0xb0: {
@@ -323,7 +323,7 @@ _Unwind_VRS_Interpret(_Unwind_Context *context, const uint32_t *data,
               uint8_t registers = getByte(data, offset++);
               if (registers & 0xf0 || !registers)
                 return _URC_FAILURE;
-              _Unwind_VRS_Pop(context, _UVRSC_CORE, registers, _UVRSD_UINT32);
+              _swift_unwind_Unwind_VRS_Pop(context, _UVRSC_CORE, registers, _UVRSD_UINT32);
               break;
             }
             case 0xb2: {
@@ -340,16 +340,16 @@ _Unwind_VRS_Interpret(_Unwind_Context *context, const uint32_t *data,
                 shift += 7;
               }
               uint32_t sp;
-              _Unwind_VRS_Get(context, _UVRSC_CORE, UNW_ARM_SP, _UVRSD_UINT32,
+              _swift_unwind_Unwind_VRS_Get(context, _UVRSC_CORE, UNW_ARM_SP, _UVRSD_UINT32,
                               &sp);
               sp += 0x204 + (addend << 2);
-              _Unwind_VRS_Set(context, _UVRSC_CORE, UNW_ARM_SP, _UVRSD_UINT32,
+              _swift_unwind_Unwind_VRS_Set(context, _UVRSC_CORE, UNW_ARM_SP, _UVRSD_UINT32,
                               &sp);
               break;
             }
             case 0xb3: {
               uint8_t v = getByte(data, offset++);
-              _Unwind_VRS_Pop(context, _UVRSC_VFP,
+              _swift_unwind_Unwind_VRS_Pop(context, _UVRSC_VFP,
                               RegisterRange(static_cast<uint8_t>(v >> 4),
                                             v & 0x0f), _UVRSD_VFPX);
               break;
@@ -360,7 +360,7 @@ _Unwind_VRS_Interpret(_Unwind_Context *context, const uint32_t *data,
             case 0xb7:
               return _URC_FAILURE;
             default:
-              _Unwind_VRS_Pop(context, _UVRSC_VFP,
+              _swift_unwind_Unwind_VRS_Pop(context, _UVRSC_VFP,
                               RegisterRange(8, byte & 0x07), _UVRSD_VFPX);
               break;
           }
@@ -375,7 +375,7 @@ _Unwind_VRS_Interpret(_Unwind_Context *context, const uint32_t *data,
             case 0xc3:
             case 0xc4:
             case 0xc5:
-              _Unwind_VRS_Pop(context, _UVRSC_WMMXD,
+              _swift_unwind_Unwind_VRS_Pop(context, _UVRSC_WMMXD,
                               RegisterRange(10, byte & 0x7), _UVRSD_DOUBLE);
               break;
             case 0xc6: {
@@ -384,7 +384,7 @@ _Unwind_VRS_Interpret(_Unwind_Context *context, const uint32_t *data,
               uint8_t count_minus_one = v & 0xf;
               if (start + count_minus_one >= 16)
                 return _URC_FAILURE;
-              _Unwind_VRS_Pop(context, _UVRSC_WMMXD,
+              _swift_unwind_Unwind_VRS_Pop(context, _UVRSC_WMMXD,
                               RegisterRange(start, count_minus_one),
                               _UVRSD_DOUBLE);
               break;
@@ -393,7 +393,7 @@ _Unwind_VRS_Interpret(_Unwind_Context *context, const uint32_t *data,
               uint8_t v = getByte(data, offset++);
               if (!v || v & 0xf0)
                 return _URC_FAILURE;
-              _Unwind_VRS_Pop(context, _UVRSC_WMMXC, v, _UVRSD_DOUBLE);
+              _swift_unwind_Unwind_VRS_Pop(context, _UVRSC_WMMXC, v, _UVRSD_DOUBLE);
               break;
             }
 #endif
@@ -405,7 +405,7 @@ _Unwind_VRS_Interpret(_Unwind_Context *context, const uint32_t *data,
               uint8_t count_minus_one = v & 0xf;
               if (start + count_minus_one >= 32)
                 return _URC_FAILURE;
-              _Unwind_VRS_Pop(context, _UVRSC_VFP,
+              _swift_unwind_Unwind_VRS_Pop(context, _UVRSC_VFP,
                               RegisterRange(start, count_minus_one),
                               _UVRSD_DOUBLE);
               break;
@@ -418,7 +418,7 @@ _Unwind_VRS_Interpret(_Unwind_Context *context, const uint32_t *data,
         case 0xd0: {
           if (byte & 0x08)
             return _URC_FAILURE;
-          _Unwind_VRS_Pop(context, _UVRSC_VFP, RegisterRange(8, byte & 0x7),
+          _swift_unwind_Unwind_VRS_Pop(context, _UVRSC_VFP, RegisterRange(8, byte & 0x7),
                           _UVRSD_DOUBLE);
           break;
         }
@@ -429,48 +429,48 @@ _Unwind_VRS_Interpret(_Unwind_Context *context, const uint32_t *data,
   }
   if (!wrotePC) {
     uint32_t lr;
-    _Unwind_VRS_Get(context, _UVRSC_CORE, UNW_ARM_LR, _UVRSD_UINT32, &lr);
-    _Unwind_VRS_Set(context, _UVRSC_CORE, UNW_ARM_IP, _UVRSD_UINT32, &lr);
+    _swift_unwind_Unwind_VRS_Get(context, _UVRSC_CORE, UNW_ARM_LR, _UVRSD_UINT32, &lr);
+    _swift_unwind_Unwind_VRS_Set(context, _UVRSC_CORE, UNW_ARM_IP, _UVRSD_UINT32, &lr);
   }
   return _URC_CONTINUE_UNWIND;
 }
 
-extern "C" _LIBUNWIND_EXPORT _Unwind_Reason_Code
-__aeabi_unwind_cpp_pr0(_Unwind_State state, _Unwind_Control_Block *ucbp,
-                       _Unwind_Context *context) {
+extern "C" _LIBUNWIND_EXPORT _swift_unwind_Unwind_Reason_Code
+__aeabi_unwind_cpp_pr0(_swift_unwind_Unwind_State state, _swift_unwind_Unwind_Control_Block *ucbp,
+                       _swift_unwind_Unwind_Context *context) {
   return unwindOneFrame(state, ucbp, context);
 }
 
-extern "C" _LIBUNWIND_EXPORT _Unwind_Reason_Code
-__aeabi_unwind_cpp_pr1(_Unwind_State state, _Unwind_Control_Block *ucbp,
-                       _Unwind_Context *context) {
+extern "C" _LIBUNWIND_EXPORT _swift_unwind_Unwind_Reason_Code
+__aeabi_unwind_cpp_pr1(_swift_unwind_Unwind_State state, _swift_unwind_Unwind_Control_Block *ucbp,
+                       _swift_unwind_Unwind_Context *context) {
   return unwindOneFrame(state, ucbp, context);
 }
 
-extern "C" _LIBUNWIND_EXPORT _Unwind_Reason_Code
-__aeabi_unwind_cpp_pr2(_Unwind_State state, _Unwind_Control_Block *ucbp,
-                       _Unwind_Context *context) {
+extern "C" _LIBUNWIND_EXPORT _swift_unwind_Unwind_Reason_Code
+__aeabi_unwind_cpp_pr2(_swift_unwind_Unwind_State state, _swift_unwind_Unwind_Control_Block *ucbp,
+                       _swift_unwind_Unwind_Context *context) {
   return unwindOneFrame(state, ucbp, context);
 }
 
-static _Unwind_Reason_Code
-unwind_phase1(unw_context_t *uc, unw_cursor_t *cursor, _Unwind_Exception *exception_object) {
+static _swift_unwind_Unwind_Reason_Code
+unwind_phase1(swift_unwind_unw_context_t *uc, swift_unwind_unw_cursor_t *cursor, _swift_unwind_Unwind_Exception *exception_object) {
   // EHABI #7.3 discusses preserving the VRS in a "temporary VRS" during
   // phase 1 and then restoring it to the "primary VRS" for phase 2. The
   // effect is phase 2 doesn't see any of the VRS manipulations from phase 1.
   // In this implementation, the phases don't share the VRS backing store.
   // Instead, they are passed the original |uc| and they create a new VRS
   // from scratch thus achieving the same effect.
-  __unw_init_local(cursor, uc);
+  __swift_unwind_unw_init_local(cursor, uc);
 
   // Walk each frame looking for a place to stop.
   for (bool handlerNotFound = true; handlerNotFound;) {
 
     // See if frame has code to run (has personality routine).
-    unw_proc_info_t frameInfo;
-    if (__unw_get_proc_info(cursor, &frameInfo) != UNW_ESUCCESS) {
+    swift_unwind_unw_proc_info_t frameInfo;
+    if (__swift_unwind_unw_get_proc_info(cursor, &frameInfo) != UNW_ESUCCESS) {
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase1(ex_ojb=%p): __unw_get_proc_info "
+          "unwind_phase1(ex_ojb=%p): __swift_unwind_unw_get_proc_info "
           "failed => _URC_FATAL_PHASE1_ERROR",
           static_cast<void *>(exception_object));
       return _URC_FATAL_PHASE1_ERROR;
@@ -481,13 +481,13 @@ unwind_phase1(unw_context_t *uc, unw_cursor_t *cursor, _Unwind_Exception *except
     if (_LIBUNWIND_TRACING_UNWINDING) {
       char functionBuf[512];
       const char *functionName = functionBuf;
-      unw_word_t offset;
-      if ((__unw_get_proc_name(cursor, functionBuf, sizeof(functionBuf),
+      swift_unwind_unw_word_t offset;
+      if ((__swift_unwind_unw_get_proc_name(cursor, functionBuf, sizeof(functionBuf),
                                &offset) != UNW_ESUCCESS) ||
           (frameInfo.start_ip + offset > frameInfo.end_ip))
         functionName = ".anonymous.";
-      unw_word_t pc;
-      __unw_get_reg(cursor, UNW_REG_IP, &pc);
+      swift_unwind_unw_word_t pc;
+      __swift_unwind_unw_get_reg(cursor, UNW_REG_IP, &pc);
       _LIBUNWIND_TRACE_UNWINDING(
           "unwind_phase1(ex_ojb=%p): pc=0x%" PRIxPTR ", start_ip=0x%" PRIxPTR ", func=%s, "
           "lsda=0x%" PRIxPTR ", personality=0x%" PRIxPTR,
@@ -500,18 +500,18 @@ unwind_phase1(unw_context_t *uc, unw_cursor_t *cursor, _Unwind_Exception *except
     // If there is a personality routine, ask it if it will want to stop at
     // this frame.
     if (frameInfo.handler != 0) {
-      _Unwind_Personality_Fn p =
-          (_Unwind_Personality_Fn)(long)(frameInfo.handler);
+      _swift_unwind_Unwind_Personality_Fn p =
+          (_swift_unwind_Unwind_Personality_Fn)(long)(frameInfo.handler);
       _LIBUNWIND_TRACE_UNWINDING(
           "unwind_phase1(ex_ojb=%p): calling personality function %p",
           static_cast<void *>(exception_object),
           reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(p)));
-      struct _Unwind_Context *context = (struct _Unwind_Context *)(cursor);
+      struct _swift_unwind_Unwind_Context *context = (struct _swift_unwind_Unwind_Context *)(cursor);
       exception_object->pr_cache.fnstart = frameInfo.start_ip;
       exception_object->pr_cache.ehtp =
-          (_Unwind_EHT_Header *)frameInfo.unwind_info;
+          (_swift_unwind_Unwind_EHT_Header *)frameInfo.unwind_info;
       exception_object->pr_cache.additional = frameInfo.flags;
-      _Unwind_Reason_Code personalityResult =
+      _swift_unwind_Unwind_Reason_Code personalityResult =
           (*p)(_US_VIRTUAL_UNWIND_FRAME, exception_object, context);
       _LIBUNWIND_TRACE_UNWINDING(
           "unwind_phase1(ex_ojb=%p): personality result %d start_ip %x ehtp %p "
@@ -554,11 +554,11 @@ unwind_phase1(unw_context_t *uc, unw_cursor_t *cursor, _Unwind_Exception *except
   return _URC_NO_REASON;
 }
 
-static _Unwind_Reason_Code unwind_phase2(unw_context_t *uc, unw_cursor_t *cursor,
-                                         _Unwind_Exception *exception_object,
+static _swift_unwind_Unwind_Reason_Code unwind_phase2(swift_unwind_unw_context_t *uc, swift_unwind_unw_cursor_t *cursor,
+                                         _swift_unwind_Unwind_Exception *exception_object,
                                          bool resume) {
   // See comment at the start of unwind_phase1 regarding VRS integrity.
-  __unw_init_local(cursor, uc);
+  __swift_unwind_unw_init_local(cursor, uc);
 
   _LIBUNWIND_TRACE_UNWINDING("unwind_phase2(ex_ojb=%p)",
                              static_cast<void *>(exception_object));
@@ -567,31 +567,31 @@ static _Unwind_Reason_Code unwind_phase2(unw_context_t *uc, unw_cursor_t *cursor
   // Walk each frame until we reach where search phase said to stop.
   while (true) {
     // Ask libunwind to get next frame (skip over first which is
-    // _Unwind_RaiseException or _Unwind_Resume).
+    // _swift_unwind_Unwind_RaiseException or _swift_unwind_Unwind_Resume).
     //
     // Resume only ever makes sense for 1 frame.
-    _Unwind_State state =
+    _swift_unwind_Unwind_State state =
         resume ? _US_UNWIND_FRAME_RESUME : _US_UNWIND_FRAME_STARTING;
     if (resume && frame_count == 1) {
-      // On a resume, first unwind the _Unwind_Resume() frame. The next frame
+      // On a resume, first unwind the _swift_unwind_Unwind_Resume() frame. The next frame
       // is now the landing pad for the cleanup from a previous execution of
       // phase2. To continue unwindingly correctly, replace VRS[15] with the
       // IP of the frame that the previous run of phase2 installed the context
       // for. After this, continue unwinding as if normal.
       //
       // See #7.4.6 for details.
-      __unw_set_reg(cursor, UNW_REG_IP,
+      __swift_unwind_unw_set_reg(cursor, UNW_REG_IP,
                     exception_object->unwinder_cache.reserved2);
       resume = false;
     }
 
     // Get info about this frame.
-    unw_word_t sp;
-    unw_proc_info_t frameInfo;
-    __unw_get_reg(cursor, UNW_REG_SP, &sp);
-    if (__unw_get_proc_info(cursor, &frameInfo) != UNW_ESUCCESS) {
+    swift_unwind_unw_word_t sp;
+    swift_unwind_unw_proc_info_t frameInfo;
+    __swift_unwind_unw_get_reg(cursor, UNW_REG_SP, &sp);
+    if (__swift_unwind_unw_get_proc_info(cursor, &frameInfo) != UNW_ESUCCESS) {
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase2(ex_ojb=%p): __unw_get_proc_info "
+          "unwind_phase2(ex_ojb=%p): __swift_unwind_unw_get_proc_info "
           "failed => _URC_FATAL_PHASE2_ERROR",
           static_cast<void *>(exception_object));
       return _URC_FATAL_PHASE2_ERROR;
@@ -602,8 +602,8 @@ static _Unwind_Reason_Code unwind_phase2(unw_context_t *uc, unw_cursor_t *cursor
     if (_LIBUNWIND_TRACING_UNWINDING) {
       char functionBuf[512];
       const char *functionName = functionBuf;
-      unw_word_t offset;
-      if ((__unw_get_proc_name(cursor, functionBuf, sizeof(functionBuf),
+      swift_unwind_unw_word_t offset;
+      if ((__swift_unwind_unw_get_proc_name(cursor, functionBuf, sizeof(functionBuf),
                                &offset) != UNW_ESUCCESS) ||
           (frameInfo.start_ip + offset > frameInfo.end_ip))
         functionName = ".anonymous.";
@@ -618,15 +618,15 @@ static _Unwind_Reason_Code unwind_phase2(unw_context_t *uc, unw_cursor_t *cursor
 
     // If there is a personality routine, tell it we are unwinding.
     if (frameInfo.handler != 0) {
-      _Unwind_Personality_Fn p =
-          (_Unwind_Personality_Fn)(intptr_t)(frameInfo.handler);
-      struct _Unwind_Context *context = (struct _Unwind_Context *)(cursor);
+      _swift_unwind_Unwind_Personality_Fn p =
+          (_swift_unwind_Unwind_Personality_Fn)(intptr_t)(frameInfo.handler);
+      struct _swift_unwind_Unwind_Context *context = (struct _swift_unwind_Unwind_Context *)(cursor);
       // EHABI #7.2
       exception_object->pr_cache.fnstart = frameInfo.start_ip;
       exception_object->pr_cache.ehtp =
-          (_Unwind_EHT_Header *)frameInfo.unwind_info;
+          (_swift_unwind_Unwind_EHT_Header *)frameInfo.unwind_info;
       exception_object->pr_cache.additional = frameInfo.flags;
-      _Unwind_Reason_Code personalityResult =
+      _swift_unwind_Unwind_Reason_Code personalityResult =
           (*p)(state, exception_object, context);
       switch (personalityResult) {
       case _URC_CONTINUE_UNWIND:
@@ -646,11 +646,11 @@ static _Unwind_Reason_Code unwind_phase2(unw_context_t *uc, unw_cursor_t *cursor
             "unwind_phase2(ex_ojb=%p): _URC_INSTALL_CONTEXT",
             static_cast<void *>(exception_object));
         // Personality routine says to transfer control to landing pad.
-        // We may get control back if landing pad calls _Unwind_Resume().
+        // We may get control back if landing pad calls _swift_unwind_Unwind_Resume().
         if (_LIBUNWIND_TRACING_UNWINDING) {
-          unw_word_t pc;
-          __unw_get_reg(cursor, UNW_REG_IP, &pc);
-          __unw_get_reg(cursor, UNW_REG_SP, &sp);
+          swift_unwind_unw_word_t pc;
+          __swift_unwind_unw_get_reg(cursor, UNW_REG_IP, &pc);
+          __swift_unwind_unw_get_reg(cursor, UNW_REG_SP, &sp);
           _LIBUNWIND_TRACE_UNWINDING("unwind_phase2(ex_ojb=%p): re-entering "
                                      "user code with ip=0x%" PRIxPTR ", sp=0x%" PRIxPTR,
                                      static_cast<void *>(exception_object),
@@ -658,14 +658,14 @@ static _Unwind_Reason_Code unwind_phase2(unw_context_t *uc, unw_cursor_t *cursor
         }
 
         {
-          // EHABI #7.4.1 says we need to preserve pc for when _Unwind_Resume
+          // EHABI #7.4.1 says we need to preserve pc for when _swift_unwind_Unwind_Resume
           // is called back, to find this same frame.
-          unw_word_t pc;
-          __unw_get_reg(cursor, UNW_REG_IP, &pc);
+          swift_unwind_unw_word_t pc;
+          __swift_unwind_unw_get_reg(cursor, UNW_REG_IP, &pc);
           exception_object->unwinder_cache.reserved2 = (uint32_t)pc;
         }
-        __unw_resume(cursor);
-        // __unw_resume() only returns if there was an error.
+        __swift_unwind_unw_resume(cursor);
+        // __swift_unwind_unw_resume() only returns if there was an error.
         return _URC_FATAL_PHASE2_ERROR;
 
       // # EHABI #7.4.3
@@ -687,20 +687,20 @@ static _Unwind_Reason_Code unwind_phase2(unw_context_t *uc, unw_cursor_t *cursor
   return _URC_FATAL_PHASE2_ERROR;
 }
 
-static _Unwind_Reason_Code
-unwind_phase2_forced(unw_context_t *uc, unw_cursor_t *cursor,
-                     _Unwind_Exception *exception_object, _Unwind_Stop_Fn stop,
+static _swift_unwind_Unwind_Reason_Code
+unwind_phase2_forced(swift_unwind_unw_context_t *uc, swift_unwind_unw_cursor_t *cursor,
+                     _swift_unwind_Unwind_Exception *exception_object, _swift_unwind_Unwind_Stop_Fn stop,
                      void *stop_parameter) {
   // See comment at the start of unwind_phase1 regarding VRS integrity.
-  __unw_init_local(cursor, uc);
+  __swift_unwind_unw_init_local(cursor, uc);
   _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_force(ex_ojb=%p)",
                              static_cast<void *>(exception_object));
   // Walk each frame until we reach where search phase said to stop
   while (true) {
     // Update info about this frame.
-    unw_proc_info_t frameInfo;
-    if (__unw_get_proc_info(cursor, &frameInfo) != UNW_ESUCCESS) {
-      _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_ojb=%p): __unw_step "
+    swift_unwind_unw_proc_info_t frameInfo;
+    if (__swift_unwind_unw_get_proc_info(cursor, &frameInfo) != UNW_ESUCCESS) {
+      _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_ojb=%p): __swift_unwind_unw_step "
                                  "failed => _URC_END_OF_STACK",
                                  (void *)exception_object);
       return _URC_FATAL_PHASE2_ERROR;
@@ -711,8 +711,8 @@ unwind_phase2_forced(unw_context_t *uc, unw_cursor_t *cursor,
     if (_LIBUNWIND_TRACING_UNWINDING) {
       char functionBuf[512];
       const char *functionName = functionBuf;
-      unw_word_t offset;
-      if ((__unw_get_proc_name(cursor, functionBuf, sizeof(functionBuf),
+      swift_unwind_unw_word_t offset;
+      if ((__swift_unwind_unw_get_proc_name(cursor, functionBuf, sizeof(functionBuf),
                                &offset) != UNW_ESUCCESS) ||
           (frameInfo.start_ip + offset > frameInfo.end_ip))
         functionName = ".anonymous.";
@@ -725,11 +725,11 @@ unwind_phase2_forced(unw_context_t *uc, unw_cursor_t *cursor,
 #endif
 
     // Call stop function at each frame.
-    _Unwind_Action action =
-        (_Unwind_Action)(_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE);
-    _Unwind_Reason_Code stopResult =
+    _swift_unwind_Unwind_Action action =
+        (_swift_unwind_Unwind_Action)(_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE);
+    _swift_unwind_Unwind_Reason_Code stopResult =
         (*stop)(1, action, exception_object->exception_class, exception_object,
-                (_Unwind_Context *)(cursor), stop_parameter);
+                (_swift_unwind_Unwind_Context *)(cursor), stop_parameter);
     _LIBUNWIND_TRACE_UNWINDING(
         "unwind_phase2_forced(ex_ojb=%p): stop function returned %d",
         (void *)exception_object, stopResult);
@@ -742,15 +742,15 @@ unwind_phase2_forced(unw_context_t *uc, unw_cursor_t *cursor,
 
     // If there is a personality routine, tell it we are unwinding.
     if (frameInfo.handler != 0) {
-      _Unwind_Personality_Fn p =
-          (_Unwind_Personality_Fn)(uintptr_t)(frameInfo.handler);
-      struct _Unwind_Context *context = (struct _Unwind_Context *)(cursor);
+      _swift_unwind_Unwind_Personality_Fn p =
+          (_swift_unwind_Unwind_Personality_Fn)(uintptr_t)(frameInfo.handler);
+      struct _swift_unwind_Unwind_Context *context = (struct _swift_unwind_Unwind_Context *)(cursor);
       // EHABI #7.2
       exception_object->pr_cache.fnstart = frameInfo.start_ip;
       exception_object->pr_cache.ehtp =
-          (_Unwind_EHT_Header *)frameInfo.unwind_info;
+          (_swift_unwind_Unwind_EHT_Header *)frameInfo.unwind_info;
       exception_object->pr_cache.additional = frameInfo.flags;
-      _Unwind_Reason_Code personalityResult =
+      _swift_unwind_Unwind_Reason_Code personalityResult =
           (*p)(_US_FORCE_UNWIND | _US_UNWIND_FRAME_STARTING, exception_object,
                context);
       switch (personalityResult) {
@@ -766,8 +766,8 @@ unwind_phase2_forced(unw_context_t *uc, unw_cursor_t *cursor,
                                    "personality returned "
                                    "_URC_INSTALL_CONTEXT",
                                    (void *)exception_object);
-        // We may get control back if landing pad calls _Unwind_Resume().
-        __unw_resume(cursor);
+        // We may get control back if landing pad calls _swift_unwind_Unwind_Resume().
+        __swift_unwind_unw_resume(cursor);
         break;
       default:
         // Personality routine returned an unknown result code.
@@ -785,10 +785,10 @@ unwind_phase2_forced(unw_context_t *uc, unw_cursor_t *cursor,
   _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_ojb=%p): calling stop "
                              "function with _UA_END_OF_STACK",
                              (void *)exception_object);
-  _Unwind_Action lastAction =
-      (_Unwind_Action)(_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE | _UA_END_OF_STACK);
+  _swift_unwind_Unwind_Action lastAction =
+      (_swift_unwind_Unwind_Action)(_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE | _UA_END_OF_STACK);
   (*stop)(1, lastAction, exception_object->exception_class, exception_object,
-          (struct _Unwind_Context *)(cursor), stop_parameter);
+          (struct _swift_unwind_Unwind_Context *)(cursor), stop_parameter);
 
   // Clean up phase did not resume at the frame that the search phase said it
   // would.
@@ -796,20 +796,20 @@ unwind_phase2_forced(unw_context_t *uc, unw_cursor_t *cursor,
 }
 
 /// Called by __cxa_throw.  Only returns if there is a fatal error.
-_LIBUNWIND_EXPORT _Unwind_Reason_Code
-_Unwind_RaiseException(_Unwind_Exception *exception_object) {
-  _LIBUNWIND_TRACE_API("_Unwind_RaiseException(ex_obj=%p)",
+_LIBUNWIND_EXPORT _swift_unwind_Unwind_Reason_Code
+_swift_unwind_Unwind_RaiseException(_swift_unwind_Unwind_Exception *exception_object) {
+  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_RaiseException(ex_obj=%p)",
                        static_cast<void *>(exception_object));
-  unw_context_t uc;
-  unw_cursor_t cursor;
-  __unw_getcontext(&uc);
+  swift_unwind_unw_context_t uc;
+  swift_unwind_unw_cursor_t cursor;
+  __swift_unwind_unw_getcontext(&uc);
 
   // This field for is for compatibility with GCC to say this isn't a forced
   // unwind. EHABI #7.2
   exception_object->unwinder_cache.reserved1 = 0;
 
   // phase 1: the search phase
-  _Unwind_Reason_Code phase1 = unwind_phase1(&uc, &cursor, exception_object);
+  _swift_unwind_Unwind_Reason_Code phase1 = unwind_phase1(&uc, &cursor, exception_object);
   if (phase1 != _URC_NO_REASON)
     return phase1;
 
@@ -817,58 +817,58 @@ _Unwind_RaiseException(_Unwind_Exception *exception_object) {
   return unwind_phase2(&uc, &cursor, exception_object, false);
 }
 
-_LIBUNWIND_EXPORT void _Unwind_Complete(_Unwind_Exception* exception_object) {
+_LIBUNWIND_EXPORT void _swift_unwind_Unwind_Complete(_swift_unwind_Unwind_Exception* exception_object) {
   // This is to be called when exception handling completes to give us a chance
   // to perform any housekeeping. EHABI #7.2. But we have nothing to do here.
   (void)exception_object;
 }
 
-/// When _Unwind_RaiseException() is in phase2, it hands control
+/// When _swift_unwind_Unwind_RaiseException() is in phase2, it hands control
 /// to the personality function at each frame.  The personality
 /// may force a jump to a landing pad in that function, the landing
-/// pad code may then call _Unwind_Resume() to continue with the
-/// unwinding.  Note: the call to _Unwind_Resume() is from compiler
-/// geneated user code.  All other _Unwind_* routines are called
+/// pad code may then call _swift_unwind_Unwind_Resume() to continue with the
+/// unwinding.  Note: the call to _swift_unwind_Unwind_Resume() is from compiler
+/// geneated user code.  All other _swift_unwind_Unwind_* routines are called
 /// by the C++ runtime __cxa_* routines.
 ///
 /// Note: re-throwing an exception (as opposed to continuing the unwind)
 /// is implemented by having the code call __cxa_rethrow() which
-/// in turn calls _Unwind_Resume_or_Rethrow().
+/// in turn calls _swift_unwind_Unwind_Resume_or_Rethrow().
 _LIBUNWIND_EXPORT void
-_Unwind_Resume(_Unwind_Exception *exception_object) {
-  _LIBUNWIND_TRACE_API("_Unwind_Resume(ex_obj=%p)",
+_swift_unwind_Unwind_Resume(_swift_unwind_Unwind_Exception *exception_object) {
+  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_Resume(ex_obj=%p)",
                        static_cast<void *>(exception_object));
-  unw_context_t uc;
-  unw_cursor_t cursor;
-  __unw_getcontext(&uc);
+  swift_unwind_unw_context_t uc;
+  swift_unwind_unw_cursor_t cursor;
+  __swift_unwind_unw_getcontext(&uc);
 
   if (exception_object->unwinder_cache.reserved1)
     unwind_phase2_forced(
         &uc, &cursor, exception_object,
-        (_Unwind_Stop_Fn)exception_object->unwinder_cache.reserved1,
+        (_swift_unwind_Unwind_Stop_Fn)exception_object->unwinder_cache.reserved1,
         (void *)exception_object->unwinder_cache.reserved3);
   else
     unwind_phase2(&uc, &cursor, exception_object, true);
 
-  // Clients assume _Unwind_Resume() does not return, so all we can do is abort.
-  _LIBUNWIND_ABORT("_Unwind_Resume() can't return");
+  // Clients assume _swift_unwind_Unwind_Resume() does not return, so all we can do is abort.
+  _LIBUNWIND_ABORT("_swift_unwind_Unwind_Resume() can't return");
 }
 
 /// Called by personality handler during phase 2 to get LSDA for current frame.
 _LIBUNWIND_EXPORT uintptr_t
-_Unwind_GetLanguageSpecificData(struct _Unwind_Context *context) {
-  unw_cursor_t *cursor = (unw_cursor_t *)context;
-  unw_proc_info_t frameInfo;
+_swift_unwind_Unwind_GetLanguageSpecificData(struct _swift_unwind_Unwind_Context *context) {
+  swift_unwind_unw_cursor_t *cursor = (swift_unwind_unw_cursor_t *)context;
+  swift_unwind_unw_proc_info_t frameInfo;
   uintptr_t result = 0;
-  if (__unw_get_proc_info(cursor, &frameInfo) == UNW_ESUCCESS)
+  if (__swift_unwind_unw_get_proc_info(cursor, &frameInfo) == UNW_ESUCCESS)
     result = (uintptr_t)frameInfo.lsda;
   _LIBUNWIND_TRACE_API(
-      "_Unwind_GetLanguageSpecificData(context=%p) => 0x%llx",
+      "_swift_unwind_Unwind_GetLanguageSpecificData(context=%p) => 0x%llx",
       static_cast<void *>(context), (long long)result);
   return result;
 }
 
-static uint64_t ValueAsBitPattern(_Unwind_VRS_DataRepresentation representation,
+static uint64_t ValueAsBitPattern(_swift_unwind_Unwind_VRS_DataRepresentation representation,
                                   void* valuep) {
   uint64_t value = 0;
   switch (representation) {
@@ -886,22 +886,22 @@ static uint64_t ValueAsBitPattern(_Unwind_VRS_DataRepresentation representation,
   return value;
 }
 
-_LIBUNWIND_EXPORT _Unwind_VRS_Result
-_Unwind_VRS_Set(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
-                uint32_t regno, _Unwind_VRS_DataRepresentation representation,
+_LIBUNWIND_EXPORT _swift_unwind_Unwind_VRS_Result
+_swift_unwind_Unwind_VRS_Set(_swift_unwind_Unwind_Context *context, _swift_unwind_Unwind_VRS_RegClass regclass,
+                uint32_t regno, _swift_unwind_Unwind_VRS_DataRepresentation representation,
                 void *valuep) {
-  _LIBUNWIND_TRACE_API("_Unwind_VRS_Set(context=%p, regclass=%d, reg=%d, "
+  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_VRS_Set(context=%p, regclass=%d, reg=%d, "
                        "rep=%d, value=0x%llX)",
                        static_cast<void *>(context), regclass, regno,
                        representation,
                        ValueAsBitPattern(representation, valuep));
-  unw_cursor_t *cursor = (unw_cursor_t *)context;
+  swift_unwind_unw_cursor_t *cursor = (swift_unwind_unw_cursor_t *)context;
   switch (regclass) {
     case _UVRSC_CORE:
       if (representation != _UVRSD_UINT32 || regno > 15)
         return _UVRSR_FAILED;
-      return __unw_set_reg(cursor, (unw_regnum_t)(UNW_ARM_R0 + regno),
-                           *(unw_word_t *)valuep) == UNW_ESUCCESS
+      return __swift_unwind_unw_set_reg(cursor, (swift_unwind_unw_regnum_t)(UNW_ARM_R0 + regno),
+                           *(swift_unwind_unw_word_t *)valuep) == UNW_ESUCCESS
                  ? _UVRSR_OK
                  : _UVRSR_FAILED;
     case _UVRSC_VFP:
@@ -911,28 +911,28 @@ _Unwind_VRS_Set(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
         // Can only touch d0-15 with FSTMFDX.
         if (regno > 15)
           return _UVRSR_FAILED;
-        __unw_save_vfp_as_X(cursor);
+        __swift_unwind_unw_save_vfp_as_X(cursor);
       } else {
         if (regno > 31)
           return _UVRSR_FAILED;
       }
-      return __unw_set_fpreg(cursor, (unw_regnum_t)(UNW_ARM_D0 + regno),
-                             *(unw_fpreg_t *)valuep) == UNW_ESUCCESS
+      return __swift_unwind_unw_set_fpreg(cursor, (swift_unwind_unw_regnum_t)(UNW_ARM_D0 + regno),
+                             *(swift_unwind_unw_fpreg_t *)valuep) == UNW_ESUCCESS
                  ? _UVRSR_OK
                  : _UVRSR_FAILED;
 #if defined(__ARM_WMMX)
     case _UVRSC_WMMXC:
       if (representation != _UVRSD_UINT32 || regno > 3)
         return _UVRSR_FAILED;
-      return __unw_set_reg(cursor, (unw_regnum_t)(UNW_ARM_WC0 + regno),
-                           *(unw_word_t *)valuep) == UNW_ESUCCESS
+      return __swift_unwind_unw_set_reg(cursor, (swift_unwind_unw_regnum_t)(UNW_ARM_WC0 + regno),
+                           *(swift_unwind_unw_word_t *)valuep) == UNW_ESUCCESS
                  ? _UVRSR_OK
                  : _UVRSR_FAILED;
     case _UVRSC_WMMXD:
       if (representation != _UVRSD_DOUBLE || regno > 31)
         return _UVRSR_FAILED;
-      return __unw_set_fpreg(cursor, (unw_regnum_t)(UNW_ARM_WR0 + regno),
-                             *(unw_fpreg_t *)valuep) == UNW_ESUCCESS
+      return __swift_unwind_unw_set_fpreg(cursor, (swift_unwind_unw_regnum_t)(UNW_ARM_WR0 + regno),
+                             *(swift_unwind_unw_fpreg_t *)valuep) == UNW_ESUCCESS
                  ? _UVRSR_OK
                  : _UVRSR_FAILED;
 #else
@@ -944,18 +944,18 @@ _Unwind_VRS_Set(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
   _LIBUNWIND_ABORT("unsupported register class");
 }
 
-static _Unwind_VRS_Result
-_Unwind_VRS_Get_Internal(_Unwind_Context *context,
-                         _Unwind_VRS_RegClass regclass, uint32_t regno,
-                         _Unwind_VRS_DataRepresentation representation,
+static _swift_unwind_Unwind_VRS_Result
+_swift_unwind_Unwind_VRS_Get_Internal(_swift_unwind_Unwind_Context *context,
+                         _swift_unwind_Unwind_VRS_RegClass regclass, uint32_t regno,
+                         _swift_unwind_Unwind_VRS_DataRepresentation representation,
                          void *valuep) {
-  unw_cursor_t *cursor = (unw_cursor_t *)context;
+  swift_unwind_unw_cursor_t *cursor = (swift_unwind_unw_cursor_t *)context;
   switch (regclass) {
     case _UVRSC_CORE:
       if (representation != _UVRSD_UINT32 || regno > 15)
         return _UVRSR_FAILED;
-      return __unw_get_reg(cursor, (unw_regnum_t)(UNW_ARM_R0 + regno),
-                           (unw_word_t *)valuep) == UNW_ESUCCESS
+      return __swift_unwind_unw_get_reg(cursor, (swift_unwind_unw_regnum_t)(UNW_ARM_R0 + regno),
+                           (swift_unwind_unw_word_t *)valuep) == UNW_ESUCCESS
                  ? _UVRSR_OK
                  : _UVRSR_FAILED;
     case _UVRSC_VFP:
@@ -965,28 +965,28 @@ _Unwind_VRS_Get_Internal(_Unwind_Context *context,
         // Can only touch d0-15 with FSTMFDX.
         if (regno > 15)
           return _UVRSR_FAILED;
-        __unw_save_vfp_as_X(cursor);
+        __swift_unwind_unw_save_vfp_as_X(cursor);
       } else {
         if (regno > 31)
           return _UVRSR_FAILED;
       }
-      return __unw_get_fpreg(cursor, (unw_regnum_t)(UNW_ARM_D0 + regno),
-                             (unw_fpreg_t *)valuep) == UNW_ESUCCESS
+      return __swift_unwind_unw_get_fpreg(cursor, (swift_unwind_unw_regnum_t)(UNW_ARM_D0 + regno),
+                             (swift_unwind_unw_fpreg_t *)valuep) == UNW_ESUCCESS
                  ? _UVRSR_OK
                  : _UVRSR_FAILED;
 #if defined(__ARM_WMMX)
     case _UVRSC_WMMXC:
       if (representation != _UVRSD_UINT32 || regno > 3)
         return _UVRSR_FAILED;
-      return __unw_get_reg(cursor, (unw_regnum_t)(UNW_ARM_WC0 + regno),
-                           (unw_word_t *)valuep) == UNW_ESUCCESS
+      return __swift_unwind_unw_get_reg(cursor, (swift_unwind_unw_regnum_t)(UNW_ARM_WC0 + regno),
+                           (swift_unwind_unw_word_t *)valuep) == UNW_ESUCCESS
                  ? _UVRSR_OK
                  : _UVRSR_FAILED;
     case _UVRSC_WMMXD:
       if (representation != _UVRSD_DOUBLE || regno > 31)
         return _UVRSR_FAILED;
-      return __unw_get_fpreg(cursor, (unw_regnum_t)(UNW_ARM_WR0 + regno),
-                             (unw_fpreg_t *)valuep) == UNW_ESUCCESS
+      return __swift_unwind_unw_get_fpreg(cursor, (swift_unwind_unw_regnum_t)(UNW_ARM_WR0 + regno),
+                             (swift_unwind_unw_fpreg_t *)valuep) == UNW_ESUCCESS
                  ? _UVRSR_OK
                  : _UVRSR_FAILED;
 #else
@@ -998,14 +998,14 @@ _Unwind_VRS_Get_Internal(_Unwind_Context *context,
   _LIBUNWIND_ABORT("unsupported register class");
 }
 
-_LIBUNWIND_EXPORT _Unwind_VRS_Result
-_Unwind_VRS_Get(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
-                uint32_t regno, _Unwind_VRS_DataRepresentation representation,
+_LIBUNWIND_EXPORT _swift_unwind_Unwind_VRS_Result
+_swift_unwind_Unwind_VRS_Get(_swift_unwind_Unwind_Context *context, _swift_unwind_Unwind_VRS_RegClass regclass,
+                uint32_t regno, _swift_unwind_Unwind_VRS_DataRepresentation representation,
                 void *valuep) {
-  _Unwind_VRS_Result result =
-      _Unwind_VRS_Get_Internal(context, regclass, regno, representation,
+  _swift_unwind_Unwind_VRS_Result result =
+      _swift_unwind_Unwind_VRS_Get_Internal(context, regclass, regno, representation,
                                valuep);
-  _LIBUNWIND_TRACE_API("_Unwind_VRS_Get(context=%p, regclass=%d, reg=%d, "
+  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_VRS_Get(context=%p, regclass=%d, reg=%d, "
                        "rep=%d, value=0x%llX, result = %d)",
                        static_cast<void *>(context), regclass, regno,
                        representation,
@@ -1013,11 +1013,11 @@ _Unwind_VRS_Get(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
   return result;
 }
 
-_Unwind_VRS_Result
-_Unwind_VRS_Pop(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
+_swift_unwind_Unwind_VRS_Result
+_swift_unwind_Unwind_VRS_Pop(_swift_unwind_Unwind_Context *context, _swift_unwind_Unwind_VRS_RegClass regclass,
                 uint32_t discriminator,
-                _Unwind_VRS_DataRepresentation representation) {
-  _LIBUNWIND_TRACE_API("_Unwind_VRS_Pop(context=%p, regclass=%d, "
+                _swift_unwind_Unwind_VRS_DataRepresentation representation) {
+  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_VRS_Pop(context=%p, regclass=%d, "
                        "discriminator=%d, representation=%d)",
                        static_cast<void *>(context), regclass, discriminator,
                        representation);
@@ -1033,7 +1033,7 @@ _Unwind_VRS_Pop(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
       // computed new stack location. See EHABI #7.5.4 table 3.
       bool poppedSP = false;
       uint32_t* sp;
-      if (_Unwind_VRS_Get(context, _UVRSC_CORE, UNW_ARM_SP,
+      if (_swift_unwind_Unwind_VRS_Get(context, _UVRSC_CORE, UNW_ARM_SP,
                           _UVRSD_UINT32, &sp) != _UVRSR_OK) {
         return _UVRSR_FAILED;
       }
@@ -1043,13 +1043,13 @@ _Unwind_VRS_Pop(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
         uint32_t value = *sp++;
         if (regclass == _UVRSC_CORE && i == 13)
           poppedSP = true;
-        if (_Unwind_VRS_Set(context, regclass, i,
+        if (_swift_unwind_Unwind_VRS_Set(context, regclass, i,
                             _UVRSD_UINT32, &value) != _UVRSR_OK) {
           return _UVRSR_FAILED;
         }
       }
       if (!poppedSP) {
-        return _Unwind_VRS_Set(context, _UVRSC_CORE, UNW_ARM_SP,
+        return _swift_unwind_Unwind_VRS_Set(context, _UVRSC_CORE, UNW_ARM_SP,
                                _UVRSD_UINT32, &sp);
       }
       return _UVRSR_OK;
@@ -1065,7 +1065,7 @@ _Unwind_VRS_Pop(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
       uint32_t count = discriminator & 0xffff;
       uint32_t end = first+count;
       uint32_t* sp;
-      if (_Unwind_VRS_Get(context, _UVRSC_CORE, UNW_ARM_SP,
+      if (_swift_unwind_Unwind_VRS_Get(context, _UVRSC_CORE, UNW_ARM_SP,
                           _UVRSD_UINT32, &sp) != _UVRSR_OK) {
         return _UVRSR_FAILED;
       }
@@ -1082,13 +1082,13 @@ _Unwind_VRS_Pop(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
 #else
 #error "Unable to determine endianess"
 #endif
-        if (_Unwind_VRS_Set(context, regclass, i, representation, &value) !=
+        if (_swift_unwind_Unwind_VRS_Set(context, regclass, i, representation, &value) !=
             _UVRSR_OK)
           return _UVRSR_FAILED;
       }
       if (representation == _UVRSD_VFPX)
         ++sp;
-      return _Unwind_VRS_Set(context, _UVRSC_CORE, UNW_ARM_SP, _UVRSD_UINT32,
+      return _swift_unwind_Unwind_VRS_Set(context, _UVRSC_CORE, UNW_ARM_SP, _UVRSD_UINT32,
                              &sp);
     }
   }
@@ -1098,16 +1098,16 @@ _Unwind_VRS_Pop(_Unwind_Context *context, _Unwind_VRS_RegClass regclass,
 /// Not used by C++.
 /// Unwinds stack, calling "stop" function at each frame.
 /// Could be used to implement longjmp().
-_LIBUNWIND_EXPORT _Unwind_Reason_Code
-_Unwind_ForcedUnwind(_Unwind_Exception *exception_object, _Unwind_Stop_Fn stop,
+_LIBUNWIND_EXPORT _swift_unwind_Unwind_Reason_Code
+_swift_unwind_Unwind_ForcedUnwind(_swift_unwind_Unwind_Exception *exception_object, _swift_unwind_Unwind_Stop_Fn stop,
                      void *stop_parameter) {
-  _LIBUNWIND_TRACE_API("_Unwind_ForcedUnwind(ex_obj=%p, stop=%p)",
+  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_ForcedUnwind(ex_obj=%p, stop=%p)",
                        (void *)exception_object, (void *)(uintptr_t)stop);
-  unw_context_t uc;
-  unw_cursor_t cursor;
-  __unw_getcontext(&uc);
+  swift_unwind_unw_context_t uc;
+  swift_unwind_unw_cursor_t cursor;
+  __swift_unwind_unw_getcontext(&uc);
 
-  // Mark that this is a forced unwind, so _Unwind_Resume() can do
+  // Mark that this is a forced unwind, so _swift_unwind_Unwind_Resume() can do
   // the right thing.
   exception_object->unwinder_cache.reserved1 = (uintptr_t)stop;
   exception_object->unwinder_cache.reserved3 = (uintptr_t)stop_parameter;
@@ -1119,13 +1119,13 @@ _Unwind_ForcedUnwind(_Unwind_Exception *exception_object, _Unwind_Stop_Fn stop,
 /// Called by personality handler during phase 2 to find the start of the
 /// function.
 _LIBUNWIND_EXPORT uintptr_t
-_Unwind_GetRegionStart(struct _Unwind_Context *context) {
-  unw_cursor_t *cursor = (unw_cursor_t *)context;
-  unw_proc_info_t frameInfo;
+_swift_unwind_Unwind_GetRegionStart(struct _swift_unwind_Unwind_Context *context) {
+  swift_unwind_unw_cursor_t *cursor = (swift_unwind_unw_cursor_t *)context;
+  swift_unwind_unw_proc_info_t frameInfo;
   uintptr_t result = 0;
-  if (__unw_get_proc_info(cursor, &frameInfo) == UNW_ESUCCESS)
+  if (__swift_unwind_unw_get_proc_info(cursor, &frameInfo) == UNW_ESUCCESS)
     result = (uintptr_t)frameInfo.start_ip;
-  _LIBUNWIND_TRACE_API("_Unwind_GetRegionStart(context=%p) => 0x%llX",
+  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_GetRegionStart(context=%p) => 0x%llX",
                        static_cast<void *>(context), (long long)result);
   return result;
 }
@@ -1134,19 +1134,19 @@ _Unwind_GetRegionStart(struct _Unwind_Context *context) {
 /// Called by personality handler during phase 2 if a foreign exception
 // is caught.
 _LIBUNWIND_EXPORT void
-_Unwind_DeleteException(_Unwind_Exception *exception_object) {
-  _LIBUNWIND_TRACE_API("_Unwind_DeleteException(ex_obj=%p)",
+_swift_unwind_Unwind_DeleteException(_swift_unwind_Unwind_Exception *exception_object) {
+  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_DeleteException(ex_obj=%p)",
                        static_cast<void *>(exception_object));
   if (exception_object->exception_cleanup != NULL)
     (*exception_object->exception_cleanup)(_URC_FOREIGN_EXCEPTION_CAUGHT,
                                            exception_object);
 }
 
-extern "C" _LIBUNWIND_EXPORT _Unwind_Reason_Code
-__gnu_unwind_frame(_Unwind_Exception *exception_object,
-                   struct _Unwind_Context *context) {
-  unw_cursor_t *cursor = (unw_cursor_t *)context;
-  if (__unw_step(cursor) != UNW_STEP_SUCCESS)
+extern "C" _LIBUNWIND_EXPORT _swift_unwind_Unwind_Reason_Code
+__gnu_unwind_frame(_swift_unwind_Unwind_Exception *exception_object,
+                   struct _swift_unwind_Unwind_Context *context) {
+  swift_unwind_unw_cursor_t *cursor = (swift_unwind_unw_cursor_t *)context;
+  if (__swift_unwind_unw_step(cursor) != UNW_STEP_SUCCESS)
     return _URC_FAILURE;
   return _URC_OK;
 }

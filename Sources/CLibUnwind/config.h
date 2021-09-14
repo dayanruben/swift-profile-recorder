@@ -231,8 +231,8 @@
 #endif
 
 #ifdef __cplusplus
-// Used to fit UnwindCursor and Registers_xxx types against unw_context_t /
-// unw_cursor_t sized memory blocks.
+// Used to fit UnwindCursor and Registers_xxx types against swift_unwind_unw_context_t /
+// swift_unwind_unw_cursor_t sized memory blocks.
 #if defined(_LIBUNWIND_IS_NATIVE_ONLY)
 # define COMP_OP ==
 #else

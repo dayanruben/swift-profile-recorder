@@ -18,29 +18,29 @@ import AppKit
 @inline(never)
 func doit(_ n: Int) {
     guard n > 0 else {
-        var context = unw_context_t()
-        let ret = unw_getcontext(&context)
+        var context = swift_unwind_unw_context_t()
+        let ret = swift_unwind_unw_getcontext(&context)
         print("getcontext", ret)
         
         let g = DispatchGroup()
         
         DispatchQueue.global().async(group: g, qos: .default, flags: .detached) { [context] in
-            var cursor = unw_cursor_t()
+            var cursor = swift_unwind_unw_cursor_t()
 
             var context = context
-            //let r = unw_getcontext(&context)
-            var ret = unw_init_local(&cursor, &context)
+            //let r = swift_unwind_unw_getcontext(&context)
+            var ret = swift_unwind_unw_init_local(&cursor, &context)
             print("init local", ret)
 
             repeat {
-                var word = unw_word_t()
-                ret = unw_get_reg(&cursor, unw_regnum_t(UNW_REG_IP), &word)
+                var word = swift_unwind_unw_word_t()
+                ret = swift_unwind_unw_get_reg(&cursor, swift_unwind_unw_regnum_t(UNW_REG_IP), &word)
                 print("get reg IP", ret, word)
                 
-                ret = unw_get_reg(&cursor, unw_regnum_t(UNW_REG_SP), &word)
+                ret = swift_unwind_unw_get_reg(&cursor, swift_unwind_unw_regnum_t(UNW_REG_SP), &word)
                 print("get reg SP", ret, word)
 
-                ret = unw_step(&cursor)
+                ret = swift_unwind_unw_step(&cursor)
                 print("step", ret, word)
             } while ret == 1
             print(ret)

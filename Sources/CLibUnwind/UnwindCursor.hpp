@@ -69,9 +69,9 @@ struct UNWIND_INFO {
   uint16_t UnwindCodes[2];
 };
 
-extern "C" _Unwind_Reason_Code __libunwind_seh_personality(
-    int, _Unwind_Action, uint64_t, _Unwind_Exception *,
-    struct _Unwind_Context *);
+extern "C" _swift_unwind_Unwind_Reason_Code __libunwind_seh_personality(
+    int, _swift_unwind_Unwind_Action, uint64_t, _swift_unwind_Unwind_Exception *,
+    struct _swift_unwind_Unwind_Context *);
 
 #endif
 
@@ -99,9 +99,9 @@ public:
   static pint_t findFDE(pint_t mh, pint_t pc);
   static void add(pint_t mh, pint_t ip_start, pint_t ip_end, pint_t fde);
   static void removeAllIn(pint_t mh);
-  static void iterateCacheEntries(void (*func)(unw_word_t ip_start,
-                                               unw_word_t ip_end,
-                                               unw_word_t fde, unw_word_t mh));
+  static void iterateCacheEntries(void (*func)(swift_unwind_unw_word_t ip_start,
+                                               swift_unwind_unw_word_t ip_end,
+                                               swift_unwind_unw_word_t fde, swift_unwind_unw_word_t mh));
 
 private:
 
@@ -220,7 +220,7 @@ void DwarfFDECache<A>::dyldUnloadHook(const struct mach_header *mh, intptr_t ) {
 
 template <typename A>
 void DwarfFDECache<A>::iterateCacheEntries(void (*func)(
-    unw_word_t ip_start, unw_word_t ip_end, unw_word_t fde, unw_word_t mh)) {
+    swift_unwind_unw_word_t ip_start, swift_unwind_unw_word_t ip_end, swift_unwind_unw_word_t fde, swift_unwind_unw_word_t mh)) {
   _LIBUNWIND_LOG_IF_FALSE(_lock.lock());
   for (entry *p = _buffer; p < _bufferUsed; ++p) {
     (*func)(p->ip_start, p->ip_end, p->fde, p->mh);
@@ -430,28 +430,28 @@ public:
 
   virtual ~AbstractUnwindCursor() {}
   virtual bool validReg(int) { _LIBUNWIND_ABORT("validReg not implemented"); }
-  virtual unw_word_t getReg(int) { _LIBUNWIND_ABORT("getReg not implemented"); }
-  virtual void setReg(int, unw_word_t) {
+  virtual swift_unwind_unw_word_t getReg(int) { _LIBUNWIND_ABORT("getReg not implemented"); }
+  virtual void setReg(int, swift_unwind_unw_word_t) {
     _LIBUNWIND_ABORT("setReg not implemented");
   }
   virtual bool validFloatReg(int) {
     _LIBUNWIND_ABORT("validFloatReg not implemented");
   }
-  virtual unw_fpreg_t getFloatReg(int) {
+  virtual swift_unwind_unw_fpreg_t getFloatReg(int) {
     _LIBUNWIND_ABORT("getFloatReg not implemented");
   }
-  virtual void setFloatReg(int, unw_fpreg_t) {
+  virtual void setFloatReg(int, swift_unwind_unw_fpreg_t) {
     _LIBUNWIND_ABORT("setFloatReg not implemented");
   }
   virtual int step() { _LIBUNWIND_ABORT("step not implemented"); }
-  virtual void getInfo(unw_proc_info_t *) {
+  virtual void getInfo(swift_unwind_unw_proc_info_t *) {
     _LIBUNWIND_ABORT("getInfo not implemented");
   }
   virtual void jumpto() { _LIBUNWIND_ABORT("jumpto not implemented"); }
   virtual bool isSignalFrame() {
     _LIBUNWIND_ABORT("isSignalFrame not implemented");
   }
-  virtual bool getFunctionName(char *, size_t, unw_word_t *) {
+  virtual bool getFunctionName(char *, size_t, swift_unwind_unw_word_t *) {
     _LIBUNWIND_ABORT("getFunctionName not implemented");
   }
   virtual void setInfoBasedOnIPRegister(bool = false) {
@@ -474,26 +474,26 @@ public:
 #if defined(_LIBUNWIND_SUPPORT_SEH_UNWIND) && defined(_WIN32)
 
 /// \c UnwindCursor contains all state (including all register values) during
-/// an unwind.  This is normally stack-allocated inside a unw_cursor_t.
+/// an unwind.  This is normally stack-allocated inside a swift_unwind_unw_cursor_t.
 template <typename A, typename R>
 class UnwindCursor : public AbstractUnwindCursor {
   typedef typename A::pint_t pint_t;
 public:
-                      UnwindCursor(unw_context_t *context, A &as);
+                      UnwindCursor(swift_unwind_unw_context_t *context, A &as);
                       UnwindCursor(CONTEXT *context, A &as);
                       UnwindCursor(A &as, void *threadArg);
   virtual             ~UnwindCursor() {}
   virtual bool        validReg(int);
-  virtual unw_word_t  getReg(int);
-  virtual void        setReg(int, unw_word_t);
+  virtual swift_unwind_unw_word_t  getReg(int);
+  virtual void        setReg(int, swift_unwind_unw_word_t);
   virtual bool        validFloatReg(int);
-  virtual unw_fpreg_t getFloatReg(int);
-  virtual void        setFloatReg(int, unw_fpreg_t);
+  virtual swift_unwind_unw_fpreg_t getFloatReg(int);
+  virtual void        setFloatReg(int, swift_unwind_unw_fpreg_t);
   virtual int         step();
-  virtual void        getInfo(unw_proc_info_t *);
+  virtual void        getInfo(swift_unwind_unw_proc_info_t *);
   virtual void        jumpto();
   virtual bool        isSignalFrame();
-  virtual bool        getFunctionName(char *buf, size_t len, unw_word_t *off);
+  virtual bool        getFunctionName(char *buf, size_t len, swift_unwind_unw_word_t *off);
   virtual void        setInfoBasedOnIPRegister(bool isReturnAddress = false);
   virtual const char *getRegisterName(int num);
 #ifdef __arm__
@@ -529,16 +529,16 @@ private:
                                                     &_dispContext.EstablisherFrame,
                                                     NULL);
     // Update some fields of the unwind info now, since we have them.
-    _info.lsda = reinterpret_cast<unw_word_t>(_dispContext.HandlerData);
+    _info.lsda = reinterpret_cast<swift_unwind_unw_word_t>(_dispContext.HandlerData);
     if (_dispContext.LanguageHandler) {
-      _info.handler = reinterpret_cast<unw_word_t>(__libunwind_seh_personality);
+      _info.handler = reinterpret_cast<swift_unwind_unw_word_t>(__libunwind_seh_personality);
     } else
       _info.handler = 0;
     return UNW_STEP_SUCCESS;
   }
 
   A                   &_addressSpace;
-  unw_proc_info_t      _info;
+  swift_unwind_unw_proc_info_t      _info;
   DISPATCHER_CONTEXT   _dispContext;
   CONTEXT              _msContext;
   UNWIND_HISTORY_TABLE _histTable;
@@ -547,12 +547,12 @@ private:
 
 
 template <typename A, typename R>
-UnwindCursor<A, R>::UnwindCursor(unw_context_t *context, A &as)
+UnwindCursor<A, R>::UnwindCursor(swift_unwind_unw_context_t *context, A &as)
     : _addressSpace(as), _unwindInfoMissing(false) {
-  static_assert((check_fit<UnwindCursor<A, R>, unw_cursor_t>::does_fit),
-                "UnwindCursor<> does not fit in unw_cursor_t");
-  static_assert((alignof(UnwindCursor<A, R>) <= alignof(unw_cursor_t)),
-                "UnwindCursor<> requires more alignment than unw_cursor_t");
+  static_assert((check_fit<UnwindCursor<A, R>, swift_unwind_unw_cursor_t>::does_fit),
+                "UnwindCursor<> does not fit in swift_unwind_unw_cursor_t");
+  static_assert((alignof(UnwindCursor<A, R>) <= alignof(swift_unwind_unw_cursor_t)),
+                "UnwindCursor<> requires more alignment than swift_unwind_unw_cursor_t");
   memset(&_info, 0, sizeof(_info));
   memset(&_histTable, 0, sizeof(_histTable));
   _dispContext.ContextRecord = &_msContext;
@@ -652,8 +652,8 @@ UnwindCursor<A, R>::UnwindCursor(unw_context_t *context, A &as)
 template <typename A, typename R>
 UnwindCursor<A, R>::UnwindCursor(CONTEXT *context, A &as)
     : _addressSpace(as), _unwindInfoMissing(false) {
-  static_assert((check_fit<UnwindCursor<A, R>, unw_cursor_t>::does_fit),
-                "UnwindCursor<> does not fit in unw_cursor_t");
+  static_assert((check_fit<UnwindCursor<A, R>, swift_unwind_unw_cursor_t>::does_fit),
+                "UnwindCursor<> does not fit in swift_unwind_unw_cursor_t");
   memset(&_info, 0, sizeof(_info));
   memset(&_histTable, 0, sizeof(_histTable));
   _dispContext.ContextRecord = &_msContext;
@@ -676,7 +676,7 @@ bool UnwindCursor<A, R>::validReg(int regNum) {
 }
 
 template <typename A, typename R>
-unw_word_t UnwindCursor<A, R>::getReg(int regNum) {
+swift_unwind_unw_word_t UnwindCursor<A, R>::getReg(int regNum) {
   switch (regNum) {
 #if defined(_LIBUNWIND_TARGET_X86_64)
   case UNW_REG_IP: return _msContext.Rip;
@@ -726,7 +726,7 @@ unw_word_t UnwindCursor<A, R>::getReg(int regNum) {
 }
 
 template <typename A, typename R>
-void UnwindCursor<A, R>::setReg(int regNum, unw_word_t value) {
+void UnwindCursor<A, R>::setReg(int regNum, swift_unwind_unw_word_t value) {
   switch (regNum) {
 #if defined(_LIBUNWIND_TARGET_X86_64)
   case UNW_REG_IP: _msContext.Rip = value; break;
@@ -820,7 +820,7 @@ bool UnwindCursor<A, R>::validFloatReg(int regNum) {
 }
 
 template <typename A, typename R>
-unw_fpreg_t UnwindCursor<A, R>::getFloatReg(int regNum) {
+swift_unwind_unw_fpreg_t UnwindCursor<A, R>::getFloatReg(int regNum) {
 #if defined(_LIBUNWIND_TARGET_ARM)
   if (regNum >= UNW_ARM_S0 && regNum <= UNW_ARM_S31) {
     union {
@@ -848,7 +848,7 @@ unw_fpreg_t UnwindCursor<A, R>::getFloatReg(int regNum) {
 }
 
 template <typename A, typename R>
-void UnwindCursor<A, R>::setFloatReg(int regNum, unw_fpreg_t value) {
+void UnwindCursor<A, R>::setFloatReg(int regNum, swift_unwind_unw_fpreg_t value) {
 #if defined(_LIBUNWIND_TARGET_ARM)
   if (regNum >= UNW_ARM_S0 && regNum <= UNW_ARM_S31) {
     union {
@@ -896,25 +896,25 @@ template <typename A, typename R> bool UnwindCursor<A, R>::isSignalFrame() {
 #else  // !defined(_LIBUNWIND_SUPPORT_SEH_UNWIND) || !defined(_WIN32)
 
 /// UnwindCursor contains all state (including all register values) during
-/// an unwind.  This is normally stack allocated inside a unw_cursor_t.
+/// an unwind.  This is normally stack allocated inside a swift_unwind_unw_cursor_t.
 template <typename A, typename R>
 class UnwindCursor : public AbstractUnwindCursor{
   typedef typename A::pint_t pint_t;
 public:
-                      UnwindCursor(unw_context_t *context, A &as);
+                      UnwindCursor(swift_unwind_unw_context_t *context, A &as);
                       UnwindCursor(A &as, void *threadArg);
   virtual             ~UnwindCursor() {}
   virtual bool        validReg(int);
-  virtual unw_word_t  getReg(int);
-  virtual void        setReg(int, unw_word_t);
+  virtual swift_unwind_unw_word_t  getReg(int);
+  virtual void        setReg(int, swift_unwind_unw_word_t);
   virtual bool        validFloatReg(int);
-  virtual unw_fpreg_t getFloatReg(int);
-  virtual void        setFloatReg(int, unw_fpreg_t);
+  virtual swift_unwind_unw_fpreg_t getFloatReg(int);
+  virtual void        setFloatReg(int, swift_unwind_unw_fpreg_t);
   virtual int         step();
-  virtual void        getInfo(unw_proc_info_t *);
+  virtual void        getInfo(swift_unwind_unw_proc_info_t *);
   virtual void        jumpto();
   virtual bool        isSignalFrame();
-  virtual bool        getFunctionName(char *buf, size_t len, unw_word_t *off);
+  virtual bool        getFunctionName(char *buf, size_t len, swift_unwind_unw_word_t *off);
   virtual void        setInfoBasedOnIPRegister(bool isReturnAddress = false);
   virtual const char *getRegisterName(int num);
 #ifdef __arm__
@@ -941,7 +941,7 @@ private:
     const uint32_t *ehtp =
         decode_eht_entry(reinterpret_cast<const uint32_t *>(_info.unwind_info),
                          &off, &len);
-    if (_Unwind_VRS_Interpret((_Unwind_Context *)this, ehtp, off, len) !=
+    if (_swift_unwind_Unwind_VRS_Interpret((_swift_unwind_Unwind_Context *)this, ehtp, off, len) !=
             _URC_CONTINUE_UNWIND)
       return UNW_STEP_END;
     return UNW_STEP_SUCCESS;
@@ -1218,7 +1218,7 @@ private:
 
   A               &_addressSpace;
   R                _registers;
-  unw_proc_info_t  _info;
+  swift_unwind_unw_proc_info_t  _info;
   bool             _unwindInfoMissing;
   bool             _isSignalFrame;
 #if defined(_LIBUNWIND_TARGET_LINUX) && defined(_LIBUNWIND_TARGET_AARCH64)
@@ -1228,13 +1228,13 @@ private:
 
 
 template <typename A, typename R>
-UnwindCursor<A, R>::UnwindCursor(unw_context_t *context, A &as)
+UnwindCursor<A, R>::UnwindCursor(swift_unwind_unw_context_t *context, A &as)
     : _addressSpace(as), _registers(context), _unwindInfoMissing(false),
       _isSignalFrame(false) {
-  static_assert((check_fit<UnwindCursor<A, R>, unw_cursor_t>::does_fit),
-                "UnwindCursor<> does not fit in unw_cursor_t");
-  static_assert((alignof(UnwindCursor<A, R>) <= alignof(unw_cursor_t)),
-                "UnwindCursor<> requires more alignment than unw_cursor_t");
+  static_assert((check_fit<UnwindCursor<A, R>, swift_unwind_unw_cursor_t>::does_fit),
+                "UnwindCursor<> does not fit in swift_unwind_unw_cursor_t");
+  static_assert((alignof(UnwindCursor<A, R>) <= alignof(swift_unwind_unw_cursor_t)),
+                "UnwindCursor<> requires more alignment than swift_unwind_unw_cursor_t");
   memset(&_info, 0, sizeof(_info));
 }
 
@@ -1253,12 +1253,12 @@ bool UnwindCursor<A, R>::validReg(int regNum) {
 }
 
 template <typename A, typename R>
-unw_word_t UnwindCursor<A, R>::getReg(int regNum) {
+swift_unwind_unw_word_t UnwindCursor<A, R>::getReg(int regNum) {
   return _registers.getRegister(regNum);
 }
 
 template <typename A, typename R>
-void UnwindCursor<A, R>::setReg(int regNum, unw_word_t value) {
+void UnwindCursor<A, R>::setReg(int regNum, swift_unwind_unw_word_t value) {
   _registers.setRegister(regNum, (typename A::pint_t)value);
 }
 
@@ -1268,12 +1268,12 @@ bool UnwindCursor<A, R>::validFloatReg(int regNum) {
 }
 
 template <typename A, typename R>
-unw_fpreg_t UnwindCursor<A, R>::getFloatReg(int regNum) {
+swift_unwind_unw_fpreg_t UnwindCursor<A, R>::getFloatReg(int regNum) {
   return _registers.getFloatRegister(regNum);
 }
 
 template <typename A, typename R>
-void UnwindCursor<A, R>::setFloatReg(int regNum, unw_fpreg_t value) {
+void UnwindCursor<A, R>::setFloatReg(int regNum, swift_unwind_unw_fpreg_t value) {
   _registers.setFloatRegister(regNum, value);
 }
 
@@ -1438,7 +1438,7 @@ bool UnwindCursor<A, R>::getInfoFromEHABISection(
   //   exceptionTableAddr -- exception handler table entry.
   //   exceptionTableData -- the data inside the first word of the eht entry.
   //   isSingleWordEHT -- whether the entry is in the index.
-  unw_word_t personalityRoutine = 0xbadf00d;
+  swift_unwind_unw_word_t personalityRoutine = 0xbadf00d;
   bool scope32 = false;
   uintptr_t lsda;
 
@@ -1450,19 +1450,19 @@ bool UnwindCursor<A, R>::getInfoFromEHABISection(
     uint32_t extraWords = 0;
     switch (choice) {
       case 0:
-        personalityRoutine = (unw_word_t) &__aeabi_unwind_cpp_pr0;
+        personalityRoutine = (swift_unwind_unw_word_t) &__aeabi_unwind_cpp_pr0;
         extraWords = 0;
         scope32 = false;
         lsda = isSingleWordEHT ? 0 : (exceptionTableAddr + 4);
         break;
       case 1:
-        personalityRoutine = (unw_word_t) &__aeabi_unwind_cpp_pr1;
+        personalityRoutine = (swift_unwind_unw_word_t) &__aeabi_unwind_cpp_pr1;
         extraWords = (exceptionTableData & 0x00ff0000) >> 16;
         scope32 = false;
         lsda = exceptionTableAddr + (extraWords + 1) * 4;
         break;
       case 2:
-        personalityRoutine = (unw_word_t) &__aeabi_unwind_cpp_pr2;
+        personalityRoutine = (swift_unwind_unw_word_t) &__aeabi_unwind_cpp_pr2;
         extraWords = (exceptionTableData & 0x00ff0000) >> 16;
         scope32 = true;
         lsda = exceptionTableAddr + (extraWords + 1) * 4;
@@ -1545,7 +1545,7 @@ bool UnwindCursor<A, R>::getInfoFromFdeCie(
     _info.format            = dwarfEncoding();
     _info.unwind_info       = fdeInfo.fdeStart;
     _info.unwind_info_size  = static_cast<uint32_t>(fdeInfo.fdeLength);
-    _info.extra             = static_cast<unw_word_t>(dso_base);
+    _info.extra             = static_cast<swift_unwind_unw_word_t>(dso_base);
     return true;
   }
   return false;
@@ -1882,7 +1882,7 @@ bool UnwindCursor<A, R>::getInfoFromSEH(pint_t pc) {
   _info.flags = 0;
   _info.format = 0;
   _info.unwind_info_size = sizeof(RUNTIME_FUNCTION);
-  _info.unwind_info = reinterpret_cast<unw_word_t>(unwindEntry);
+  _info.unwind_info = reinterpret_cast<swift_unwind_unw_word_t>(unwindEntry);
   _info.extra = base;
   _info.start_ip = base + unwindEntry->BeginAddress;
 #ifdef _LIBUNWIND_TARGET_X86_64
@@ -1897,9 +1897,9 @@ bool UnwindCursor<A, R>::getInfoFromSEH(pint_t pc) {
       // N.B. UNWIND_INFO structs are DWORD-aligned.
       uint32_t lastcode = (xdata->CountOfCodes + 1) & ~1;
       const uint32_t *handler = reinterpret_cast<uint32_t *>(&xdata->UnwindCodes[lastcode]);
-      _info.lsda = reinterpret_cast<unw_word_t>(handler+1);
+      _info.lsda = reinterpret_cast<swift_unwind_unw_word_t>(handler+1);
       if (*handler) {
-        _info.handler = reinterpret_cast<unw_word_t>(__libunwind_seh_personality);
+        _info.handler = reinterpret_cast<swift_unwind_unw_word_t>(__libunwind_seh_personality);
       } else
         _info.handler = 0;
     } else {
@@ -1927,7 +1927,7 @@ void UnwindCursor<A, R>::setInfoBasedOnIPRegister(bool isReturnAddress) {
   pint_t pc = static_cast<pint_t>(this->getReg(UNW_REG_IP));
 #if defined(_LIBUNWIND_ARM_EHABI)
   // Remove the thumb bit so the IP represents the actual instruction address.
-  // This matches the behaviour of _Unwind_GetIP on arm.
+  // This matches the behaviour of _swift_unwind_Unwind_GetIP on arm.
   pc &= (pint_t)~0x1;
 #endif
 
@@ -2134,7 +2134,7 @@ int UnwindCursor<A, R>::step() {
 }
 
 template <typename A, typename R>
-void UnwindCursor<A, R>::getInfo(unw_proc_info_t *info) {
+void UnwindCursor<A, R>::getInfo(swift_unwind_unw_proc_info_t *info) {
   if (_unwindInfoMissing)
     memset(info, 0, sizeof(*info));
   else
@@ -2143,13 +2143,13 @@ void UnwindCursor<A, R>::getInfo(unw_proc_info_t *info) {
 
 template <typename A, typename R>
 bool UnwindCursor<A, R>::getFunctionName(char *buf, size_t bufLen,
-                                                           unw_word_t *offset) {
+                                                           swift_unwind_unw_word_t *offset) {
   return _addressSpace.findFunctionName((pint_t)this->getReg(UNW_REG_IP),
                                          buf, bufLen, offset);
 }
 
 #if defined(_LIBUNWIND_USE_CET)
-extern "C" void *__libunwind_cet_get_registers(unw_cursor_t *cursor) {
+extern "C" void *__libunwind_cet_get_registers(swift_unwind_unw_cursor_t *cursor) {
   AbstractUnwindCursor *co = (AbstractUnwindCursor *)cursor;
   return co->get_registers();
 }

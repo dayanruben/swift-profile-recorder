@@ -80,68 +80,68 @@ enum {
 #endif
 };
 
-struct unw_context_t {
+struct swift_unwind_unw_context_t {
   uint64_t data[_LIBUNWIND_CONTEXT_SIZE];
 };
-typedef struct unw_context_t unw_context_t;
+typedef struct swift_unwind_unw_context_t swift_unwind_unw_context_t;
 
-struct unw_cursor_t {
+struct swift_unwind_unw_cursor_t {
   uint64_t data[_LIBUNWIND_CURSOR_SIZE];
 } LIBUNWIND_CURSOR_ALIGNMENT_ATTR;
-typedef struct unw_cursor_t unw_cursor_t;
+typedef struct swift_unwind_unw_cursor_t swift_unwind_unw_cursor_t;
 
-typedef struct unw_addr_space *unw_addr_space_t;
+typedef struct swift_unwind_unw_addr_space *swift_unwind_unw_addr_space_t;
 
-typedef int unw_regnum_t;
-typedef uintptr_t unw_word_t;
+typedef int swift_unwind_unw_regnum_t;
+typedef uintptr_t swift_unwind_unw_word_t;
 #if defined(__arm__) && !defined(__ARM_DWARF_EH__)
-typedef uint64_t unw_fpreg_t;
+typedef uint64_t swift_unwind_unw_fpreg_t;
 #else
-typedef double unw_fpreg_t;
+typedef double swift_unwind_unw_fpreg_t;
 #endif
 
-struct unw_proc_info_t {
-  unw_word_t  start_ip;         /* start address of function */
-  unw_word_t  end_ip;           /* address after end of function */
-  unw_word_t  lsda;             /* address of language specific data area, */
+struct swift_unwind_unw_proc_info_t {
+  swift_unwind_unw_word_t  start_ip;         /* start address of function */
+  swift_unwind_unw_word_t  end_ip;           /* address after end of function */
+  swift_unwind_unw_word_t  lsda;             /* address of language specific data area, */
                                 /*  or zero if not used */
-  unw_word_t  handler;          /* personality routine, or zero if not used */
-  unw_word_t  gp;               /* not used */
-  unw_word_t  flags;            /* not used */
+  swift_unwind_unw_word_t  handler;          /* personality routine, or zero if not used */
+  swift_unwind_unw_word_t  gp;               /* not used */
+  swift_unwind_unw_word_t  flags;            /* not used */
   uint32_t    format;           /* compact unwind encoding, or zero if none */
   uint32_t    unwind_info_size; /* size of DWARF unwind info, or zero if none */
-  unw_word_t  unwind_info;      /* address of DWARF unwind info, or zero */
-  unw_word_t  extra;            /* mach_header of mach-o image containing func */
+  swift_unwind_unw_word_t  unwind_info;      /* address of DWARF unwind info, or zero */
+  swift_unwind_unw_word_t  extra;            /* mach_header of mach-o image containing func */
 };
-typedef struct unw_proc_info_t unw_proc_info_t;
+typedef struct swift_unwind_unw_proc_info_t swift_unwind_unw_proc_info_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-extern int unw_getcontext(unw_context_t *) LIBUNWIND_AVAIL;
-extern int unw_init_local(unw_cursor_t *, unw_context_t *) LIBUNWIND_AVAIL;
-extern int unw_step(unw_cursor_t *) LIBUNWIND_AVAIL;
-extern int unw_get_reg(unw_cursor_t *, unw_regnum_t, unw_word_t *) LIBUNWIND_AVAIL;
-extern int unw_get_fpreg(unw_cursor_t *, unw_regnum_t, unw_fpreg_t *) LIBUNWIND_AVAIL;
-extern int unw_set_reg(unw_cursor_t *, unw_regnum_t, unw_word_t) LIBUNWIND_AVAIL;
-extern int unw_set_fpreg(unw_cursor_t *, unw_regnum_t, unw_fpreg_t)  LIBUNWIND_AVAIL;
-extern int unw_resume(unw_cursor_t *) LIBUNWIND_AVAIL;
+extern int swift_unwind_unw_getcontext(swift_unwind_unw_context_t *) LIBUNWIND_AVAIL;
+extern int swift_unwind_unw_init_local(swift_unwind_unw_cursor_t *, swift_unwind_unw_context_t *) LIBUNWIND_AVAIL;
+extern int swift_unwind_unw_step(swift_unwind_unw_cursor_t *) LIBUNWIND_AVAIL;
+extern int swift_unwind_unw_get_reg(swift_unwind_unw_cursor_t *, swift_unwind_unw_regnum_t, swift_unwind_unw_word_t *) LIBUNWIND_AVAIL;
+extern int swift_unwind_unw_get_fpreg(swift_unwind_unw_cursor_t *, swift_unwind_unw_regnum_t, swift_unwind_unw_fpreg_t *) LIBUNWIND_AVAIL;
+extern int swift_unwind_unw_set_reg(swift_unwind_unw_cursor_t *, swift_unwind_unw_regnum_t, swift_unwind_unw_word_t) LIBUNWIND_AVAIL;
+extern int swift_unwind_unw_set_fpreg(swift_unwind_unw_cursor_t *, swift_unwind_unw_regnum_t, swift_unwind_unw_fpreg_t)  LIBUNWIND_AVAIL;
+extern int swift_unwind_unw_resume(swift_unwind_unw_cursor_t *) LIBUNWIND_AVAIL;
 
 #ifdef __arm__
 /* Save VFP registers in FSTMX format (instead of FSTMD). */
-extern void unw_save_vfp_as_X(unw_cursor_t *) LIBUNWIND_AVAIL;
+extern void swift_unwind_unw_save_vfp_as_X(swift_unwind_unw_cursor_t *) LIBUNWIND_AVAIL;
 #endif
 
 
-extern const char *unw_regname(unw_cursor_t *, unw_regnum_t) LIBUNWIND_AVAIL;
-extern int unw_get_proc_info(unw_cursor_t *, unw_proc_info_t *) LIBUNWIND_AVAIL;
-extern int unw_is_fpreg(unw_cursor_t *, unw_regnum_t) LIBUNWIND_AVAIL;
-extern int unw_is_signal_frame(unw_cursor_t *) LIBUNWIND_AVAIL;
-extern int unw_get_proc_name(unw_cursor_t *, char *, size_t, unw_word_t *) LIBUNWIND_AVAIL;
-//extern int       unw_get_save_loc(unw_cursor_t*, int, unw_save_loc_t*);
+extern const char *swift_unwind_unw_regname(swift_unwind_unw_cursor_t *, swift_unwind_unw_regnum_t) LIBUNWIND_AVAIL;
+extern int swift_unwind_unw_get_proc_info(swift_unwind_unw_cursor_t *, swift_unwind_unw_proc_info_t *) LIBUNWIND_AVAIL;
+extern int swift_unwind_unw_is_fpreg(swift_unwind_unw_cursor_t *, swift_unwind_unw_regnum_t) LIBUNWIND_AVAIL;
+extern int swift_unwind_unw_is_signal_frame(swift_unwind_unw_cursor_t *) LIBUNWIND_AVAIL;
+extern int swift_unwind_unw_get_proc_name(swift_unwind_unw_cursor_t *, char *, size_t, swift_unwind_unw_word_t *) LIBUNWIND_AVAIL;
+//extern int       swift_unwind_unw_get_save_loc(swift_unwind_unw_cursor_t*, int, swift_unwind_unw_save_loc_t*);
 
-extern unw_addr_space_t unw_local_addr_space;
+extern swift_unwind_unw_addr_space_t swift_unwind_unw_local_addr_space;
 
 #ifdef __cplusplus
 }

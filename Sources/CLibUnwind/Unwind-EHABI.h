@@ -45,14 +45,14 @@ static inline uint32_t readPrel31(const uint32_t *data) {
 extern "C" {
 #endif
 
-extern _Unwind_Reason_Code __aeabi_unwind_cpp_pr0(
-    _Unwind_State state, _Unwind_Control_Block *ucbp, _Unwind_Context *context);
+extern _swift_unwind_Unwind_Reason_Code __aeabi_unwind_cpp_pr0(
+    _swift_unwind_Unwind_State state, _swift_unwind_Unwind_Control_Block *ucbp, _swift_unwind_Unwind_Context *context);
 
-extern _Unwind_Reason_Code __aeabi_unwind_cpp_pr1(
-    _Unwind_State state, _Unwind_Control_Block *ucbp, _Unwind_Context *context);
+extern _swift_unwind_Unwind_Reason_Code __aeabi_unwind_cpp_pr1(
+    _swift_unwind_Unwind_State state, _swift_unwind_Unwind_Control_Block *ucbp, _swift_unwind_Unwind_Context *context);
 
-extern _Unwind_Reason_Code __aeabi_unwind_cpp_pr2(
-    _Unwind_State state, _Unwind_Control_Block *ucbp, _Unwind_Context *context);
+extern _swift_unwind_Unwind_Reason_Code __aeabi_unwind_cpp_pr2(
+    _swift_unwind_Unwind_State state, _swift_unwind_Unwind_Control_Block *ucbp, _swift_unwind_Unwind_Context *context);
 
 #if defined(__cplusplus)
 } // extern "C"
