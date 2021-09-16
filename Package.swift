@@ -1,15 +1,19 @@
-// swift-tools-version:5.5
+// swift-tools-version:5.4
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 
 let package = Package(
     name: "swift-unwind",
+    platforms: [.macOS(.v11)],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         .executable(
             name: "swift-unwind",
             targets: ["swift-unwind"]),
+        .executable(
+            name: "sample-processor",
+            targets: ["sample-processor"]),
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
@@ -20,10 +24,16 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .executableTarget(
             name: "swift-unwind",
-            dependencies: ["CLibUnwind"]),
+            dependencies: ["CSampler", "CLibUnwind"]),
+        .executableTarget(
+            name: "sample-processor",
+            dependencies: []),
         .target(
             name: "CLibUnwind",
             dependencies: []),
+        .target(
+            name: "CSampler",
+            dependencies: ["CLibUnwind"]),
         .testTarget(
             name: "swift-unwindTests",
             dependencies: ["swift-unwind"]),

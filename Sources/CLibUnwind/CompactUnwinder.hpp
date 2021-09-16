@@ -29,7 +29,7 @@
 #include <stdlib.h>
 
 #include <libunwind.h>
-#include <mach-o/compact_unwind_encoding.h>
+#include "mach-o/compact_unwind_encoding.h"
 
 #include "Registers.hpp"
 
