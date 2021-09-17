@@ -22,10 +22,12 @@
 #include <unistd.h>
 #include <link.h>
 #include <string.h>
+#include <fcntl.h>
 
 #include "os_dep.h"
+#include "interface.h"
 
-int os_dep_list_all_threads(os_dep_thread_id *all_threads,
+int os_dep_list_all_threads(struct thread_info *all_threads,
                             size_t all_threads_capacity,
                             size_t *all_threads_count) {
     DIR *dir = opendir("/proc/self/task");
@@ -55,7 +57,22 @@ int os_dep_list_all_threads(os_dep_thread_id *all_threads,
 
         pid_t tid = atol(ent->d_name);
         if (tid != 0 && tid != my_tid) {
-            all_threads[next_index++] = tid;
+            int idx = next_index++;
+            if (all_threads[idx].ti_id == tid && all_threads[idx].ti_name[0] != 0) {
+                // name is cached.
+            } else {
+                all_threads[idx].ti_id = tid;
+                char file_path[128] = {0};
+                snprintf(file_path, 128, "/proc/self/task/%d/comm", tid);
+                int fd = open(file_path, O_RDONLY);
+                if (fd >= 0) {
+                    int how_much = read(fd, all_threads[idx].ti_name, 32);
+                    if (how_much > 0) {
+                        all_threads[idx].ti_name[how_much-1] = 0; // get rid of the \n
+                    }
+                    close(fd);
+                }
+            }
         }
     }
 

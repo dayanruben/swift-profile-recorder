@@ -45,6 +45,10 @@ struct Sample {
     var timeNSec: Int {
         return self.sampleHeader.timeNSec
     }
+
+    var threadName: String {
+        return self.sampleHeader.name
+    }
 }
 
 var samples: [Sample] = []

@@ -86,6 +86,7 @@ struct cspl_minidump {
     struct timespec md_time;
 
     size_t md_stack_depth;
+    char md_thread_name[32];
     struct cspl_stackframe md_stack[CSPL_MAX_STACK_DEPTH];
 };
 
@@ -138,7 +139,7 @@ cspl_make_sample(struct cspl_minidump *minidumps,
                  size_t *minidumps_count_ptr) {
     cspl_state_start_preparing();
 
-    os_dep_thread_id all_threads[CSPL_MAX_MUTATOR_THREADS];
+    struct thread_info all_threads[CSPL_MAX_MUTATOR_THREADS];
     size_t num_threads = 0;
     int err = os_dep_list_all_threads(all_threads,
                                       CSPL_MAX_MUTATOR_THREADS,
@@ -149,8 +150,8 @@ cspl_make_sample(struct cspl_minidump *minidumps,
 
     UNSAFE_DEBUG("sampling %lu threads (controller is %lu)\n", num_threads, (uintptr_t)os_dep_get_thread_id());
     for (int i=0; i<num_threads; i++) {
-        cspl_precondition(all_threads[i] != 0);
-        g_cspl_c2ms.c2ms_c2ms[i].c2m_thread_id = all_threads[i];
+        cspl_precondition(all_threads[i].ti_id != 0);
+        g_cspl_c2ms.c2ms_c2ms[i].c2m_thread_id = all_threads[i].ti_id;
         g_cspl_c2ms.c2ms_c2ms[i].c2m_proceed = os_dep_sem_create(0);
         g_cspl_c2ms.c2ms_c2ms[i].m2c_proceed = os_dep_sem_create(0);
     }
@@ -164,9 +165,9 @@ cspl_make_sample(struct cspl_minidump *minidumps,
     struct timespec start_time = cspl_get_current_time();
 
     for (int i=0; i<num_threads; i++) {
-        cspl_precondition(all_threads[i] != 0);
+        cspl_precondition(all_threads[i].ti_id != 0);
         UNSAFE_DEBUG("signalling thread %lu\n", (uintptr_t)g_cspl_c2ms.c2ms_c2ms[i].c2m_thread_id);
-        err = os_dep_kill(all_threads[i], SIGPROF);
+        err = os_dep_kill(all_threads[i].ti_id, SIGPROF);
         if (err != 0) {
             UNSAFE_DEBUG("couldn't signal thread %lu\n", (uintptr_t)g_cspl_c2ms.c2ms_c2ms[i].c2m_thread_id);
             // thread dead, let's not wait for it later.
@@ -211,6 +212,7 @@ cspl_make_sample(struct cspl_minidump *minidumps,
         minidumps[i].md_time = start_time;
         minidumps[i].md_pid = getpid();
         minidumps[i].md_tid = g_cspl_c2ms.c2ms_c2ms[i].c2m_thread_id;
+        strcpy(minidumps[i].md_thread_name, all_threads[i].ti_name);
     }
 
     cspl_state_finish_processing();
@@ -248,11 +250,13 @@ cspl_request_sample(void) {
                     "[CSPL] SMPL {"
                     "\"pid\": %d, "
                     "\"tid\": %lu, "
+                    "\"name\": \"%s\", "
                     "\"timeSec\": %ld, "
                     "\"timeNSec\": %ld"
                     "}\n",
                     minidump->md_pid,
                     (uintptr_t)minidump->md_tid,
+                    minidump->md_thread_name,
                     minidump->md_time.tv_sec,
                     minidump->md_time.tv_nsec
                     );

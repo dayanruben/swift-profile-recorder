@@ -71,7 +71,7 @@ func symbolize(_ input: String, samples: [Sample]) throws {
 
     var index = 0
     for sample in samples {
-        print("foo-T\(sample.tid)     \(sample.pid)/\(sample.tid)     \(sample.timeSec).\(sample.timeNSec):    1001001 cpu-clock:pppH:")
+        print("\(sample.threadName == "" ? "unknown" : sample.threadName)_\(sample.tid)     \(sample.pid)/\(sample.tid)     \(sample.timeSec).\(sample.timeNSec):    1001001 cpu-clock:pppH:")
         let lines = String(decoding: try Data(contentsOf: outputURL), as: UTF8.self).components(separatedBy: "\n")
         for _ in 0..<sample.stack.count {
             print("\t \(lines[index*4]) \(lines[index*4 + 1])+0x0 (the_lib)")
@@ -89,7 +89,7 @@ func process(_ sample: Sample, _ dynamicLibs: [DynamicLibMapping]) throws {
 }
 
 func processModern(_ sample: Sample, symboliser: Symboliser) throws {
-    print("foo-T\(sample.tid)     \(sample.pid)/\(sample.tid)     \(sample.timeSec).\(sample.timeNSec):    1001001 cpu-clock:pppH:")
+    print("\(sample.threadName)-T\(sample.tid)     \(sample.pid)/\(sample.tid)     \(sample.timeSec).\(sample.timeNSec):    1001001 cpu-clock:pppH:")
     for stackFrame in sample.stack {
         print("\t \(try symboliser.symbolise(stackFrame))")
     }

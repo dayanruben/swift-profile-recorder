@@ -14,6 +14,8 @@
 #ifndef os_dep_h
 #define os_dep_h
 
+struct thread_info;
+
 #if __APPLE__ && __has_include(<dispatch/dispatch.h>)
 #  include "os_dep_dispatch.h"
 #elif __has_include(<pthread.h>)
@@ -30,7 +32,7 @@
 #  error "unsupported OS"
 #endif
 
-int os_dep_list_all_threads(os_dep_thread_id *all_threads,
+int os_dep_list_all_threads(struct thread_info *all_threads,
                             size_t all_threads_capacity,
                             size_t *all_threads_count);
 

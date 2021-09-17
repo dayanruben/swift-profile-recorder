@@ -14,14 +14,16 @@
 #if __APPLE__
 
 #include <pthread.h>
+#include "interface.h"
 #include "os_dep.h"
 
 extern pthread_t target; // remove
 
-int os_dep_list_all_threads(os_dep_thread_id *all_threads,
+int os_dep_list_all_threads(struct thread_info *all_threads,
                             size_t all_threads_capacity,
                             size_t *all_threads_count) {
-    all_threads[0] = target;
+    strcpy(all_threads[0].ti_name, "main");
+    all_threads[0].ti_id = target;
     *all_threads_count = 1;
 }
 

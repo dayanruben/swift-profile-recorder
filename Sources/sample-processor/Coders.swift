@@ -61,6 +61,7 @@ public struct DynamicLibMapping: Decodable, CustomStringConvertible {
 public struct SampleHeader: Codable {
     var pid: Int
     var tid: Int
+    var name: String
     var timeSec: Int
     var timeNSec: Int
 }

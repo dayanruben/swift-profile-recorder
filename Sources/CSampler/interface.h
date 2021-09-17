@@ -21,6 +21,7 @@
 #ifndef interface_h
 #define interface_h
 
+#include "os_dep.h"
 #include "../CLibUnwind/include/CLibUnwind.h"
 
 #define CSPL_MAX_MUTATOR_THREADS 1024
@@ -43,6 +44,11 @@ struct collector_to_mutator {
 struct collector_to_mutators {
     _Atomic enum cspl_c2ms_state c2ms_state;
     struct collector_to_mutator c2ms_c2ms[CSPL_MAX_MUTATOR_THREADS];
+};
+
+struct thread_info {
+    os_dep_thread_id ti_id;
+    char ti_name[32];
 };
 
 #endif /* interface_h */
