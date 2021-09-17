@@ -11,8 +11,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
-#ifndef os_dep_h
-#define os_dep_h
+#ifndef swipr_os_dep_h
+#define swipr_os_dep_h
 
 struct thread_info;
 
@@ -32,19 +32,19 @@ struct thread_info;
 #  error "unsupported OS"
 #endif
 
-int os_dep_list_all_threads(struct thread_info *all_threads,
+int swipr_os_dep_list_all_threads(struct thread_info *all_threads,
                             size_t all_threads_capacity,
                             size_t *all_threads_count);
 
-struct cspl_dynamic_lib {
+struct swipr_dynamic_lib {
     char dl_name[1024];
     uintptr_t dl_file_mapped_at;
     uintptr_t dl_seg_start_addr;
     uintptr_t dl_seg_end_addr;
 };
 
-int os_dep_list_all_dynamic_libs(struct cspl_dynamic_lib *all_libs,
+int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
                                  size_t all_libs_capacity,
                                  size_t *all_libs_count);
 
-#endif /* os_dep_h */
+#endif /* swipr_os_dep_h */

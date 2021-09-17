@@ -18,8 +18,8 @@
 //  Created by Johannes Weiss on 15/09/2021.
 //
 
-#ifndef os_dep_pthread_h
-#define os_dep_pthread_h
+#ifndef swipr_os_dep_pthread_h
+#define swipr_os_dep_pthread_h
 
 #include <pthread.h>
 #include <stdlib.h>
@@ -29,17 +29,17 @@
 #include "asserts.h"
 #include "os_dep_linux.h"
 
-struct cspl_pthread_sem {
+struct swipr_pthread_sem {
     pthread_mutex_t mutex;
     pthread_cond_t cond;
     int value;
 };
 
-typedef struct cspl_pthread_sem *os_dep_sem;
-static inline os_dep_sem
-os_dep_sem_create(int value) {
-    struct cspl_pthread_sem *sem = malloc(sizeof(*sem));
-    cspl_precondition(sem != NULL);
+typedef struct swipr_pthread_sem *swipr_os_dep_sem;
+static inline swipr_os_dep_sem
+swipr_os_dep_sem_create(int value) {
+    struct swipr_pthread_sem *sem = malloc(sizeof(*sem));
+    swipr_precondition(sem != NULL);
 
     *sem = (typeof(*sem)){ 0 };
     sem->value = 0;
@@ -55,35 +55,35 @@ os_dep_sem_create(int value) {
 }
 
 static inline void
-os_dep_sem_free(os_dep_sem sem) {
+swipr_os_dep_sem_free(swipr_os_dep_sem sem) {
     int err = pthread_cond_destroy(&sem->cond);
-    cspl_precondition(err == 0);
+    swipr_precondition(err == 0);
 
     err = pthread_mutex_destroy(&sem->mutex);
-    cspl_precondition(err == 0);
+    swipr_precondition(err == 0);
 
     free(sem);
 }
 
 static inline void
-os_dep_sem_signal(os_dep_sem sem) {
+swipr_os_dep_sem_signal(swipr_os_dep_sem sem) {
     int err = pthread_mutex_lock(&sem->mutex);
-    cspl_precondition(err == 0);
+    swipr_precondition(err == 0);
 
-    cspl_precondition(sem->value >= 0);
+    swipr_precondition(sem->value >= 0);
     sem->value++;
 
     err = pthread_mutex_unlock(&sem->mutex);
-    cspl_precondition(err == 0);
+    swipr_precondition(err == 0);
 
     err = pthread_cond_signal(&sem->cond);
-    cspl_precondition(err == 0);
+    swipr_precondition(err == 0);
 }
 
-#define os_dep_deadline struct timespec
+#define swipr_os_dep_deadline struct timespec
 
-static inline os_dep_deadline
-os_dep_create_deadline(void) {
+static inline swipr_os_dep_deadline
+swipr_os_dep_create_deadline(void) {
     struct timeval tv;
     struct timespec ts;
     gettimeofday(&tv, NULL);
@@ -94,44 +94,44 @@ os_dep_create_deadline(void) {
 }
 
 static inline void
-os_dep_sem_wait(os_dep_sem sem) {
+swipr_os_dep_sem_wait(swipr_os_dep_sem sem) {
     int err = pthread_mutex_lock(&sem->mutex);
-    cspl_precondition(err == 0);
+    swipr_precondition(err == 0);
 
-    cspl_precondition(sem->value >= 0);
+    swipr_precondition(sem->value >= 0);
     while (sem->value <= 0) {
         err = pthread_cond_wait(&sem->cond, &sem->mutex);
-        cspl_precondition(err == 0);
+        swipr_precondition(err == 0);
     }
     sem->value--;
-    cspl_precondition(sem->value >= 0);
+    swipr_precondition(sem->value >= 0);
 
     err = pthread_mutex_unlock(&sem->mutex);
-    cspl_precondition(err == 0);
+    swipr_precondition(err == 0);
 }
 
 static inline int
-os_dep_sem_wait_with_deadline(os_dep_sem sem, os_dep_deadline deadline) {
+swipr_os_dep_sem_wait_with_deadline(swipr_os_dep_sem sem, swipr_os_dep_deadline deadline) {
     int err = pthread_mutex_lock(&sem->mutex);
-    cspl_precondition(err == 0);
+    swipr_precondition(err == 0);
 
     while (sem->value <= 0) {
         err = pthread_cond_timedwait(&sem->cond, &sem->mutex, &deadline);
         if (err == ETIMEDOUT) {
             err = pthread_mutex_unlock(&sem->mutex);
-            cspl_precondition(err == 0);
+            swipr_precondition(err == 0);
 
             return ETIMEDOUT;
         }
-        cspl_precondition(err == 0);
+        swipr_precondition(err == 0);
     }
     sem->value--;
-    cspl_precondition(sem->value >= 0);
+    swipr_precondition(sem->value >= 0);
 
     err = pthread_mutex_unlock(&sem->mutex);
-    cspl_precondition(err == 0);
+    swipr_precondition(err == 0);
 
     return 0;
 }
 
-#endif /* os_dep_pthread_h */
+#endif /* swipr_os_dep_pthread_h */

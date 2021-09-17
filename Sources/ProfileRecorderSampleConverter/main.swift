@@ -54,12 +54,12 @@ struct Sample {
 var samples: [Sample] = []
 
 while let line = readLine() {
-    guard line.starts(with: "[CSPL] ") else {
+    guard line.starts(with: "[SWIPR] ") else {
         continue
     }
-    switch line.dropFirst(7).prefix(4) {
+    switch line.dropFirst(8).prefix(4) {
     case "VMAP":
-        guard let mapping = try? decoder.decode(DynamicLibMapping.self, from: Data(line.dropFirst(12).utf8)) else {
+        guard let mapping = try? decoder.decode(DynamicLibMapping.self, from: Data(line.dropFirst(13).utf8)) else {
             continue
         }
 
@@ -75,33 +75,23 @@ while let line = readLine() {
         if symboliser == nil {
             symboliser = try Symboliser(dynamicLibraryMappings: vmaps, group: group)
         }
-        guard let header = try? decoder.decode(SampleHeader.self, from: Data(line.dropFirst(12).utf8)) else {
-            print("failed", line.dropFirst(12))
+        guard let header = try? decoder.decode(SampleHeader.self, from: Data(line.dropFirst(13).utf8)) else {
+            print("failed", line.dropFirst(13))
             continue
         }
 
         currentSample = Sample(sampleHeader: header, stack: [])
     case "STCK":
-        guard let stackFrame = try? decoder.decode(StackFrame.self, from: Data(line.dropFirst(12).utf8)) else {
+        guard let stackFrame = try? decoder.decode(StackFrame.self, from: Data(line.dropFirst(13).utf8)) else {
             continue
         }
         currentSample?.stack.append(stackFrame)
     case "DONE":
-//        if let sample = currentSample {
-//            try process(sample, vmaps)
-//            samples.append(sample)
-//        }
-
         if let sample = currentSample, let symboliser = symboliser {
             try processModern(sample, symboliser: symboliser)
         }
-
-//        if samples.count % 1000 == 0 {
-//            try processAll(samples, vmaps)
-//            samples.removeAll()
-//        }
     default:
-        print("unknown", line.dropFirst(7).prefix(4))
+        print("unknown", line.dropFirst(8).prefix(4))
         continue
     }
 }

@@ -11,17 +11,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
-#ifndef CSampler_h
-#define CSampler_h
+//
+//  Header.h
+//  Header
+//
+//  Created by Johannes Weiss on 15/09/2021.
+//
 
-#include <pthread.h> // remove
-#if __linux__
-#include <bits/pthreadtypes.h> // remove
-#endif
+#ifndef asserts_h
+#define asserts_h
 
-int cspl_request_sample(void);
-int cspl_initialize(void);
+#include <stdlib.h>
 
-extern pthread_t target;
+#define swipr_precondition(_x) do { if (!(_x)) { abort(); } } while(0)
 
-#endif /* CSampler_h */
+#endif /* asserts_h */

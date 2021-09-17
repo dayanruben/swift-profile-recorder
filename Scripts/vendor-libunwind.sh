@@ -4,7 +4,7 @@ set -eu
 
 here="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 libunwind=${1:-$here/../../llvm-project/libunwind}
-prefix=${2:-swift_unwind}
+prefix=${2:-swipr}
 
 function die() {
     echo "ERROR: $*"
@@ -14,7 +14,7 @@ function die() {
 echo "Using libunwind from $libunwind"
 test -d "$libunwind" || die "$libunwind: Not found"
 
-target_src="$here/../Sources/CLibUnwind"
+target_src="$here/../Sources/CProfileRecorderLibUnwind"
 desc=$(cd "$libunwind" && git describe --abbrev --dirty)
 
 rm -rf "$target_src"
@@ -27,7 +27,7 @@ echo "$desc" > "$here/../Misc/vendored-libunwind.version"
 rm -f "$target_src/include/unwind_arm_ehabi.h"\
       "$target_src/CMakeLists.txt"
 
-find Sources/CLibUnwind/ \
+find Sources/CProfileRecorderLibUnwind/ \
     -type f \
     -exec gsed -ri \
         -e "s/\<unw_/${prefix}_unw_/g" \

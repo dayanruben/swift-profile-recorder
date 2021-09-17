@@ -27,7 +27,7 @@
 #include "os_dep.h"
 #include "interface.h"
 
-int os_dep_list_all_threads(struct thread_info *all_threads,
+int swipr_os_dep_list_all_threads(struct thread_info *all_threads,
                             size_t all_threads_capacity,
                             size_t *all_threads_count) {
     DIR *dir = opendir("/proc/self/task");
@@ -35,7 +35,7 @@ int os_dep_list_all_threads(struct thread_info *all_threads,
         return -errno;
     }
     int next_index = 0;
-    pid_t my_tid = os_dep_get_thread_id();
+    pid_t my_tid = swipr_os_dep_get_thread_id();
 
     struct dirent *ent = NULL;
     while (true) {
@@ -87,7 +87,7 @@ error:
 }
 
 struct dl_iterate_phdr_data {
-    struct cspl_dynamic_lib *dli_all_libs;
+    struct swipr_dynamic_lib *dli_all_libs;
     size_t dli_all_libs_capacity;
     size_t dli_all_libs_count;
     bool dli_first;
@@ -103,7 +103,7 @@ dl_iterate_phdr_cb(struct dl_phdr_info *info, size_t size, void *v_data) {
             continue;
         }
 
-        struct cspl_dynamic_lib *my_lib = &data->dli_all_libs[data->dli_all_libs_count++];
+        struct swipr_dynamic_lib *my_lib = &data->dli_all_libs[data->dli_all_libs_count++];
         if (data->dli_first) {
             readlink("/proc/self/exe", my_lib->dl_name, sizeof(my_lib->dl_name));
         } else {
@@ -120,7 +120,7 @@ dl_iterate_phdr_cb(struct dl_phdr_info *info, size_t size, void *v_data) {
     return 0;
 }
 
-int os_dep_list_all_dynamic_libs(struct cspl_dynamic_lib *all_libs,
+int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
                                  size_t all_libs_capacity,
                                  size_t *all_libs_count) {
     struct dl_iterate_phdr_data data = {

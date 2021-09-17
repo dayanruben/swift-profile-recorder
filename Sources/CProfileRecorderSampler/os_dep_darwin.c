@@ -11,18 +11,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
-//
-//  Header.h
-//  Header
-//
-//  Created by Johannes Weiss on 15/09/2021.
-//
+#if __APPLE__
 
-#ifndef asserts_h
-#define asserts_h
+#include <pthread.h>
+#include "interface.h"
+#include "os_dep.h"
 
-#include <stdlib.h>
+int swipr_os_dep_list_all_threads(struct thread_info *all_threads,
+                            size_t all_threads_capacity,
+                            size_t *all_threads_count) {
+    *all_threads_count = 0;
+}
 
-#define cspl_precondition(_x) do { if (!(_x)) { abort(); } } while(0)
-
-#endif /* asserts_h */
+int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
+                                 size_t all_libs_capacity,
+                                 size_t *all_libs_count) {
+    *all_libs_count = 0;
+}
+#endif

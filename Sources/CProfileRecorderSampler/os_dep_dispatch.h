@@ -18,8 +18,8 @@
 //  Created by Johannes Weiss on 15/09/2021.
 //
 
-#ifndef os_dep_macos_h
-#define os_dep_macos_h
+#ifndef swipr_os_dep_macos_h
+#define swipr_os_dep_macos_h
 
 #ifndef __APPLE__
 # error "This is only meant to be included on Darwin."
@@ -28,31 +28,30 @@
 #include <dispatch/dispatch.h>
 #include "os_dep_darwin.h"
 
-typedef dispatch_semaphore_t os_dep_sem;
-#define os_dep_sem_create dispatch_semaphore_create
-#define os_dep_sem_free dispatch_release
-#define os_dep_sem_signal dispatch_semaphore_signal
-#define os_dep_deadline dispatch_time_t
+typedef dispatch_semaphore_t swipr_os_dep_sem;
+#define swipr_os_dep_sem_create dispatch_semaphore_create
+#define swipr_os_dep_sem_free dispatch_release
+#define swipr_os_dep_sem_signal dispatch_semaphore_signal
+#define swipr_os_dep_deadline dispatch_time_t
 
-static inline os_dep_deadline
-os_dep_create_deadline(void) {
+static inline swipr_os_dep_deadline
+swipr_os_dep_create_deadline(void) {
     return dispatch_time(DISPATCH_TIME_NOW, 100 * NSEC_PER_MSEC);
 }
 
 static inline void
-os_dep_sem_wait(os_dep_sem sem) {
+swipr_os_dep_sem_wait(swipr_os_dep_sem sem) {
     dispatch_semaphore_wait(sem, DISPATCH_TIME_FOREVER);
 }
 
 static inline int
-os_dep_sem_wait_with_deadline(os_dep_sem sem, os_dep_deadline deadline) {
+swipr_os_dep_sem_wait_with_deadline(swipr_os_dep_sem sem, swipr_os_dep_deadline deadline) {
     return dispatch_semaphore_wait(sem, deadline);
 }
 
-extern pthread_t target;
-static inline os_dep_thread_id
-os_dep_get_thread_id(void) {
-    return target;
+static inline swipr_os_dep_thread_id
+swipr_os_dep_get_thread_id(void) {
+    return pthread_self();
 }
 
-#endif /* os_dep_macos_h */
+#endif /* swipr_os_dep_macos_h */

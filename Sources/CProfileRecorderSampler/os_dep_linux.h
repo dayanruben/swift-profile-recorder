@@ -18,12 +18,23 @@
 //  Created by Johannes Weiss on 15/09/2021.
 //
 
-#ifndef os_dep_dawin_h
-#define os_dep_dawin_h
+#ifndef swipr_os_dep_linux_h
+#define swipr_os_dep_linux_h
 
-#import <pthread.h>
+#define _GNU_SOURCE
+#include <unistd.h>
+#include <signal.h>           /* Definition of SIG* constants */
+#include <sys/syscall.h>      /* Definition of SYS_* constants */
 
-#define os_dep_thread_id pthread_t
-#define os_dep_kill pthread_kill
+#define swipr_os_dep_thread_id pid_t
 
-#endif /* os_dep_dawin_h */
+static inline pid_t
+swipr_os_dep_get_thread_id(void) {
+    return syscall(SYS_gettid);
+}
+
+static inline int swipr_os_dep_kill(swipr_os_dep_thread_id tid, int sig) {
+    return syscall(SYS_tkill, tid, sig);
+}
+
+#endif /* swipr_os_dep_linux_h */

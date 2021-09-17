@@ -11,29 +11,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
-@_implementationOnly import CSampler
-@_implementationOnly import CLibUnwind
+@_implementationOnly import CProfileRecorderSampler
+@_implementationOnly import CProfileRecorderLibUnwind
 import NIO
 
 import Dispatch
 
-@inline(never)
-func doit(_ n: Int) {
-    guard n > 0 else {
-        while true {
-            pause()
-        }
-        return
-    }
-    doit(n - 1)
-}
-
-target = pthread_self()
-cspl_initialize()
+swipr_initialize()
 
 DispatchQueue.global().asyncAfter(deadline: .now() + 3) {
     print("requesting sample")
-    cspl_request_sample()
+    swipr_request_sample()
     print("done")
 }
 

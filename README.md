@@ -1,3 +1,3 @@
-# swift-unwind
+# Swift Profile Recorder, an in-process sampling profiler
 
-A description of this package.
+Want to profile your software in restricted Kubernetes or Docker contrainers or other environments where you don't get `CAP_SYS_PTRACE`? Look no further.
