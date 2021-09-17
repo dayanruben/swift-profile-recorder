@@ -15,7 +15,12 @@
 #ifndef CSampler_h
 #define CSampler_h
 
-int swipr_request_sample(void);
+#include <unistd.h>
+#include <stdio.h>
+
+int swipr_request_sample(FILE *output,
+                         size_t sample_count,
+                         useconds_t usecs_between_samples);
 int swipr_initialize(void);
 
 #endif /* CSampler_h */

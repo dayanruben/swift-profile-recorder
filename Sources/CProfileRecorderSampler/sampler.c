@@ -90,16 +90,14 @@ struct swipr_minidump {
     struct swipr_stackframe md_stack[SWIPR_MAX_STACK_DEPTH];
 };
 
-__attribute__((constructor))
-
 static void
-swipr_dump_shared_objs(void) {
+swipr_dump_shared_objs(FILE *output) {
     struct swipr_dynamic_lib all_libs[1024] = {0};
     size_t all_libs_count = 0;
     swipr_os_dep_list_all_dynamic_libs(all_libs, sizeof(all_libs)/sizeof(all_libs[0]), &all_libs_count);
 
     for (size_t i=0; i < all_libs_count; i++) {
-        fprintf(stderr,
+        fprintf(output,
                 "[SWIPR] VMAP {"
                 "\"path\": \"%s\", "
                 "\"fileMappedAddress\": \"0x%lx\", "
@@ -112,14 +110,14 @@ swipr_dump_shared_objs(void) {
 }
 
 static void
-swipr_initialise_c2ms(void) {
+swipr_initialise_c2ms(FILE *output) {
     for (int i=0; i<SWIPR_MAX_MUTATOR_THREADS; i++) {
         g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
         g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed = NULL;
         g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed = NULL;
     }
 
-    swipr_dump_shared_objs();
+    swipr_dump_shared_objs(output);
 }
 
 static struct timespec
@@ -237,16 +235,20 @@ swipr_make_sample(struct swipr_minidump *minidumps,
 }
 
 int
-swipr_request_sample(void) {
+swipr_request_sample(FILE *output,
+                     size_t sample_count,
+                     useconds_t usecs_between_samples) {
     struct swipr_minidump *minidumps = calloc(SWIPR_MAX_MUTATOR_THREADS, sizeof(*minidumps));
     size_t num_minidumps = 0;
 
-    while (1) {
+    swipr_initialise_c2ms(output);
+
+    for (size_t sample_no=0; sample_no<sample_count; sample_no++) {
         swipr_make_sample(minidumps, SWIPR_MAX_MUTATOR_THREADS, &num_minidumps);
 
         for (size_t t=0; t<num_minidumps; t++) {
             struct swipr_minidump *minidump = &minidumps[t];
-            fprintf(stderr,
+            fprintf(output,
                     "[SWIPR] SMPL {"
                     "\"pid\": %d, "
                     "\"tid\": %lu, "
@@ -262,7 +264,7 @@ swipr_request_sample(void) {
                     );
 
             for (size_t s=0; s<minidump->md_stack_depth; s++) {
-                fprintf(stderr,
+                fprintf(output,
                         "[SWIPR] STCK {"
                         "\"ip\": \"0x%lx\", "
                         "\"sp\": \"0x%lx\""
@@ -272,10 +274,11 @@ swipr_request_sample(void) {
                         );
             }
 
-            fprintf(stderr, "[SWIPR] DONE\n");
+            fprintf(output, "[SWIPR] DONE\n");
         }
-        usleep(10000);
+        usleep(usecs_between_samples);
     }
+    return 0;
 }
 
 static void

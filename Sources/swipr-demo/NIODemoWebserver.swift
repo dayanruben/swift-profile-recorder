@@ -29,6 +29,8 @@
 import NIOCore
 import NIOPosix
 import NIOHTTP1
+import ProfileRecorder
+import Foundation
 
 extension String {
     func chopPrefix(_ prefix: String) -> String? {
@@ -294,6 +296,57 @@ private final class HTTPHandler: ChannelInboundHandler {
         }
     }
 
+    private func handleSample(context: ChannelHandlerContext, request: HTTPServerRequestPart, seconds: Int64) {
+        guard case .end(_) = request else {
+            return
+        }
+        self.handler = nil
+
+        let dirURL = URL(fileURLWithPath: NSTemporaryDirectory() + "/" + "\(UUID())")
+        try! FileManager.default.createDirectory(at: dirURL, withIntermediateDirectories: false)
+
+        let samplePath = dirURL.path + "/samples"
+        let outURL = URL(fileURLWithPath: dirURL.path + "/thing.perf")
+        try! Data().write(to: outURL)
+
+        let sampleCount = seconds * 1_000 / 10
+        let sampleDelay: TimeAmount = .milliseconds(10)
+        ProfileRecorderSampler.sharedInstance.requestSamples(outputFilePath: samplePath,
+                                                   count: .init(sampleCount),
+                                                   timeBetweenSamples: sampleDelay,
+                                                   eventLoop: context.eventLoop).flatMap { () -> EventLoopFuture<String> in
+            let promise = context.eventLoop.makePromise(of: String.self)
+            DispatchQueue.main.async {
+                let p = Process()
+                p.standardInput = FileHandle(forReadingAtPath: samplePath)
+                p.standardOutput = try! FileHandle(forWritingTo: outURL)
+                p.executableURL = Bundle.main.executableURL!.deletingLastPathComponent().appendingPathComponent("swipr-sample-conv")
+                try! p.run()
+                p.terminationHandler = { _ in
+                    promise.succeed(outURL.path)
+                }
+            }
+            return promise.futureResult
+        }.flatMap { path -> EventLoopFuture<(NIOFileHandle, FileRegion)> in
+            var head = HTTPResponseHead(version: .http1_1, status: .ok)
+            head.headers.replaceOrAdd(name: "content-disposition", value: "filename=\"some-samples.perf\"")
+            head.headers.replaceOrAdd(name: "content-type", value: "application/octet-stream")
+            return context.writeAndFlush(self.wrapOutboundOut(.head(head))).flatMap {
+                self.fileIO.openFile(path: path, eventLoop: context.eventLoop)
+            }
+        }.flatMap { fhAndRegion in
+            self.fileIO.readChunked(fileRegion: fhAndRegion.1,
+                                    allocator: context.channel.allocator,
+                                    eventLoop: context.eventLoop) { chunk in
+                context.writeAndFlush(self.wrapOutboundOut(.body(.byteBuffer(chunk))))
+            }.always { _ in
+                try! fhAndRegion.0.close()
+            }
+        }.whenSuccess { _ in
+            context.writeAndFlush(self.wrapOutboundOut(.end(nil)), promise: nil)
+        }
+    }
+
     private func handleFile(context: ChannelHandlerContext, request: HTTPServerRequestPart, ioMethod: FileIOMethod, path: String) {
         self.buffer.clear()
 
@@ -435,6 +488,10 @@ private final class HTTPHandler: ChannelInboundHandler {
                 self.handler = { self.handleFile(context: $0, request: $1, ioMethod: .nonblockingFileIO, path: path) }
                 self.handler!(context, reqPart)
                 return
+            } else if let seconds = request.uri.chopPrefix("/sample/") {
+                self.handler = { self.handleSample(context: $0, request: $1, seconds: Int64(seconds) ?? 1) }
+                self.handler!(context, reqPart)
+                return
             }
 
             self.keepAlive = request.isKeepAlive
@@ -482,7 +539,7 @@ private final class HTTPHandler: ChannelInboundHandler {
         }
     }
 }
-func runWebServer() {
+func runWebServer() -> Never {
     // First argument is the program path
     var arguments = CommandLine.arguments.dropFirst(0) // just to get an ArraySlice<String> from [String]
     var allowHalfClosure = true
@@ -587,9 +644,8 @@ func runWebServer() {
         localAddress = "\(channelLocalAddress)"
     }
     print("Server started and listening on \(localAddress), htdocs path \(htdocs)")
+    print()
+    print("Try to head to   http://127.0.0.1:\(channel.localAddress!.port!)/sample/1")
 
-    // This will never unblock as we don't close the ServerChannel
-    try! channel.closeFuture.wait()
-
-    print("Server closed")
+    dispatchMain()
 }

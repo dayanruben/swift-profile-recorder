@@ -12,18 +12,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-@_implementationOnly import CProfileRecorderSampler
+import ProfileRecorder
 import NIO
 
 import Dispatch
 
-swipr_initialize()
-
 DispatchQueue.global().asyncAfter(deadline: .now() + 3) {
-    swipr_request_sample()
-    print("done")
+    try! ProfileRecorderSampler.sharedInstance.requestSamples(outputFilePath: "/tmp/foo",
+                                                    count: 100,
+                                                    timeBetweenSamples: .milliseconds(10),
+                                                    eventLoop: EmbeddedEventLoop()).wait()
 }
 
 runWebServer()
-print("DONE")
-dispatchMain()

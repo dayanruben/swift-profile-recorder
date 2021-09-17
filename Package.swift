@@ -19,7 +19,7 @@ let package = Package(
         .executableTarget(
             name: "swipr-demo",
             dependencies: [
-                "CProfileRecorderSampler", "CProfileRecorderLibUnwind",
+                "ProfileRecorder",
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
             ]),
@@ -28,6 +28,12 @@ let package = Package(
             dependencies: [
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOExtras", package: "swift-nio-extras"),
+            ]),
+        .target(
+            name: "ProfileRecorder",
+            dependencies: [
+                "CProfileRecorderSampler",
+                .product(name: "NIO", package: "swift-nio"),
             ]),
         .target(
             name: "CProfileRecorderLibUnwind",
