@@ -72,8 +72,14 @@ public struct StackFrame: Codable, CustomStringConvertible, Hashable {
         case instructionPointer = "ip"
         case stackPointer = "sp"
     }
+
     public var instructionPointer: UInt
     public var stackPointer: UInt
+
+    internal init(instructionPointer: UInt, stackPointer: UInt) {
+        self.instructionPointer = instructionPointer
+        self.stackPointer = stackPointer
+    }
 
     public init(from decoder: Decoder) throws {
         struct FailedToDecodeAddressError: Error {}

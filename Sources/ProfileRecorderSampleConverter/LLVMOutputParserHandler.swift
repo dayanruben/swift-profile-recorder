@@ -21,7 +21,11 @@ final internal class LLVMOutputParserHandler: ChannelInboundHandler {
     private var accumulation: [ByteBuffer] = []
 
     private struct CouldNotParseOutputError: Error {
-        var output: [ByteBuffer]
+        init(output: [ByteBuffer]) {
+            self.output = output.map { String(buffer: $0) }
+        }
+
+        var output: [String]
     }
 
     internal func channelRead(context: ChannelHandlerContext, data: NIOAny) {

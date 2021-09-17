@@ -13,15 +13,18 @@
 //===----------------------------------------------------------------------===//
 
 import NIO
+import Foundation
 
 final internal class LLVMStackFrameEncoderHandler: ChannelOutboundHandler {
     typealias OutboundIn = StackFrame
     typealias OutboundOut = ByteBuffer
 
     private let dynamicLibraryMappings: [DynamicLibMapping]
+    private let fileManager: FileManager
 
     internal init(dynamicLibraryMappings: [DynamicLibMapping]) {
         self.dynamicLibraryMappings = dynamicLibraryMappings
+        self.fileManager = FileManager.default
     }
 
     func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?) {
@@ -34,7 +37,7 @@ final internal class LLVMStackFrameEncoderHandler: ChannelOutboundHandler {
             stackFrame.instructionPointer < mapping.segmentEndAddress
         }.first
 
-        if let matched = matched, matched.path != "linux-vdso.so.1" {
+        if let matched = matched, self.fileManager.fileExists(atPath: matched.path) {
             buffer.writeString(matched.path)
             buffer.writeString(" 0x")
             buffer.writeString(String(stackFrame.instructionPointer - matched.fileMappedAddress, radix: 16))

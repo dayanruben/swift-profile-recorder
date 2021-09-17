@@ -20,7 +20,6 @@ import Dispatch
 swipr_initialize()
 
 DispatchQueue.global().asyncAfter(deadline: .now() + 3) {
-    print("requesting sample")
     swipr_request_sample()
     print("done")
 }

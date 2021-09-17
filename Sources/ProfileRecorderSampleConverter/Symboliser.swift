@@ -55,6 +55,7 @@ internal class LLVMSymboliser {
     private let group: EventLoopGroup
     private var process: Process? = nil
     private var channel: Channel? = nil
+    private var unstucker: RepeatedTask? = nil
 
     internal init(dynamicLibraryMappings: [DynamicLibMapping], group: EventLoopGroup) {
         self.dynamicLibraryMappings = dynamicLibraryMappings
@@ -68,7 +69,14 @@ internal class LLVMSymboliser {
         let p = Process()
         p.standardInput = stdIn.fileHandleForReading
         p.standardOutput = stdOut.fileHandleForWriting
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/llvm-symbolizer")
+        let symboliserPath: String
+        if let path = ProcessInfo.processInfo.environment["SWIPR_LLVM_SYMBOLIZER"] {
+            symboliserPath = path
+        } else {
+            symboliserPath = "/usr/bin/llvm-symbolizer"
+        }
+
+        p.executableURL = URL(fileURLWithPath: symboliserPath)
         p.arguments = ["--use-symbol-table=true", "--print-address", "--demangle=1", "--inlining=true", "--functions=linkage", "--color=1"]
         try p.run()
         self.process = p
@@ -86,15 +94,43 @@ internal class LLVMSymboliser {
                        outputDescriptor: dup(stdIn.fileHandleForWriting.fileDescriptor))
             .wait()
         self.channel = channel
+        self.unstucker = channel.eventLoop.scheduleRepeatedTask(initialDelay: .milliseconds(100),
+                                                                delay: .milliseconds(10)) { _ in
+            let p = channel.eventLoop.makePromise(of: String.self)
+            channel.writeAndFlush((StackFrame(instructionPointer: .max, stackPointer: 0), p)).cascadeFailure(to: p)
+            p.futureResult.whenSuccess { str in
+                if str != "0xffffffffffffffff" {
+                    fputs("unexpected PING message result '\(str)'\n", stderr)
+                }
+            }
+
+        }
     }
 
     internal func symbolise(_ stackFrame: StackFrame) throws -> String {
+        struct TimeoutError: Error {
+            var stackFrame: StackFrame
+            var allMappings: [DynamicLibMapping]
+            var matchingMappings: [DynamicLibMapping]
+        }
         let promise = self.channel!.eventLoop.makePromise(of: String.self)
+        let sched = promise.futureResult.eventLoop.scheduleTask(in: .seconds(10)) {
+            promise.fail(TimeoutError(stackFrame: stackFrame,
+                                      allMappings: self.dynamicLibraryMappings,
+                                      matchingMappings: self.dynamicLibraryMappings.filter { mapping in
+                stackFrame.instructionPointer >= mapping.segmentStartAddress && stackFrame.instructionPointer < mapping.segmentEndAddress
+            }))
+        }
         try self.channel!.writeAndFlush((stackFrame, promise)).wait()
+        promise.futureResult.whenComplete { _ in
+            sched.cancel()
+        }
         return try promise.futureResult.wait()
     }
 
     internal func shutdown() throws {
+        self.unstucker?.cancel(promise: nil)
+
         self.process?.terminate()
         self.process = nil
 

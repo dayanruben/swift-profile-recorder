@@ -65,7 +65,14 @@ func symbolize(_ input: String, samples: [Sample]) throws {
     let p = Process()
     p.standardInput = try FileHandle(forReadingFrom: inputURL)
     p.standardOutput = try FileHandle(forWritingTo: outputURL)
-    p.executableURL = URL(fileURLWithPath: "/usr/bin/llvm-symbolizer")
+    let symboliserPath: String
+    if let path = ProcessInfo.processInfo.environment["SWIPR_LLVM_SYMBOLIZER"] {
+        symboliserPath = path
+    } else {
+        symboliserPath = "/usr/bin/llvm-symbolizer"
+    }
+    fputs("SYM at \(symboliserPath)\n", stderr)
+    p.executableURL = URL(fileURLWithPath: symboliserPath)
     p.arguments = ["--use-symbol-table=true", "--print-address", "--demangle=1", "--inlining=true", "--functions=linkage", "--color=1"]
     try p.run()
     p.waitUntilExit()
