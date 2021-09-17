@@ -48,7 +48,7 @@
   } while (0)
 #endif
 
-extern void *__libunwind_cet_get_registers(swift_unwind_unw_cursor_t *);
+extern void *__libunwind_cet_get_registers(swipr_unw_cursor_t *);
 extern void *__libunwind_cet_get_jump_target();
 
 #endif

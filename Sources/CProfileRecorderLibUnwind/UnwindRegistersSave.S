@@ -28,7 +28,7 @@
 #if defined(__i386__)
 
 #
-# extern int __swift_unwind_unw_getcontext(swift_unwind_unw_context_t* thread_state)
+# extern int __swipr_unw_getcontext(swipr_unw_context_t* thread_state)
 #
 # On entry:
 #   +                       +
@@ -39,7 +39,7 @@
 #   +-----------------------+   <-- SP
 #   +                       +
 #
-DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
+DEFINE_LIBUNWIND_FUNCTION(__swipr_unw_getcontext)
 
   _LIBUNWIND_CET_ENDBR
   push  %eax
@@ -71,12 +71,12 @@ DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
 #elif defined(__x86_64__)
 
 #
-# extern int __swift_unwind_unw_getcontext(swift_unwind_unw_context_t* thread_state)
+# extern int __swipr_unw_getcontext(swipr_unw_context_t* thread_state)
 #
 # On entry:
 #  thread_state pointer is in rdi
 #
-DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
+DEFINE_LIBUNWIND_FUNCTION(__swipr_unw_getcontext)
 #if defined(_WIN64)
 #define PTR %rcx
 #define TMP %rdx
@@ -134,12 +134,12 @@ DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
 #elif defined(__mips__) && defined(_ABIO32) && _MIPS_SIM == _ABIO32
 
 #
-# extern int __swift_unwind_unw_getcontext(swift_unwind_unw_context_t* thread_state)
+# extern int __swipr_unw_getcontext(swipr_unw_context_t* thread_state)
 #
 # On entry:
 #  thread_state pointer is in a0 ($4)
 #
-DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
+DEFINE_LIBUNWIND_FUNCTION(__swipr_unw_getcontext)
   .set push
   .set noat
   .set noreorder
@@ -243,12 +243,12 @@ DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
 #elif defined(__mips64)
 
 #
-# extern int __swift_unwind_unw_getcontext(swift_unwind_unw_context_t* thread_state)
+# extern int __swipr_unw_getcontext(swipr_unw_context_t* thread_state)
 #
 # On entry:
 #  thread_state pointer is in a0 ($4)
 #
-DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
+DEFINE_LIBUNWIND_FUNCTION(__swipr_unw_getcontext)
   .set push
   .set noat
   .set noreorder
@@ -333,21 +333,21 @@ DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
 # elif defined(__mips__)
 
 #
-# extern int __swift_unwind_unw_getcontext(swift_unwind_unw_context_t* thread_state)
+# extern int __swipr_unw_getcontext(swipr_unw_context_t* thread_state)
 #
 # Just trap for the time being.
-DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
+DEFINE_LIBUNWIND_FUNCTION(__swipr_unw_getcontext)
   teq $0, $0
 
 #elif defined(__powerpc64__)
 
 //
-// extern int __swift_unwind_unw_getcontext(swift_unwind_unw_context_t* thread_state)
+// extern int __swipr_unw_getcontext(swipr_unw_context_t* thread_state)
 //
 // On entry:
 //  thread_state pointer is in r3
 //
-DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
+DEFINE_LIBUNWIND_FUNCTION(__swipr_unw_getcontext)
 
 // store register (GPR)
 #define PPC64_STR(n) \
@@ -575,12 +575,12 @@ DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
 #elif defined(__ppc__)
 
 //
-// extern int swift_unwind_unw_getcontext(swift_unwind_unw_context_t* thread_state)
+// extern int swipr_unw_getcontext(swipr_unw_context_t* thread_state)
 //
 // On entry:
 //  thread_state pointer is in r3
 //
-DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
+DEFINE_LIBUNWIND_FUNCTION(__swipr_unw_getcontext)
   stw     0,   8(3)
   mflr    0
   stw     0,   0(3) // store lr as ssr0
@@ -721,13 +721,13 @@ DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
 #elif defined(__aarch64__)
 
 //
-// extern int __swift_unwind_unw_getcontext(swift_unwind_unw_context_t* thread_state)
+// extern int __swipr_unw_getcontext(swipr_unw_context_t* thread_state)
 //
 // On entry:
 //  thread_state pointer is in x0
 //
   .p2align 2
-DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
+DEFINE_LIBUNWIND_FUNCTION(__swipr_unw_getcontext)
   stp    x0, x1,  [x0, #0x000]
   stp    x2, x3,  [x0, #0x010]
   stp    x4, x5,  [x0, #0x020]
@@ -778,7 +778,7 @@ DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
 #endif
 
 @
-@ extern int __swift_unwind_unw_getcontext(swift_unwind_unw_context_t* thread_state)
+@ extern int __swipr_unw_getcontext(swipr_unw_context_t* thread_state)
 @
 @ On entry:
 @  thread_state pointer is in r0
@@ -787,10 +787,10 @@ DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
 @ EHABI #7.4.5 notes that in general all VRS registers should be restored
 @ however this is very hard to do for VFP registers because it is unknown
 @ to the library how many registers are implemented by the architecture.
-@ Instead, VFP registers are demand saved by logic external to __swift_unwind_unw_getcontext.
+@ Instead, VFP registers are demand saved by logic external to __swipr_unw_getcontext.
 @
   .p2align 2
-DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
+DEFINE_LIBUNWIND_FUNCTION(__swipr_unw_getcontext)
 #if !defined(__ARM_ARCH_ISA_ARM) && __ARM_ARCH_ISA_THUMB == 1
   stm r0!, {r0-r7}
   mov r1, r8
@@ -822,7 +822,7 @@ DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
   JMP(lr)
 
 @
-@ static void libunwind::Registers_arm::saveVFPWithFSTMD(swift_unwind_unw_fpreg_t* values)
+@ static void libunwind::Registers_arm::saveVFPWithFSTMD(swipr_unw_fpreg_t* values)
 @
 @ On entry:
 @  values pointer is in r0
@@ -836,7 +836,7 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm16saveVFPWithFSTMDEPv)
   JMP(lr)
 
 @
-@ static void libunwind::Registers_arm::saveVFPWithFSTMX(swift_unwind_unw_fpreg_t* values)
+@ static void libunwind::Registers_arm::saveVFPWithFSTMX(swipr_unw_fpreg_t* values)
 @
 @ On entry:
 @  values pointer is in r0
@@ -850,7 +850,7 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm16saveVFPWithFSTMXEPv)
   JMP(lr)
 
 @
-@ static void libunwind::Registers_arm::saveVFPv3(swift_unwind_unw_fpreg_t* values)
+@ static void libunwind::Registers_arm::saveVFPv3(swipr_unw_fpreg_t* values)
 @
 @ On entry:
 @  values pointer is in r0
@@ -873,7 +873,7 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm9saveVFPv3EPv)
 #if defined(_LIBUNWIND_ARM_WMMX)
 
 @
-@ static void libunwind::Registers_arm::saveiWMMX(swift_unwind_unw_fpreg_t* values)
+@ static void libunwind::Registers_arm::saveiWMMX(swipr_unw_fpreg_t* values)
 @
 @ On entry:
 @  values pointer is in r0
@@ -902,7 +902,7 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm9saveiWMMXEPv)
   JMP(lr)
 
 @
-@ static void libunwind::Registers_arm::saveiWMMXControl(swift_unwind_unw_uint32_t* values)
+@ static void libunwind::Registers_arm::saveiWMMXControl(swipr_unw_uint32_t* values)
 @
 @ On entry:
 @  values pointer is in r0
@@ -923,12 +923,12 @@ DEFINE_LIBUNWIND_FUNCTION(_ZN9libunwind13Registers_arm16saveiWMMXControlEPj)
 #elif defined(__or1k__)
 
 #
-# extern int __swift_unwind_unw_getcontext(swift_unwind_unw_context_t* thread_state)
+# extern int __swipr_unw_getcontext(swipr_unw_context_t* thread_state)
 #
 # On entry:
 #  thread_state pointer is in r3
 #
-DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
+DEFINE_LIBUNWIND_FUNCTION(__swipr_unw_getcontext)
   l.sw       0(r3), r0
   l.sw       4(r3), r1
   l.sw       8(r3), r2
@@ -968,13 +968,13 @@ DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
 
 #elif defined(__hexagon__)
 #
-# extern int swift_unwind_unw_getcontext(swift_unwind_unw_context_t* thread_state)
+# extern int swipr_unw_getcontext(swipr_unw_context_t* thread_state)
 #
 # On entry:
 #  thread_state pointer is in r0
 #
 #define OFFSET(offset) (offset/4)
-DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
+DEFINE_LIBUNWIND_FUNCTION(__swipr_unw_getcontext)
   memw(r0+#32) = r8
   memw(r0+#36) = r9
   memw(r0+#40) = r10
@@ -1015,12 +1015,12 @@ DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
 #elif defined(__sparc__)
 
 #
-# extern int __swift_unwind_unw_getcontext(swift_unwind_unw_context_t* thread_state)
+# extern int __swipr_unw_getcontext(swipr_unw_context_t* thread_state)
 #
 # On entry:
 #  thread_state pointer is in o0
 #
-DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
+DEFINE_LIBUNWIND_FUNCTION(__swipr_unw_getcontext)
   ta 3
   add %o7, 8, %o7
   std %g0, [%o0 +   0]
@@ -1045,12 +1045,12 @@ DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
 #elif defined(__riscv)
 
 #
-# extern int __swift_unwind_unw_getcontext(swift_unwind_unw_context_t* thread_state)
+# extern int __swipr_unw_getcontext(swipr_unw_context_t* thread_state)
 #
 # On entry:
 #  thread_state pointer is in a0
 #
-DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
+DEFINE_LIBUNWIND_FUNCTION(__swipr_unw_getcontext)
   ISTORE    x1, (RISCV_ISIZE * 0)(a0) // store ra as pc
   ISTORE    x1, (RISCV_ISIZE * 1)(a0)
   ISTORE    x2, (RISCV_ISIZE * 2)(a0)
@@ -1123,7 +1123,7 @@ DEFINE_LIBUNWIND_FUNCTION(__swift_unwind_unw_getcontext)
   ret           // jump to ra
 #endif
 
-  WEAK_ALIAS(__swift_unwind_unw_getcontext, swift_unwind_unw_getcontext)
+  WEAK_ALIAS(__swipr_unw_getcontext, swipr_unw_getcontext)
 
 #endif /* !defined(__USING_SJLJ_EXCEPTIONS__) */
 

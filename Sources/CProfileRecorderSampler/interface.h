@@ -23,7 +23,7 @@
 
 #include "os_dep.h"
 // FIXME: Proper import.
-#include "../CProfileRecorderLibUnwind/include/CLibUnwind.h"
+#include "../CProfileRecorderLibUnwind/include/CProfileRecorderLibUnwind.h"
 
 #define SWIPR_MAX_MUTATOR_THREADS 1024
 #define SWIPR_MAX_STACK_DEPTH 128
@@ -39,7 +39,7 @@ struct collector_to_mutator {
     swipr_os_dep_thread_id c2m_thread_id;
     swipr_os_dep_sem c2m_proceed;
     swipr_os_dep_sem m2c_proceed;
-    swift_unwind_unw_context_t c2m_context;
+    swipr_unw_context_t c2m_context;
 };
 
 struct collector_to_mutators {

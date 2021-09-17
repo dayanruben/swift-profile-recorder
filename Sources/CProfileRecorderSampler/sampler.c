@@ -190,15 +190,15 @@ swipr_make_sample(struct swipr_minidump *minidumps,
             continue;
         }
 
-        swift_unwind_unw_cursor_t cursor = { 0 };
-        swift_unwind_unw_init_local(&cursor, &g_swipr_c2ms.c2ms_c2ms[i].c2m_context);
+        swipr_unw_cursor_t cursor = { 0 };
+        swipr_unw_init_local(&cursor, &g_swipr_c2ms.c2ms_c2ms[i].c2m_context);
 
         int ret = -1;
         size_t next_stack_frame_idx = 0;
-        while ((ret = swift_unwind_unw_step(&cursor)) > 0 && next_stack_frame_idx < SWIPR_MAX_STACK_DEPTH) {
+        while ((ret = swipr_unw_step(&cursor)) > 0 && next_stack_frame_idx < SWIPR_MAX_STACK_DEPTH) {
             struct swipr_stackframe *stack_frame = &minidumps[i].md_stack[next_stack_frame_idx++];
-            swift_unwind_unw_get_reg(&cursor, UNW_REG_IP, &stack_frame->sf_ip);
-            swift_unwind_unw_get_reg(&cursor, UNW_REG_SP, &stack_frame->sf_sp);
+            swipr_unw_get_reg(&cursor, UNW_REG_IP, &stack_frame->sf_ip);
+            swipr_unw_get_reg(&cursor, UNW_REG_SP, &stack_frame->sf_sp);
 
             UNSAFE_DEBUG("[%d: %lu] ip=%lx, sp=%lx, ret=%d\n",
                          i,
@@ -294,7 +294,7 @@ profiling_handler(int signo, siginfo_t *info, void *context)
     }
     swipr_precondition(my_idx >= 0);
 
-    int err = swift_unwind_unw_getcontext(&g_swipr_c2ms.c2ms_c2ms[my_idx].c2m_context);
+    int err = swipr_unw_getcontext(&g_swipr_c2ms.c2ms_c2ms[my_idx].c2m_context);
     swipr_precondition(err == 0);
     UNSAFE_DEBUG("thread %lu: done collecting context\n", (uintptr_t)my_thread_id);
     swipr_os_dep_sem_signal(g_swipr_c2ms.c2ms_c2ms[my_idx].m2c_proceed);

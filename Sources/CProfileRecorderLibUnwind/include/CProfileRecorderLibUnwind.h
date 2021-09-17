@@ -11,17 +11,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
-//
-//  Header.h
-//  Header
-//
-//  Created by Johannes Weiss on 15/09/2021.
-//
+#ifndef CProfileRecorderLibUnwind_h
+#define CProfileRecorderLibUnwind_h
 
-#ifndef CLibUnwind_h
-#define CLibUnwind_h
-
-#include "libunwind.h"
 #include "unwind.h"
+#include "libunwind.h"
 
-#endif /* CLibUnwind_h */
+#endif

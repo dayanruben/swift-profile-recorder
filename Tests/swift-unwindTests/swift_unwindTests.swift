@@ -12,9 +12,9 @@
 //
 //===----------------------------------------------------------------------===//
 import XCTest
-@testable import swift_unwind
+@testable import swipr
 
-final class swift_unwindTests: XCTestCase {
+final class swiprTests: XCTestCase {
     func testExample() throws {
     }
 }

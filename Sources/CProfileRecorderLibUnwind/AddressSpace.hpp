@@ -200,7 +200,7 @@ public:
   pint_t getEncodedP(pint_t &addr, pint_t end, uint8_t encoding,
                      pint_t datarelBase = 0);
   bool findFunctionName(pint_t addr, char *buf, size_t bufLen,
-                        swift_unwind_unw_word_t *offset);
+                        swipr_unw_word_t *offset);
   bool findUnwindSections(pint_t targetAddr, UnwindInfoSections &info);
   bool findOtherFDE(pint_t targetAddr, pint_t &fde);
 
@@ -596,7 +596,7 @@ inline bool LocalAddressSpace::findUnwindSections(pint_t targetAddr,
 #elif defined(_LIBUNWIND_USE_DL_UNWIND_FIND_EXIDX)
   int length = 0;
   info.arm_section =
-      (uintptr_t)dl_unwind_find_exidx((_swift_unwind_Unwind_Ptr)targetAddr, &length);
+      (uintptr_t)dl_unwind_find_exidx((_swipr_Unwind_Ptr)targetAddr, &length);
   info.arm_section_length = (uintptr_t)length * sizeof(EHABIIndexEntry);
   if (info.arm_section && info.arm_section_length)
     return true;
@@ -619,7 +619,7 @@ inline bool LocalAddressSpace::findOtherFDE(pint_t targetAddr, pint_t &fde) {
 
 inline bool LocalAddressSpace::findFunctionName(pint_t addr, char *buf,
                                                 size_t bufLen,
-                                                swift_unwind_unw_word_t *offset) {
+                                                swipr_unw_word_t *offset) {
 #if _LIBUNWIND_USE_DLADDR
   Dl_info dyldInfo;
   if (dladdr((void *)addr, &dyldInfo)) {

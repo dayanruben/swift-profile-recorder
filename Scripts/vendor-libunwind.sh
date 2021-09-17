@@ -21,7 +21,17 @@ rm -rf "$target_src"
 mkdir "$target_src"
 cp -R "$libunwind/src"/* "$target_src"
 mkdir "$target_src/include"
-cp -R "$libunwind/include"/* "$target_src/include"
+cp "$libunwind/include"/*.h "$target_src/include"
+cp -R "$libunwind/include/mach-o" "$target_src/"
+cat > "$target_src/include/CProfileRecorderLibUnwind.h" <<"EOF"
+#ifndef CProfileRecorderLibUnwind_h
+#define CProfileRecorderLibUnwind_h
+
+#include "unwind.h"
+#include "libunwind.h"
+
+#endif
+EOF
 
 echo "$desc" > "$here/../Misc/vendored-libunwind.version"
 rm -f "$target_src/include/unwind_arm_ehabi.h"\
@@ -33,5 +43,7 @@ find Sources/CProfileRecorderLibUnwind/ \
         -e "s/\<unw_/${prefix}_unw_/g" \
         -e "s/\<_Unwind_/_${prefix}_Unwind_/g" \
         -e "s/\<__unw_/__${prefix}_unw_/g" \
-        -e "s/\<__(de|)register_frame/__${prefix}_\1register_frame/g" "{}" \;
+        -e "s/\<__(de|)register_frame/__${prefix}_\1register_frame/g" \
+        -e 's#include .mach-o/compact_unwind_encoding.h.#include "mach-o/compact_unwind_encoding.h"#g' \
+        '{}' \;
 echo "Okay, all done."

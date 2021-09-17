@@ -36,37 +36,37 @@
 extern "C" {
 #endif
 
-extern int __swift_unwind_unw_getcontext(swift_unwind_unw_context_t *);
-extern int __swift_unwind_unw_init_local(swift_unwind_unw_cursor_t *, swift_unwind_unw_context_t *);
-extern int __swift_unwind_unw_step(swift_unwind_unw_cursor_t *);
-extern int __swift_unwind_unw_get_reg(swift_unwind_unw_cursor_t *, swift_unwind_unw_regnum_t, swift_unwind_unw_word_t *);
-extern int __swift_unwind_unw_get_fpreg(swift_unwind_unw_cursor_t *, swift_unwind_unw_regnum_t, swift_unwind_unw_fpreg_t *);
-extern int __swift_unwind_unw_set_reg(swift_unwind_unw_cursor_t *, swift_unwind_unw_regnum_t, swift_unwind_unw_word_t);
-extern int __swift_unwind_unw_set_fpreg(swift_unwind_unw_cursor_t *, swift_unwind_unw_regnum_t, swift_unwind_unw_fpreg_t);
-extern int __swift_unwind_unw_resume(swift_unwind_unw_cursor_t *);
+extern int __swipr_unw_getcontext(swipr_unw_context_t *);
+extern int __swipr_unw_init_local(swipr_unw_cursor_t *, swipr_unw_context_t *);
+extern int __swipr_unw_step(swipr_unw_cursor_t *);
+extern int __swipr_unw_get_reg(swipr_unw_cursor_t *, swipr_unw_regnum_t, swipr_unw_word_t *);
+extern int __swipr_unw_get_fpreg(swipr_unw_cursor_t *, swipr_unw_regnum_t, swipr_unw_fpreg_t *);
+extern int __swipr_unw_set_reg(swipr_unw_cursor_t *, swipr_unw_regnum_t, swipr_unw_word_t);
+extern int __swipr_unw_set_fpreg(swipr_unw_cursor_t *, swipr_unw_regnum_t, swipr_unw_fpreg_t);
+extern int __swipr_unw_resume(swipr_unw_cursor_t *);
 
 #ifdef __arm__
 /* Save VFP registers in FSTMX format (instead of FSTMD). */
-extern void __swift_unwind_unw_save_vfp_as_X(swift_unwind_unw_cursor_t *);
+extern void __swipr_unw_save_vfp_as_X(swipr_unw_cursor_t *);
 #endif
 
-extern const char *__swift_unwind_unw_regname(swift_unwind_unw_cursor_t *, swift_unwind_unw_regnum_t);
-extern int __swift_unwind_unw_get_proc_info(swift_unwind_unw_cursor_t *, swift_unwind_unw_proc_info_t *);
-extern int __swift_unwind_unw_is_fpreg(swift_unwind_unw_cursor_t *, swift_unwind_unw_regnum_t);
-extern int __swift_unwind_unw_is_signal_frame(swift_unwind_unw_cursor_t *);
-extern int __swift_unwind_unw_get_proc_name(swift_unwind_unw_cursor_t *, char *, size_t, swift_unwind_unw_word_t *);
+extern const char *__swipr_unw_regname(swipr_unw_cursor_t *, swipr_unw_regnum_t);
+extern int __swipr_unw_get_proc_info(swipr_unw_cursor_t *, swipr_unw_proc_info_t *);
+extern int __swipr_unw_is_fpreg(swipr_unw_cursor_t *, swipr_unw_regnum_t);
+extern int __swipr_unw_is_signal_frame(swipr_unw_cursor_t *);
+extern int __swipr_unw_get_proc_name(swipr_unw_cursor_t *, char *, size_t, swipr_unw_word_t *);
 
 // SPI
-extern void __swift_unwind_unw_iterate_dwarf_unwind_cache(void (*func)(
-    swift_unwind_unw_word_t ip_start, swift_unwind_unw_word_t ip_end, swift_unwind_unw_word_t fde, swift_unwind_unw_word_t mh));
+extern void __swipr_unw_iterate_dwarf_unwind_cache(void (*func)(
+    swipr_unw_word_t ip_start, swipr_unw_word_t ip_end, swipr_unw_word_t fde, swipr_unw_word_t mh));
 
 // IPI
-extern void __swift_unwind_unw_add_dynamic_fde(swift_unwind_unw_word_t fde);
-extern void __swift_unwind_unw_remove_dynamic_fde(swift_unwind_unw_word_t fde);
+extern void __swipr_unw_add_dynamic_fde(swipr_unw_word_t fde);
+extern void __swipr_unw_remove_dynamic_fde(swipr_unw_word_t fde);
 
 #if defined(_LIBUNWIND_ARM_EHABI)
 extern const uint32_t* decode_eht_entry(const uint32_t*, size_t*, size_t*);
-extern _swift_unwind_Unwind_Reason_Code _swift_unwind_Unwind_VRS_Interpret(_swift_unwind_Unwind_Context *context,
+extern _swipr_Unwind_Reason_Code _swipr_Unwind_VRS_Interpret(_swipr_Unwind_Context *context,
                                                  const uint32_t *data,
                                                  size_t offset, size_t len);
 #endif

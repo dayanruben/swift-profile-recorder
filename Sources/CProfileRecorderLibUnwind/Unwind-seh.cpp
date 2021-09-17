@@ -53,15 +53,15 @@ using namespace libunwind;
   MAKE_CUSTOM_STATUS(STATUS_SEVERITY_SUCCESS, STATUS_GCC_MAGIC | ((c) << 24))
 
 /// SEH exception raised by libunwind when the program calls
-/// \c _swift_unwind_Unwind_RaiseException.
+/// \c _swipr_Unwind_RaiseException.
 #define STATUS_GCC_THROW MAKE_GCC_EXCEPTION(0) // 0x20474343
 /// SEH exception raised by libunwind to initiate phase 2 of exception
 /// handling.
 #define STATUS_GCC_UNWIND MAKE_GCC_EXCEPTION(1) // 0x21474343
 
-static int __swift_unwind_unw_init_seh(swift_unwind_unw_cursor_t *cursor, CONTEXT *ctx);
-static DISPATCHER_CONTEXT *__swift_unwind_unw_seh_get_disp_ctx(swift_unwind_unw_cursor_t *cursor);
-static void __swift_unwind_unw_seh_set_disp_ctx(swift_unwind_unw_cursor_t *cursor,
+static int __swipr_unw_init_seh(swipr_unw_cursor_t *cursor, CONTEXT *ctx);
+static DISPATCHER_CONTEXT *__swipr_unw_seh_get_disp_ctx(swipr_unw_cursor_t *cursor);
+static void __swipr_unw_seh_set_disp_ctx(swipr_unw_cursor_t *cursor,
                                    DISPATCHER_CONTEXT *disp);
 
 /// Common implementation of SEH-style handler functions used by Itanium-
@@ -70,12 +70,12 @@ static void __swift_unwind_unw_seh_set_disp_ctx(swift_unwind_unw_cursor_t *curso
 ///  b) Initiate a collided unwind to halt unwinding.
 _LIBUNWIND_EXPORT EXCEPTION_DISPOSITION
 _GCC_specific_handler(PEXCEPTION_RECORD ms_exc, PVOID frame, PCONTEXT ms_ctx,
-                      DISPATCHER_CONTEXT *disp, _swift_unwind_Unwind_Personality_Fn pers) {
-  swift_unwind_unw_cursor_t cursor;
-  _swift_unwind_Unwind_Exception *exc;
-  _swift_unwind_Unwind_Action action;
-  struct _swift_unwind_Unwind_Context *ctx = nullptr;
-  _swift_unwind_Unwind_Reason_Code urc;
+                      DISPATCHER_CONTEXT *disp, _swipr_Unwind_Personality_Fn pers) {
+  swipr_unw_cursor_t cursor;
+  _swipr_Unwind_Exception *exc;
+  _swipr_Unwind_Action action;
+  struct _swipr_Unwind_Context *ctx = nullptr;
+  _swipr_Unwind_Reason_Code urc;
   uintptr_t retval, target;
   bool ours = false;
 
@@ -102,32 +102,32 @@ _GCC_specific_handler(PEXCEPTION_RECORD ms_exc, PVOID frame, PCONTEXT ms_ctx,
     // This is (probably) a libunwind-controlled exception/unwind. Recover the
     // parameters which we set below, and pass them to the personality function.
     ours = true;
-    exc = (_swift_unwind_Unwind_Exception *)ms_exc->ExceptionInformation[0];
+    exc = (_swipr_Unwind_Exception *)ms_exc->ExceptionInformation[0];
     if (!IS_UNWINDING(ms_exc->ExceptionFlags) && ms_exc->NumberParameters > 1) {
-      ctx = (struct _swift_unwind_Unwind_Context *)ms_exc->ExceptionInformation[1];
-      action = (_swift_unwind_Unwind_Action)ms_exc->ExceptionInformation[2];
+      ctx = (struct _swipr_Unwind_Context *)ms_exc->ExceptionInformation[1];
+      action = (_swipr_Unwind_Action)ms_exc->ExceptionInformation[2];
     }
   } else {
     // Foreign exception.
     // We can't interact with them (we don't know the original target frame
-    // that we should pass on to RtlUnwindEx in _swift_unwind_Unwind_Resume), so just
+    // that we should pass on to RtlUnwindEx in _swipr_Unwind_Resume), so just
     // pass without calling our destructors here.
     return ExceptionContinueSearch;
   }
   if (!ctx) {
-    __swift_unwind_unw_init_seh(&cursor, disp->ContextRecord);
-    __swift_unwind_unw_seh_set_disp_ctx(&cursor, disp);
-    __swift_unwind_unw_set_reg(&cursor, UNW_REG_IP, disp->ControlPc - 1);
-    ctx = (struct _swift_unwind_Unwind_Context *)&cursor;
+    __swipr_unw_init_seh(&cursor, disp->ContextRecord);
+    __swipr_unw_seh_set_disp_ctx(&cursor, disp);
+    __swipr_unw_set_reg(&cursor, UNW_REG_IP, disp->ControlPc - 1);
+    ctx = (struct _swipr_Unwind_Context *)&cursor;
 
     if (!IS_UNWINDING(ms_exc->ExceptionFlags)) {
       if (ours && ms_exc->NumberParameters > 1)
-        action =  (_swift_unwind_Unwind_Action)(_UA_CLEANUP_PHASE | _UA_FORCE_UNWIND);
+        action =  (_swipr_Unwind_Action)(_UA_CLEANUP_PHASE | _UA_FORCE_UNWIND);
       else
         action = _UA_SEARCH_PHASE;
     } else {
       if (ours && ms_exc->ExceptionInformation[1] == (ULONG_PTR)frame)
-        action = (_swift_unwind_Unwind_Action)(_UA_CLEANUP_PHASE | _UA_HANDLER_FRAME);
+        action = (_swipr_Unwind_Action)(_UA_CLEANUP_PHASE | _UA_HANDLER_FRAME);
       else
         action = _UA_CLEANUP_PHASE;
     }
@@ -174,18 +174,18 @@ _GCC_specific_handler(PEXCEPTION_RECORD ms_exc, PVOID frame, PCONTEXT ms_ctx,
       _LIBUNWIND_ABORT("Personality installed context during phase 1!");
 #ifdef __x86_64__
     exc->private_[2] = disp->TargetIp;
-    __swift_unwind_unw_get_reg(&cursor, UNW_X86_64_RAX, &retval);
-    __swift_unwind_unw_get_reg(&cursor, UNW_X86_64_RDX, &exc->private_[3]);
+    __swipr_unw_get_reg(&cursor, UNW_X86_64_RAX, &retval);
+    __swipr_unw_get_reg(&cursor, UNW_X86_64_RDX, &exc->private_[3]);
 #elif defined(__arm__)
     exc->private_[2] = disp->TargetPc;
-    __swift_unwind_unw_get_reg(&cursor, UNW_ARM_R0, &retval);
-    __swift_unwind_unw_get_reg(&cursor, UNW_ARM_R1, &exc->private_[3]);
+    __swipr_unw_get_reg(&cursor, UNW_ARM_R0, &retval);
+    __swipr_unw_get_reg(&cursor, UNW_ARM_R1, &exc->private_[3]);
 #elif defined(__aarch64__)
     exc->private_[2] = disp->TargetPc;
-    __swift_unwind_unw_get_reg(&cursor, UNW_AARCH64_X0, &retval);
-    __swift_unwind_unw_get_reg(&cursor, UNW_AARCH64_X1, &exc->private_[3]);
+    __swipr_unw_get_reg(&cursor, UNW_AARCH64_X0, &retval);
+    __swipr_unw_get_reg(&cursor, UNW_AARCH64_X1, &exc->private_[3]);
 #endif
-    __swift_unwind_unw_get_reg(&cursor, UNW_REG_IP, &target);
+    __swipr_unw_get_reg(&cursor, UNW_REG_IP, &target);
     ms_exc->ExceptionCode = STATUS_GCC_UNWIND;
 #ifdef __x86_64__
     ms_exc->ExceptionInformation[2] = disp->TargetIp;
@@ -205,14 +205,14 @@ _GCC_specific_handler(PEXCEPTION_RECORD ms_exc, PVOID frame, PCONTEXT ms_ctx,
   }
 }
 
-/// Personality function returned by \c __swift_unwind_unw_get_proc_info() in SEH contexts.
+/// Personality function returned by \c __swipr_unw_get_proc_info() in SEH contexts.
 /// This is a wrapper that calls the real SEH handler function, which in
 /// turn (at least, for Itanium-style frames) calls the real Itanium
 /// personality function (see \c _GCC_specific_handler()).
-extern "C" _swift_unwind_Unwind_Reason_Code
-__libunwind_seh_personality(int version, _swift_unwind_Unwind_Action state,
-                            uint64_t klass, _swift_unwind_Unwind_Exception *exc,
-                            struct _swift_unwind_Unwind_Context *context) {
+extern "C" _swipr_Unwind_Reason_Code
+__libunwind_seh_personality(int version, _swipr_Unwind_Action state,
+                            uint64_t klass, _swipr_Unwind_Exception *exc,
+                            struct _swipr_Unwind_Context *context) {
   (void)version;
   (void)klass;
   EXCEPTION_RECORD ms_exc;
@@ -224,7 +224,7 @@ __libunwind_seh_personality(int version, _swift_unwind_Unwind_Action state,
   ms_exc.ExceptionInformation[1] = (ULONG_PTR)context;
   ms_exc.ExceptionInformation[2] = state;
   DISPATCHER_CONTEXT *disp_ctx =
-      __swift_unwind_unw_seh_get_disp_ctx((swift_unwind_unw_cursor_t *)context);
+      __swipr_unw_seh_get_disp_ctx((swipr_unw_cursor_t *)context);
   EXCEPTION_DISPOSITION ms_act = disp_ctx->LanguageHandler(&ms_exc,
                                                            (PVOID)disp_ctx->EstablisherFrame,
                                                            disp_ctx->ContextRecord,
@@ -238,20 +238,20 @@ __libunwind_seh_personality(int version, _swift_unwind_Unwind_Action state,
   }
 }
 
-static _swift_unwind_Unwind_Reason_Code
-unwind_phase2_forced(swift_unwind_unw_context_t *uc,
-                     _swift_unwind_Unwind_Exception *exception_object,
-                     _swift_unwind_Unwind_Stop_Fn stop, void *stop_parameter) {
-  swift_unwind_unw_cursor_t cursor2;
-  __swift_unwind_unw_init_local(&cursor2, uc);
+static _swipr_Unwind_Reason_Code
+unwind_phase2_forced(swipr_unw_context_t *uc,
+                     _swipr_Unwind_Exception *exception_object,
+                     _swipr_Unwind_Stop_Fn stop, void *stop_parameter) {
+  swipr_unw_cursor_t cursor2;
+  __swipr_unw_init_local(&cursor2, uc);
 
   // Walk each frame until we reach where search phase said to stop
-  while (__swift_unwind_unw_step(&cursor2) > 0) {
+  while (__swipr_unw_step(&cursor2) > 0) {
 
     // Update info about this frame.
-    swift_unwind_unw_proc_info_t frameInfo;
-    if (__swift_unwind_unw_get_proc_info(&cursor2, &frameInfo) != UNW_ESUCCESS) {
-      _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_ojb=%p): __swift_unwind_unw_step "
+    swipr_unw_proc_info_t frameInfo;
+    if (__swipr_unw_get_proc_info(&cursor2, &frameInfo) != UNW_ESUCCESS) {
+      _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_ojb=%p): __swipr_unw_step "
                                  "failed => _URC_END_OF_STACK",
                                  (void *)exception_object);
       return _URC_FATAL_PHASE2_ERROR;
@@ -262,8 +262,8 @@ unwind_phase2_forced(swift_unwind_unw_context_t *uc,
     if (_LIBUNWIND_TRACING_UNWINDING) {
       char functionBuf[512];
       const char *functionName = functionBuf;
-      swift_unwind_unw_word_t offset;
-      if ((__swift_unwind_unw_get_proc_name(&cursor2, functionBuf, sizeof(functionBuf),
+      swipr_unw_word_t offset;
+      if ((__swipr_unw_get_proc_name(&cursor2, functionBuf, sizeof(functionBuf),
                                &offset) != UNW_ESUCCESS) ||
           (frameInfo.start_ip + offset > frameInfo.end_ip))
         functionName = ".anonymous.";
@@ -276,11 +276,11 @@ unwind_phase2_forced(swift_unwind_unw_context_t *uc,
 #endif
 
     // Call stop function at each frame.
-    _swift_unwind_Unwind_Action action =
-        (_swift_unwind_Unwind_Action)(_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE);
-    _swift_unwind_Unwind_Reason_Code stopResult =
+    _swipr_Unwind_Action action =
+        (_swipr_Unwind_Action)(_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE);
+    _swipr_Unwind_Reason_Code stopResult =
         (*stop)(1, action, exception_object->exception_class, exception_object,
-                (struct _swift_unwind_Unwind_Context *)(&cursor2), stop_parameter);
+                (struct _swipr_Unwind_Context *)(&cursor2), stop_parameter);
     _LIBUNWIND_TRACE_UNWINDING(
         "unwind_phase2_forced(ex_ojb=%p): stop function returned %d",
         (void *)exception_object, stopResult);
@@ -293,14 +293,14 @@ unwind_phase2_forced(swift_unwind_unw_context_t *uc,
 
     // If there is a personality routine, tell it we are unwinding.
     if (frameInfo.handler != 0) {
-      _swift_unwind_Unwind_Personality_Fn p =
-          (_swift_unwind_Unwind_Personality_Fn)(intptr_t)(frameInfo.handler);
+      _swipr_Unwind_Personality_Fn p =
+          (_swipr_Unwind_Personality_Fn)(intptr_t)(frameInfo.handler);
       _LIBUNWIND_TRACE_UNWINDING(
           "unwind_phase2_forced(ex_ojb=%p): calling personality function %p",
           (void *)exception_object, (void *)(uintptr_t)p);
-      _swift_unwind_Unwind_Reason_Code personalityResult =
+      _swipr_Unwind_Reason_Code personalityResult =
           (*p)(1, action, exception_object->exception_class, exception_object,
-               (struct _swift_unwind_Unwind_Context *)(&cursor2));
+               (struct _swipr_Unwind_Context *)(&cursor2));
       switch (personalityResult) {
       case _URC_CONTINUE_UNWIND:
         _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_ojb=%p): "
@@ -314,8 +314,8 @@ unwind_phase2_forced(swift_unwind_unw_context_t *uc,
                                    "personality returned "
                                    "_URC_INSTALL_CONTEXT",
                                    (void *)exception_object);
-        // We may get control back if landing pad calls _swift_unwind_Unwind_Resume().
-        __swift_unwind_unw_resume(&cursor2);
+        // We may get control back if landing pad calls _swipr_Unwind_Resume().
+        __swipr_unw_resume(&cursor2);
         break;
       default:
         // Personality routine returned an unknown result code.
@@ -333,10 +333,10 @@ unwind_phase2_forced(swift_unwind_unw_context_t *uc,
   _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_ojb=%p): calling stop "
                              "function with _UA_END_OF_STACK",
                              (void *)exception_object);
-  _swift_unwind_Unwind_Action lastAction =
-      (_swift_unwind_Unwind_Action)(_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE | _UA_END_OF_STACK);
+  _swipr_Unwind_Action lastAction =
+      (_swipr_Unwind_Action)(_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE | _UA_END_OF_STACK);
   (*stop)(1, lastAction, exception_object->exception_class, exception_object,
-          (struct _swift_unwind_Unwind_Context *)(&cursor2), stop_parameter);
+          (struct _swipr_Unwind_Context *)(&cursor2), stop_parameter);
 
   // Clean up phase did not resume at the frame that the search phase said it
   // would.
@@ -344,12 +344,12 @@ unwind_phase2_forced(swift_unwind_unw_context_t *uc,
 }
 
 /// Called by \c __cxa_throw().  Only returns if there is a fatal error.
-_LIBUNWIND_EXPORT _swift_unwind_Unwind_Reason_Code
-_swift_unwind_Unwind_RaiseException(_swift_unwind_Unwind_Exception *exception_object) {
-  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_RaiseException(ex_obj=%p)",
+_LIBUNWIND_EXPORT _swipr_Unwind_Reason_Code
+_swipr_Unwind_RaiseException(_swipr_Unwind_Exception *exception_object) {
+  _LIBUNWIND_TRACE_API("_swipr_Unwind_RaiseException(ex_obj=%p)",
                        (void *)exception_object);
 
-  // Mark that this is a non-forced unwind, so _swift_unwind_Unwind_Resume()
+  // Mark that this is a non-forced unwind, so _swipr_Unwind_Resume()
   // can do the right thing.
   memset(exception_object->private_, 0, sizeof(exception_object->private_));
 
@@ -362,27 +362,27 @@ _swift_unwind_Unwind_RaiseException(_swift_unwind_Unwind_Exception *exception_ob
   return _URC_END_OF_STACK;
 }
 
-/// When \c _swift_unwind_Unwind_RaiseException() is in phase2, it hands control
+/// When \c _swipr_Unwind_RaiseException() is in phase2, it hands control
 /// to the personality function at each frame.  The personality
 /// may force a jump to a landing pad in that function; the landing
-/// pad code may then call \c _swift_unwind_Unwind_Resume() to continue with the
-/// unwinding.  Note: the call to \c _swift_unwind_Unwind_Resume() is from compiler
-/// geneated user code.  All other \c _swift_unwind_Unwind_* routines are called
+/// pad code may then call \c _swipr_Unwind_Resume() to continue with the
+/// unwinding.  Note: the call to \c _swipr_Unwind_Resume() is from compiler
+/// geneated user code.  All other \c _swipr_Unwind_* routines are called
 /// by the C++ runtime \c __cxa_* routines.
 ///
 /// Note: re-throwing an exception (as opposed to continuing the unwind)
 /// is implemented by having the code call \c __cxa_rethrow() which
-/// in turn calls \c _swift_unwind_Unwind_Resume_or_Rethrow().
+/// in turn calls \c _swipr_Unwind_Resume_or_Rethrow().
 _LIBUNWIND_EXPORT void
-_swift_unwind_Unwind_Resume(_swift_unwind_Unwind_Exception *exception_object) {
-  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_Resume(ex_obj=%p)", (void *)exception_object);
+_swipr_Unwind_Resume(_swipr_Unwind_Exception *exception_object) {
+  _LIBUNWIND_TRACE_API("_swipr_Unwind_Resume(ex_obj=%p)", (void *)exception_object);
 
   if (exception_object->private_[0] != 0) {
-    swift_unwind_unw_context_t uc;
+    swipr_unw_context_t uc;
 
-    __swift_unwind_unw_getcontext(&uc);
+    __swipr_unw_getcontext(&uc);
     unwind_phase2_forced(&uc, exception_object,
-                         (_swift_unwind_Unwind_Stop_Fn) exception_object->private_[0],
+                         (_swipr_Unwind_Stop_Fn) exception_object->private_[0],
                          (void *)exception_object->private_[4]);
   } else {
     // Recover the parameters for the unwind from the exception object
@@ -405,22 +405,22 @@ _swift_unwind_Unwind_Resume(_swift_unwind_Unwind_Exception *exception_object) {
                 exception_object, &ms_ctx, &hist);
   }
 
-  // Clients assume _swift_unwind_Unwind_Resume() does not return, so all we can do is abort.
-  _LIBUNWIND_ABORT("_swift_unwind_Unwind_Resume() can't return");
+  // Clients assume _swipr_Unwind_Resume() does not return, so all we can do is abort.
+  _LIBUNWIND_ABORT("_swipr_Unwind_Resume() can't return");
 }
 
 /// Not used by C++.
 /// Unwinds stack, calling "stop" function at each frame.
 /// Could be used to implement \c longjmp().
-_LIBUNWIND_EXPORT _swift_unwind_Unwind_Reason_Code
-_swift_unwind_Unwind_ForcedUnwind(_swift_unwind_Unwind_Exception *exception_object,
-                     _swift_unwind_Unwind_Stop_Fn stop, void *stop_parameter) {
-  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_ForcedUnwind(ex_obj=%p, stop=%p)",
+_LIBUNWIND_EXPORT _swipr_Unwind_Reason_Code
+_swipr_Unwind_ForcedUnwind(_swipr_Unwind_Exception *exception_object,
+                     _swipr_Unwind_Stop_Fn stop, void *stop_parameter) {
+  _LIBUNWIND_TRACE_API("_swipr_Unwind_ForcedUnwind(ex_obj=%p, stop=%p)",
                        (void *)exception_object, (void *)(uintptr_t)stop);
-  swift_unwind_unw_context_t uc;
-  __swift_unwind_unw_getcontext(&uc);
+  swipr_unw_context_t uc;
+  __swipr_unw_getcontext(&uc);
 
-  // Mark that this is a forced unwind, so _swift_unwind_Unwind_Resume() can do
+  // Mark that this is a forced unwind, so _swipr_Unwind_Resume() can do
   // the right thing.
   exception_object->private_[0] = (uintptr_t) stop;
   exception_object->private_[4] = (uintptr_t) stop_parameter;
@@ -431,11 +431,11 @@ _swift_unwind_Unwind_ForcedUnwind(_swift_unwind_Unwind_Exception *exception_obje
 
 /// Called by personality handler during phase 2 to get LSDA for current frame.
 _LIBUNWIND_EXPORT uintptr_t
-_swift_unwind_Unwind_GetLanguageSpecificData(struct _swift_unwind_Unwind_Context *context) {
+_swipr_Unwind_GetLanguageSpecificData(struct _swipr_Unwind_Context *context) {
   uintptr_t result =
-      (uintptr_t)__swift_unwind_unw_seh_get_disp_ctx((swift_unwind_unw_cursor_t *)context)->HandlerData;
+      (uintptr_t)__swipr_unw_seh_get_disp_ctx((swipr_unw_cursor_t *)context)->HandlerData;
   _LIBUNWIND_TRACE_API(
-      "_swift_unwind_Unwind_GetLanguageSpecificData(context=%p) => 0x%" PRIxPTR,
+      "_swipr_Unwind_GetLanguageSpecificData(context=%p) => 0x%" PRIxPTR,
       (void *)context, result);
   return result;
 }
@@ -443,15 +443,15 @@ _swift_unwind_Unwind_GetLanguageSpecificData(struct _swift_unwind_Unwind_Context
 /// Called by personality handler during phase 2 to find the start of the
 /// function.
 _LIBUNWIND_EXPORT uintptr_t
-_swift_unwind_Unwind_GetRegionStart(struct _swift_unwind_Unwind_Context *context) {
-  DISPATCHER_CONTEXT *disp = __swift_unwind_unw_seh_get_disp_ctx((swift_unwind_unw_cursor_t *)context);
+_swipr_Unwind_GetRegionStart(struct _swipr_Unwind_Context *context) {
+  DISPATCHER_CONTEXT *disp = __swipr_unw_seh_get_disp_ctx((swipr_unw_cursor_t *)context);
   uintptr_t result = (uintptr_t)disp->FunctionEntry->BeginAddress + disp->ImageBase;
-  _LIBUNWIND_TRACE_API("_swift_unwind_Unwind_GetRegionStart(context=%p) => 0x%" PRIxPTR,
+  _LIBUNWIND_TRACE_API("_swipr_Unwind_GetRegionStart(context=%p) => 0x%" PRIxPTR,
                        (void *)context, result);
   return result;
 }
 
-static int __swift_unwind_unw_init_seh(swift_unwind_unw_cursor_t *cursor, CONTEXT *context) {
+static int __swipr_unw_init_seh(swipr_unw_cursor_t *cursor, CONTEXT *context) {
 #ifdef _LIBUNWIND_TARGET_X86_64
   new (reinterpret_cast<UnwindCursor<LocalAddressSpace, Registers_x86_64> *>(cursor))
       UnwindCursor<LocalAddressSpace, Registers_x86_64>(
@@ -478,7 +478,7 @@ static int __swift_unwind_unw_init_seh(swift_unwind_unw_cursor_t *cursor, CONTEX
 #endif
 }
 
-static DISPATCHER_CONTEXT *__swift_unwind_unw_seh_get_disp_ctx(swift_unwind_unw_cursor_t *cursor) {
+static DISPATCHER_CONTEXT *__swipr_unw_seh_get_disp_ctx(swipr_unw_cursor_t *cursor) {
 #ifdef _LIBUNWIND_TARGET_X86_64
   return reinterpret_cast<UnwindCursor<LocalAddressSpace, Registers_x86_64> *>(cursor)->getDispatcherContext();
 #elif defined(_LIBUNWIND_TARGET_ARM)
@@ -490,7 +490,7 @@ static DISPATCHER_CONTEXT *__swift_unwind_unw_seh_get_disp_ctx(swift_unwind_unw_
 #endif
 }
 
-static void __swift_unwind_unw_seh_set_disp_ctx(swift_unwind_unw_cursor_t *cursor,
+static void __swipr_unw_seh_set_disp_ctx(swipr_unw_cursor_t *cursor,
                                    DISPATCHER_CONTEXT *disp) {
 #ifdef _LIBUNWIND_TARGET_X86_64
   reinterpret_cast<UnwindCursor<LocalAddressSpace, Registers_x86_64> *>(cursor)->setDispatcherContext(disp);
