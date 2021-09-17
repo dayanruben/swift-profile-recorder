@@ -13,19 +13,19 @@
 //===----------------------------------------------------------------------===//
 import Foundation
 
-struct DynamicLibMapping: Decodable, CustomStringConvertible {
+public struct DynamicLibMapping: Decodable, CustomStringConvertible {
     enum CodingKeys: CodingKey {
         case path
         case fileMappedAddress
         case segmentStartAddress
         case segmentEndAddress
     }
-    var path: String
-    var fileMappedAddress: UInt
-    var segmentStartAddress: UInt
-    var segmentEndAddress: UInt
+    public var path: String
+    public var fileMappedAddress: UInt
+    public var segmentStartAddress: UInt
+    public var segmentEndAddress: UInt
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         struct FailedToDecodeAddressError: Error {}
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -47,7 +47,7 @@ struct DynamicLibMapping: Decodable, CustomStringConvertible {
         }
     }
 
-    var description: String {
+    public var description: String {
         return """
                DynamicLibMapping {\
                 path: '\(self.path)',\
@@ -58,22 +58,22 @@ struct DynamicLibMapping: Decodable, CustomStringConvertible {
     }
 }
 
-struct SampleHeader: Codable {
+public struct SampleHeader: Codable {
     var pid: Int
     var tid: Int
     var timeSec: Int
     var timeNSec: Int
 }
 
-struct StackFrame: Codable, CustomStringConvertible {
-    enum CodingKeys: String, CodingKey {
+public struct StackFrame: Codable, CustomStringConvertible, Hashable {
+    public enum CodingKeys: String, CodingKey {
         case instructionPointer = "ip"
         case stackPointer = "sp"
     }
-    var instructionPointer: UInt
-    var stackPointer: UInt
+    public var instructionPointer: UInt
+    public var stackPointer: UInt
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         struct FailedToDecodeAddressError: Error {}
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -89,7 +89,7 @@ struct StackFrame: Codable, CustomStringConvertible {
         }
     }
 
-    var description: String {
+    public var description: String {
         return """
                StackFrame {\
                 ip: 0x\(String(self.instructionPointer, radix: 16)),\

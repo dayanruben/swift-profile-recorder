@@ -12,9 +12,16 @@
 //
 //===----------------------------------------------------------------------===//
 import Foundation
+import NIO
+
+let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+defer {
+    try! group.syncShutdownGracefully()
+}
 
 let decoder = JSONDecoder()
 
+var symboliser: Symboliser? = nil
 var vmaps: [DynamicLibMapping] = []
 var vmapsRead = true
 var currentSample: Sample? = nil
@@ -40,6 +47,8 @@ struct Sample {
     }
 }
 
+var samples: [Sample] = []
+
 while let line = readLine() {
     guard line.starts(with: "[CSPL] ") else {
         continue
@@ -51,12 +60,17 @@ while let line = readLine() {
         }
 
         if vmapsRead {
+            try symboliser?.shutdown()
+            symboliser = nil
             vmaps.removeAll()
             vmapsRead = false
         }
         vmaps.append(mapping)
     case "SMPL":
         vmapsRead = true
+        if symboliser == nil {
+            symboliser = try Symboliser(dynamicLibraryMappings: vmaps, group: group)
+        }
         guard let header = try? decoder.decode(SampleHeader.self, from: Data(line.dropFirst(12).utf8)) else {
             print("failed", line.dropFirst(12))
             continue
@@ -69,9 +83,19 @@ while let line = readLine() {
         }
         currentSample?.stack.append(stackFrame)
     case "DONE":
-        if let sample = currentSample {
-            try process(sample, vmaps)
+//        if let sample = currentSample {
+//            try process(sample, vmaps)
+//            samples.append(sample)
+//        }
+
+        if let sample = currentSample, let symboliser = symboliser {
+            try processModern(sample, symboliser: symboliser)
         }
+
+//        if samples.count % 1000 == 0 {
+//            try processAll(samples, vmaps)
+//            samples.removeAll()
+//        }
     default:
         print("unknown", line.dropFirst(7).prefix(4))
         continue

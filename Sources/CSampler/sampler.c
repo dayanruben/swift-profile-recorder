@@ -240,37 +240,37 @@ cspl_request_sample(void) {
     size_t num_minidumps = 0;
 
     while (1) {
-    cspl_make_sample(minidumps, CSPL_MAX_MUTATOR_THREADS, &num_minidumps);
+        cspl_make_sample(minidumps, CSPL_MAX_MUTATOR_THREADS, &num_minidumps);
 
-    for (size_t t=0; t<num_minidumps; t++) {
-        struct cspl_minidump *minidump = &minidumps[t];
-        fprintf(stderr,
-                "[CSPL] SMPL {"
-                "\"pid\": %d, "
-                "\"tid\": %lu, "
-                "\"timeSec\": %ld, "
-                "\"timeNSec\": %ld"
-                "}\n",
-                minidump->md_pid,
-                (uintptr_t)minidump->md_tid,
-                minidump->md_time.tv_sec,
-                minidump->md_time.tv_nsec
-                );
-
-        for (size_t s=0; s<minidump->md_stack_depth; s++) {
+        for (size_t t=0; t<num_minidumps; t++) {
+            struct cspl_minidump *minidump = &minidumps[t];
             fprintf(stderr,
-                    "[CSPL] STCK {"
-                    "\"ip\": \"0x%lx\", "
-                    "\"sp\": \"0x%lx\""
+                    "[CSPL] SMPL {"
+                    "\"pid\": %d, "
+                    "\"tid\": %lu, "
+                    "\"timeSec\": %ld, "
+                    "\"timeNSec\": %ld"
                     "}\n",
-                    minidump->md_stack[s].sf_ip,
-                    minidump->md_stack[s].sf_sp
+                    minidump->md_pid,
+                    (uintptr_t)minidump->md_tid,
+                    minidump->md_time.tv_sec,
+                    minidump->md_time.tv_nsec
                     );
-        }
 
-        fprintf(stderr, "[CSPL] DONE\n");
-    }
-        usleep(100000);
+            for (size_t s=0; s<minidump->md_stack_depth; s++) {
+                fprintf(stderr,
+                        "[CSPL] STCK {"
+                        "\"ip\": \"0x%lx\", "
+                        "\"sp\": \"0x%lx\""
+                        "}\n",
+                        minidump->md_stack[s].sf_ip,
+                        minidump->md_stack[s].sf_sp
+                        );
+            }
+
+            fprintf(stderr, "[CSPL] DONE\n");
+        }
+        usleep(10000);
     }
 }
 

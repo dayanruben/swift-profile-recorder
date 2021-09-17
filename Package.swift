@@ -16,18 +16,25 @@ let package = Package(
             targets: ["sample-processor"]),
     ],
     dependencies: [
-        // Dependencies declare other packages that this package depends on.
-        // .package(url: /* package url */, from: "1.0.0"),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.32.3"),
+        .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.10.2"),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .executableTarget(
             name: "swift-unwind",
-            dependencies: ["CSampler", "CLibUnwind"]),
+            dependencies: [
+                "CSampler", "CLibUnwind",
+                .product(name: "NIO", package: "swift-nio"),
+                .product(name: "NIOHTTP1", package: "swift-nio"),
+            ]),
         .executableTarget(
             name: "sample-processor",
-            dependencies: []),
+            dependencies: [
+                .product(name: "NIO", package: "swift-nio"),
+                .product(name: "NIOExtras", package: "swift-nio-extras"),
+            ]),
         .target(
             name: "CLibUnwind",
             dependencies: []),
