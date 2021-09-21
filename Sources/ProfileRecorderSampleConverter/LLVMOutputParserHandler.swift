@@ -38,13 +38,14 @@ final internal class LLVMOutputParserHandler: ChannelInboundHandler {
                 context.fireErrorCaught(CouldNotParseOutputError(output: self.accumulation))
                 self.accumulation.removeAll()
             } else {
-                let out = "\(String(buffer: self.accumulation[0])) \(String(buffer: self.accumulation[1]))+0x0 (foo)"
+                let out = "\(String(buffer: self.accumulation[0])) \(String(buffer: self.accumulation[1]))+0x0 (somewhere)"
                 self.accumulation.removeAll()
                 context.fireChannelRead(self.wrapInboundOut(out))
             }
         } else {
             if self.accumulation.isEmpty && String(buffer: data).starts(with: "CODE ") {
-                context.fireChannelRead(self.wrapInboundOut(String(String(buffer: data).dropFirst(5))))
+                let address = String(String(buffer: data).dropFirst(5))
+                context.fireChannelRead(self.wrapInboundOut("\(address) \(address) (somewhere)"))
             } else {
                 self.accumulation.append(data)
             }

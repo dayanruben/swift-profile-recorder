@@ -59,6 +59,23 @@ while let line = readLine() {
         continue
     }
     switch line.dropFirst(8).prefix(4) {
+    case "MESG":
+        guard let message = try? decoder.decode(Message.self, from: Data(line.dropFirst(13).utf8)) else {
+            continue
+        }
+        print("\(message.message)")
+        if let exitCode = message.exit {
+            exit(exitCode)
+        }
+    case "VERS":
+        guard let version = try? decoder.decode(Version.self, from: Data(line.dropFirst(13).utf8)) else {
+            print("ERROR: Could not decode \(line) as Swift Profile Recorder version.")
+            exit(EXIT_FAILURE)
+        }
+        guard version.version == 1 else {
+            print("ERROR: This is a Swift Profile Recorder version \(version.version) trace, but we're only compatible with version 1")
+            exit(EXIT_FAILURE)
+        }
     case "VMAP":
         guard let mapping = try? decoder.decode(DynamicLibMapping.self, from: Data(line.dropFirst(13).utf8)) else {
             continue

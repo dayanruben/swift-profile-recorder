@@ -96,6 +96,7 @@ swipr_dump_shared_objs(FILE *output) {
     size_t all_libs_count = 0;
     swipr_os_dep_list_all_dynamic_libs(all_libs, sizeof(all_libs)/sizeof(all_libs[0]), &all_libs_count);
 
+    fprintf(output, "[SWIPR] VERS { \"version\": 1}\n");
     for (size_t i=0; i < all_libs_count; i++) {
         fprintf(output,
                 "[SWIPR] VMAP {"

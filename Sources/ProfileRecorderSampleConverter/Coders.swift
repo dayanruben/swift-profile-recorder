@@ -14,6 +14,15 @@
 
 import Foundation
 
+public struct Version: Decodable {
+    var version: Int
+}
+
+public struct Message: Decodable {
+    var message: String
+    var exit: CInt?
+}
+
 public struct DynamicLibMapping: Decodable, CustomStringConvertible {
     enum CodingKeys: CodingKey {
         case path
