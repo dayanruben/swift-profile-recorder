@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "swift-profile-recorder",
-    platforms: [.macOS(.v11)],
+    platforms: [.macOS(.v10_13)],
     products: [
         .library(name: "ProfileRecorder", targets: ["ProfileRecorder"]),
         .executable(
