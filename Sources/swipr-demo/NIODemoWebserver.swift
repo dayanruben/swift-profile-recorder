@@ -539,7 +539,7 @@ private final class HTTPHandler: ChannelInboundHandler {
         }
     }
 }
-func runWebServer() -> Never {
+func runWebServer() -> Void {
     // First argument is the program path
     var arguments = CommandLine.arguments.dropFirst(0) // just to get an ArraySlice<String> from [String]
     var allowHalfClosure = true

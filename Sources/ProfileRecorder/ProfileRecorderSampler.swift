@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 import NIO
+import Dispatch
 @_implementationOnly import CProfileRecorderSampler
 
 private let globalProfileRecorder: ProfileRecorderSampler = {
@@ -41,6 +42,25 @@ public final class ProfileRecorderSampler {
     }
 
     public func requestSamples(outputFilePath: String,
+                               failIfFileExists: Bool = true,
+                               count: Int,
+                               timeBetweenSamples: TimeAmount,
+                               queue: DispatchQueue,
+                               _ handler: @escaping (Result<String, Error>) -> Void) {
+        self.requestSamples(outputFilePath: outputFilePath,
+                            failIfFileExists: failIfFileExists,
+                            count: count,
+                            timeBetweenSamples: timeBetweenSamples,
+                            // FIXME: EmbeddedEventLoop is a hack here...
+                            eventLoop: EmbeddedEventLoop()).whenComplete { result in
+            queue.async {
+                handler(result.map { outputFilePath })
+            }
+        }
+    }
+
+    public func requestSamples(outputFilePath: String,
+                               failIfFileExists: Bool = true,
                                count: Int,
                                timeBetweenSamples: TimeAmount,
                                eventLoop: EventLoop) -> EventLoopFuture<Void> {
@@ -48,7 +68,7 @@ public final class ProfileRecorderSampler {
             return self.requestSamples(output: stderr,
                                        count: count, timeBetweenSamples: timeBetweenSamples, eventLoop: eventLoop)
         } else {
-            let output = fopen(outputFilePath, "w");
+            let output = fopen(outputFilePath, "w\(failIfFileExists ? "x" : "")");
             guard let output = output else {
                 struct CouldNotOpenFileError: Error {
                     var path: String

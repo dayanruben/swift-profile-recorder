@@ -14,14 +14,27 @@
 
 import ProfileRecorder
 import NIO
-
+import Foundation
 import Dispatch
 
-DispatchQueue.global().asyncAfter(deadline: .now() + 3) {
-    try! ProfileRecorderSampler.sharedInstance.requestSamples(outputFilePath: "/tmp/foo",
-                                                    count: 100,
-                                                    timeBetweenSamples: .milliseconds(10),
-                                                    eventLoop: EmbeddedEventLoop()).wait()
+let signalQueue = DispatchQueue(label: "swipr-signal-queue")
+let signalSource = DispatchSource.makeSignalSource(signal: SIGUSR1, queue: signalQueue)
+signalSource.setEventHandler {
+    ProfileRecorderSampler.sharedInstance.requestSamples(outputFilePath: "/tmp/samples_\(getpid())_\(Date().timeIntervalSince1970)",
+                                               failIfFileExists: true,
+                                               count: 100,
+                                               timeBetweenSamples: .milliseconds(10),
+                                               queue: signalQueue) { result in
+        switch result {
+        case .success(let file):
+            print("\(Date()): Samples successfully written to \(file).")
+        case .failure(let error):
+            print("\(Date()): Sampling failed: \(error).")
+        }
+    }
 }
+signalSource.resume()
 
 runWebServer()
+
+signalSource.cancel()
