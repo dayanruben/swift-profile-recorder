@@ -7,6 +7,7 @@ let package = Package(
     name: "swift-profile-recorder",
     platforms: [.macOS(.v11)],
     products: [
+        .library(name: "ProfileRecorder", targets: ["ProfileRecorder"]),
         .executable(
             name: "swipr-sample-conv",
             targets: ["ProfileRecorderSampleConverter"]),
