@@ -92,9 +92,9 @@ struct swipr_minidump {
 
 static void
 swipr_dump_shared_objs(FILE *output) {
-    struct swipr_dynamic_lib all_libs[1024] = {0};
+    struct swipr_dynamic_lib *all_libs = calloc(1024, sizeof(*all_libs));
     size_t all_libs_count = 0;
-    swipr_os_dep_list_all_dynamic_libs(all_libs, sizeof(all_libs)/sizeof(all_libs[0]), &all_libs_count);
+    swipr_os_dep_list_all_dynamic_libs(all_libs, 1024, &all_libs_count);
 
     fprintf(output, "[SWIPR] VERS { \"version\": 1}\n");
     for (size_t i=0; i < all_libs_count; i++) {
@@ -108,6 +108,7 @@ swipr_dump_shared_objs(FILE *output) {
                 all_libs[i].dl_name, all_libs[i].dl_file_mapped_at,
                 all_libs[i].dl_seg_start_addr, all_libs[i].dl_seg_end_addr);
     }
+    free(all_libs);
 }
 
 static void

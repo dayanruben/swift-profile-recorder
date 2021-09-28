@@ -33,6 +33,7 @@ signalSource.setEventHandler {
         }
     }
 }
+signal(SIGUSR1, SIG_IGN)
 signalSource.resume()
 
 runWebServer()
