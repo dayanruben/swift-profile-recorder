@@ -142,8 +142,8 @@ swipr_make_sample(struct swipr_minidump *minidumps,
     struct thread_info all_threads[SWIPR_MAX_MUTATOR_THREADS];
     size_t num_threads = 0;
     int err = swipr_os_dep_list_all_threads(all_threads,
-                                      SWIPR_MAX_MUTATOR_THREADS,
-                                      &num_threads);
+                                            SWIPR_MAX_MUTATOR_THREADS,
+                                            &num_threads);
     swipr_precondition(err == 0);
 
     *minidumps_count_ptr = num_threads;
@@ -242,6 +242,12 @@ swipr_request_sample(FILE *output,
                      useconds_t usecs_between_samples) {
     struct swipr_minidump *minidumps = calloc(SWIPR_MAX_MUTATOR_THREADS, sizeof(*minidumps));
     size_t num_minidumps = 0;
+
+#if !defined(__linux__)
+    fprintf(output,
+            "[SWIPR] MESG { \"message\": \"Unsupported OS, cannot generate samples yet.\", \"exit\": 1 }\n");
+    return 1;
+#endif
 
     swipr_initialise_c2ms(output);
 
