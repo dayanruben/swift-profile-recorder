@@ -22,11 +22,13 @@ int swipr_os_dep_list_all_threads(struct thread_info *all_threads,
                                   size_t all_threads_capacity,
                                   size_t *all_threads_count) {
     *all_threads_count = 0;
+    return 0;
 }
 
 int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
                                        size_t all_libs_capacity,
                                        size_t *all_libs_count) {
     *all_libs_count = 0;
+    return 0;
 }
 #endif

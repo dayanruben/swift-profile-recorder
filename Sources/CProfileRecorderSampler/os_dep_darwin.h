@@ -17,7 +17,10 @@
 
 #import <pthread.h>
 
-#define swipr_os_dep_thread_id pthread_t
-#define swipr_os_dep_kill pthread_kill
+typedef intptr_t swipr_os_dep_thread_id;
+
+static inline int swipr_os_dep_kill(swipr_os_dep_thread_id thread_id, int signal) {
+    return pthread_kill((pthread_t)thread_id, signal);
+}
 
 #endif /* swipr_os_dep_dawin_h */

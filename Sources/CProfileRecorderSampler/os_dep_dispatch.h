@@ -45,7 +45,7 @@ swipr_os_dep_sem_wait_with_deadline(swipr_os_dep_sem sem, swipr_os_dep_deadline 
 
 static inline swipr_os_dep_thread_id
 swipr_os_dep_get_thread_id(void) {
-    return pthread_self();
+    return (swipr_os_dep_thread_id)pthread_self();
 }
 
 #endif /* swipr_os_dep_macos_h */
