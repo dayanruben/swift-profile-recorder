@@ -36,7 +36,7 @@ public final class ProfileRecorderSampler {
                                 count: Int,
                                 timeBetweenSamples: TimeAmount,
                                 eventLoop: EventLoop) -> EventLoopFuture<Void> {
-        self.threadPool.runIfActive(eventLoop: eventLoop) {
+        return self.threadPool.runIfActive(eventLoop: eventLoop) {
             swipr_request_sample(output, .init(count), .init(timeBetweenSamples.nanoseconds / 1000))
         }
     }
@@ -68,8 +68,7 @@ public final class ProfileRecorderSampler {
             return self.requestSamples(output: stderr,
                                        count: count, timeBetweenSamples: timeBetweenSamples, eventLoop: eventLoop)
         } else {
-            let output = fopen(outputFilePath, "w\(failIfFileExists ? "x" : "")");
-            guard let output = output else {
+            guard let output = fopen(outputFilePath, "w\(failIfFileExists ? "x" : "")") else {
                 struct CouldNotOpenFileError: Error {
                     var path: String
                 }
