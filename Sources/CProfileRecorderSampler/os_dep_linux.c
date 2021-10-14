@@ -27,6 +27,7 @@
 
 #include "os_dep.h"
 #include "interface.h"
+#include "common.h"
 
 int swipr_os_dep_list_all_threads(struct thread_info *all_threads,
                             size_t all_threads_capacity,
@@ -68,9 +69,7 @@ int swipr_os_dep_list_all_threads(struct thread_info *all_threads,
                 int fd = open(file_path, O_RDONLY);
                 if (fd >= 0) {
                     int how_much = read(fd, all_threads[idx].ti_name, 32);
-                    if (how_much > 0) {
-                        all_threads[idx].ti_name[how_much-1] = 0; // get rid of the \n
-                    }
+                    all_threads[idx].ti_name[how_much > 0 ? how_much-1 : 0] = 0; // get rid of the \n
                     close(fd);
                 }
             }

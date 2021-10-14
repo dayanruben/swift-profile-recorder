@@ -29,8 +29,8 @@ typedef dispatch_semaphore_t swipr_os_dep_sem;
 #define swipr_os_dep_deadline dispatch_time_t
 
 static inline swipr_os_dep_deadline
-swipr_os_dep_create_deadline(void) {
-    return dispatch_time(DISPATCH_TIME_NOW, 100 * NSEC_PER_MSEC);
+swipr_os_dep_create_deadline(uint64_t nsecs) {
+    return dispatch_time(DISPATCH_TIME_NOW, nsecs);
 }
 
 static inline void

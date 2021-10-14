@@ -19,6 +19,7 @@
 #include <stdbool.h>
 #include <sys/time.h>
 #include <string.h>
+#include <sys/errno.h>
 
 #include "os_dep.h"
 #include "interface.h"
@@ -90,10 +91,13 @@ struct swipr_minidump {
     struct swipr_stackframe md_stack[SWIPR_MAX_STACK_DEPTH];
 };
 
-static void
+static int
 swipr_dump_shared_objs(FILE *output) {
-    struct swipr_dynamic_lib *all_libs = calloc(1024, sizeof(*all_libs));
     size_t all_libs_count = 0;
+    struct swipr_dynamic_lib *all_libs = calloc(1024, sizeof(*all_libs));
+    if (!all_libs) {
+        return 1;
+    }
     swipr_os_dep_list_all_dynamic_libs(all_libs, 1024, &all_libs_count);
 
     fprintf(output, "[SWIPR] VERS { \"version\": 1}\n");
@@ -109,9 +113,10 @@ swipr_dump_shared_objs(FILE *output) {
                 all_libs[i].dl_seg_start_addr, all_libs[i].dl_seg_end_addr);
     }
     free(all_libs);
+    return 0;
 }
 
-static void
+static int
 swipr_initialise_c2ms(FILE *output) {
     for (int i=0; i<SWIPR_MAX_MUTATOR_THREADS; i++) {
         g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
@@ -119,7 +124,7 @@ swipr_initialise_c2ms(FILE *output) {
         g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed = NULL;
     }
 
-    swipr_dump_shared_objs(output);
+    return swipr_dump_shared_objs(output);
 }
 
 static struct timespec
@@ -128,12 +133,12 @@ swipr_get_current_time(void) {
     struct timespec ts;
     gettimeofday(&tv, NULL);
     ts.tv_sec = tv.tv_sec + 0;
-    ts.tv_nsec = ((typeof(ts.tv_nsec))tv.tv_usec) * 1000;
+    ts.tv_nsec = ((typeof(ts.tv_nsec))tv.tv_usec) * SWIPR_NSEC_PER_USEC;
 
     return ts;
 }
 
-static void
+static int
 swipr_make_sample(struct swipr_minidump *minidumps,
                  size_t minidumps_capacity,
                  size_t *minidumps_count_ptr) {
@@ -157,6 +162,25 @@ swipr_make_sample(struct swipr_minidump *minidumps,
     }
 
     for (int i=0; i<num_threads; i++) {
+        if (g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed == NULL || g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed == NULL) {
+            // out of memory.
+
+            for (int j=0; j<num_threads; j++) {
+                if (g_swipr_c2ms.c2ms_c2ms[j].c2m_proceed) {
+                    swipr_os_dep_sem_free(g_swipr_c2ms.c2ms_c2ms[j].c2m_proceed);
+                    g_swipr_c2ms.c2ms_c2ms[j].c2m_proceed = NULL;
+                }
+                if (g_swipr_c2ms.c2ms_c2ms[j].m2c_proceed) {
+                    swipr_os_dep_sem_free(g_swipr_c2ms.c2ms_c2ms[j].m2c_proceed);
+                    g_swipr_c2ms.c2ms_c2ms[j].m2c_proceed = NULL;
+                }
+            }
+
+            return 1;
+        }
+    }
+
+    for (int i=0; i<num_threads; i++) {
         minidumps[i] = (typeof(minidumps[i])){ 0 };
     }
 
@@ -171,16 +195,28 @@ swipr_make_sample(struct swipr_minidump *minidumps,
         if (err != 0) {
             UNSAFE_DEBUG("couldn't signal thread %lu\n", (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id);
             // thread dead, let's not wait for it later.
-            g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = -1;
+            g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
         }
     }
 
-    swipr_os_dep_deadline deadline = swipr_os_dep_create_deadline();
+    swipr_os_dep_deadline deadline = swipr_os_dep_create_deadline(SWIPR_NSEC_PER_SEC);
 
     for (int i=0; i<num_threads; i++) {
-        swipr_precondition(g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id != 0);
-        if (g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id > 0) {
-            swipr_os_dep_sem_wait(g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed);
+        swipr_os_dep_thread_id thread_id = g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id;
+        if (thread_id > 0) {
+            err = swipr_os_dep_sem_wait_with_deadline(g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed, deadline);
+            if (err) {
+                if (swipr_os_dep_kill(thread_id, 0) == -1 && errno == ESRCH) {
+                    UNSAFE_DEBUG("thread %d/%ld died, that's probably okay\n",
+                                 i, thread_id);
+                    g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
+                } else {
+                    UNSAFE_DEBUG("OUTCH, timeout, thread still alive but no response %d/%ld of %zu\n",
+                                 i, thread_id, num_threads);
+                    // FIXME: We can't just continue here...
+                    g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
+                }
+            }
         }
     }
 
@@ -193,6 +229,10 @@ swipr_make_sample(struct swipr_minidump *minidumps,
 
         swipr_unw_cursor_t cursor = { 0 };
         swipr_unw_init_local(&cursor, &g_swipr_c2ms.c2ms_c2ms[i].c2m_context);
+
+        UNSAFE_DEBUG("[%d: %lu] starting unwind\n",
+                     i,
+                     (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id);
 
         int ret = -1;
         size_t next_stack_frame_idx = 0;
@@ -224,8 +264,16 @@ swipr_make_sample(struct swipr_minidump *minidumps,
     }
 
     for (int i=0; i<num_threads; i++) {
-        if (g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id > 0) {
-            swipr_os_dep_sem_wait(g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed);
+        swipr_os_dep_thread_id thread_id = g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id;
+        if (thread_id > 0) {
+            deadline = swipr_os_dep_create_deadline(100 * SWIPR_NSEC_PER_MSEC);
+            err = swipr_os_dep_sem_wait_with_deadline(g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed, deadline);
+            if (err) {
+                UNSAFE_DEBUG("OUTCH, timeout (B), thread %d/%ld of %zu\n",
+                             i, thread_id, num_threads);
+                // FIXME: Continuing here is unsafe, the tests might still exist, and below, we'll free the semaphore.
+                // Probably best to leak it or so.
+            }
         }
 
         g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
@@ -234,14 +282,21 @@ swipr_make_sample(struct swipr_minidump *minidumps,
         g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed = NULL;
         g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed = NULL;
     }
+
+    return 0;
 }
 
 int
 swipr_request_sample(FILE *output,
                      size_t sample_count,
                      useconds_t usecs_between_samples) {
-    struct swipr_minidump *minidumps = calloc(SWIPR_MAX_MUTATOR_THREADS, sizeof(*minidumps));
     size_t num_minidumps = 0;
+    struct swipr_minidump *minidumps = calloc(SWIPR_MAX_MUTATOR_THREADS, sizeof(*minidumps));
+    if (!minidumps) {
+        fprintf(output,
+                "[SWIPR] MESG { \"message\": \"ProfileRecorder could not allocate memory to collect minidumps.\", \"exit\": 1 }\n");
+        return 1;
+    }
 
 #if !defined(__linux__)
     fprintf(output,
@@ -249,10 +304,22 @@ swipr_request_sample(FILE *output,
     return 1;
 #endif
 
-    swipr_initialise_c2ms(output);
+    int err = swipr_initialise_c2ms(output);
+    if (err) {
+        fprintf(output,
+                "[SWIPR] MESG { \"message\": \"ProfileRecorder initialisation failed, error: %d.\" }\n",
+                err);
+        return err;
+    }
 
     for (size_t sample_no=0; sample_no<sample_count; sample_no++) {
-        swipr_make_sample(minidumps, SWIPR_MAX_MUTATOR_THREADS, &num_minidumps);
+        err = swipr_make_sample(minidumps, SWIPR_MAX_MUTATOR_THREADS, &num_minidumps);
+        if (err) {
+            fprintf(output,
+                    "[SWIPR] MESG { \"message\": \"Sample %lu failed, error: %d.\" }\n",
+                    sample_no, err);
+            continue;
+        }
 
         for (size_t t=0; t<num_minidumps; t++) {
             struct swipr_minidump *minidump = &minidumps[t];
@@ -284,6 +351,7 @@ swipr_request_sample(FILE *output,
 
             fprintf(output, "[SWIPR] DONE\n");
         }
+        UNSAFE_DEBUG("done sample %lu\n", sample_no);
         usleep(usecs_between_samples);
     }
     return 0;

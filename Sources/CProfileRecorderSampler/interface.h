@@ -15,12 +15,10 @@
 #ifndef interface_h
 #define interface_h
 
+#include "common.h"
 #include "os_dep.h"
 // FIXME: Proper import.
 #include "../CProfileRecorderLibUnwind/include/CProfileRecorderLibUnwind.h"
-
-#define SWIPR_MAX_MUTATOR_THREADS 1024
-#define SWIPR_MAX_STACK_DEPTH 128
 
 enum swipr_c2ms_state {
     swipr_c2m_idle = 0,

@@ -22,6 +22,7 @@
 
 #include "asserts.h"
 #include "os_dep_linux.h"
+#include "common.h"
 
 struct swipr_pthread_sem {
     pthread_mutex_t mutex;
@@ -33,7 +34,9 @@ typedef struct swipr_pthread_sem *swipr_os_dep_sem;
 static inline swipr_os_dep_sem
 swipr_os_dep_sem_create(int value) {
     struct swipr_pthread_sem *sem = malloc(sizeof(*sem));
-    swipr_precondition(sem != NULL);
+    if (!sem) {
+        return NULL;
+    }
 
     *sem = (typeof(*sem)){ 0 };
     sem->value = 0;
@@ -77,14 +80,17 @@ swipr_os_dep_sem_signal(swipr_os_dep_sem sem) {
 #define swipr_os_dep_deadline struct timespec
 
 static inline swipr_os_dep_deadline
-swipr_os_dep_create_deadline(void) {
-    struct timeval tv;
-    struct timespec ts;
-    gettimeofday(&tv, NULL);
-    ts.tv_sec = tv.tv_sec + 0;
-    ts.tv_nsec = 0;
+swipr_os_dep_create_deadline(uint64_t nsecs) {
+    struct timeval cur_time = { 0 };
+    gettimeofday(&cur_time, NULL);
 
-    return ts;
+    uint64_t all_nsecs = nsecs + ((uint64_t)cur_time.tv_usec * 1000ULL);
+    struct timespec timeout_abs = {
+        .tv_sec = cur_time.tv_sec + (all_nsecs / SWIPR_NSEC_PER_SEC),
+        .tv_nsec = all_nsecs % SWIPR_NSEC_PER_SEC
+    };
+
+    return timeout_abs;
 }
 
 static inline void

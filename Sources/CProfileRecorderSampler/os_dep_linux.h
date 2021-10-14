@@ -28,7 +28,7 @@ swipr_os_dep_get_thread_id(void) {
 }
 
 static inline int swipr_os_dep_kill(swipr_os_dep_thread_id tid, int sig) {
-    return syscall(SYS_tkill, tid, sig);
+    return syscall(SYS_tgkill, getpid(), tid, sig);
 }
 
 #endif /* swipr_os_dep_linux_h */

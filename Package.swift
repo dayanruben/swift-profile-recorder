@@ -17,6 +17,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.10.2"),
     ],
     targets: [
+        // MARK: - Executables
         .executableTarget(
             name: "swipr-demo",
             dependencies: [
@@ -30,6 +31,8 @@ let package = Package(
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOExtras", package: "swift-nio-extras"),
             ]),
+
+        // MARK: - Library targets
         .target(
             name: "ProfileRecorder",
             dependencies: [
@@ -42,6 +45,13 @@ let package = Package(
         .target(
             name: "CProfileRecorderSampler",
             dependencies: ["CProfileRecorderLibUnwind"]),
+
+        // MARK: - Tests
+        .testTarget(name: "ProfileRecorderTests",
+                    dependencies: [
+                        "ProfileRecorder",
+                        .product(name: "NIO", package: "swift-nio"),
+                    ]),
     ],
     cxxLanguageStandard: .cxx14
 )

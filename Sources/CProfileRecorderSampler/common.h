@@ -12,10 +12,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-import XCTest
-@testable import swipr
 
-final class swiprTests: XCTestCase {
-    func testExample() throws {
-    }
-}
+#ifndef common_h
+#define common_h
+
+#define SWIPR_MAX_MUTATOR_THREADS 1024
+#define SWIPR_MAX_STACK_DEPTH 128
+
+#define SWIPR_NSEC_PER_USEC 1000ULL
+#define SWIPR_NSEC_PER_MSEC (1000ULL * SWIPR_NSEC_PER_USEC)
+#define SWIPR_NSEC_PER_SEC (1000ULL * SWIPR_NSEC_PER_MSEC)
+
+#endif /* common_h */
