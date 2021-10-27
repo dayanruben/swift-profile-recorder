@@ -14,7 +14,7 @@
 
 func processModern(_ sample: Sample, symboliser: Symboliser) throws {
     print("\(sample.threadName)-T\(sample.tid)     \(sample.pid)/\(sample.tid)     \(sample.timeSec).\(sample.timeNSec):    swipr")
-    for stackFrame in sample.stack {
+    for stackFrame in sample.stack.dropFirst() {
         print("\t \(try symboliser.symbolise(stackFrame))")
     }
     print()

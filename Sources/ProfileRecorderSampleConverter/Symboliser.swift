@@ -99,7 +99,7 @@ internal class LLVMSymboliser {
             let p = channel.eventLoop.makePromise(of: String.self)
             channel.writeAndFlush((StackFrame(instructionPointer: .max, stackPointer: 0), p)).cascadeFailure(to: p)
             p.futureResult.whenSuccess { str in
-                if str != "0xffffffffffffffff" {
+                if !str.starts(with: "0xffffffffffffffff") {
                     fputs("unexpected PING message result '\(str)'\n", stderr)
                 }
             }
