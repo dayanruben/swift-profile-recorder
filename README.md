@@ -29,6 +29,8 @@ which will create 1000 samples with 10 ms between them. So it'll sample for
 about 10 seconds. After that, you'll need to (on the machine you're running it)
 convert the samples into a regular format, and also symbolicate it.
 
+You need to have `llvm-symbolizer` installed for `swipr-sample-cov` to work.
+
 That can be done using
 
 ```bash
