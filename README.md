@@ -37,6 +37,8 @@ That can be done using
 swipr-sample-conv < /tmp/samples | swift demangle > /tmp/stacks.perf
 ```
 
+**NOTE**: `swipr-sample-conv` _must_ be run on a system that has access to the very same files in the same versions as the system where the samples were obtained. Usually this means that you need to run them in a Docker container with the exact same image as what you were running in prod. It can be another container but it needs to have the same files at the same paths (to be able to symbolicate).
+
 The resulting file, you can just drag into [Firefox Profiler](https://profiler.firefox.com)
 which is a client-side web app.
 
