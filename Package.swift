@@ -15,6 +15,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.32.3"),
         .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.10.2"),
+    
     ],
     targets: [
         // MARK: - Executables
@@ -30,6 +31,7 @@ let package = Package(
             dependencies: [
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOExtras", package: "swift-nio-extras"),
+                
             ]),
 
         // MARK: - Library targets

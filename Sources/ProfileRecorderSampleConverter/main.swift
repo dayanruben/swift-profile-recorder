@@ -12,8 +12,16 @@
 //
 //===----------------------------------------------------------------------===//
 
+
 import Foundation
 import NIO
+
+let appVersion = "1.0"
+
+if CommandLine.arguments.count == 2 && (CommandLine.arguments[1] == "--version" || CommandLine.arguments[1] == "-v") {
+    print(appVersion)
+    exit(EX_OK)
+}
 
 let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
 defer {
