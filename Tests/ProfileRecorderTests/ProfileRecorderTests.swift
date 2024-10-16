@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Atomics
 import XCTest
 import NIO
 import NIOConcurrencyHelpers
@@ -56,11 +57,11 @@ final class ProfileRecorderTests: XCTestCase {
                                                                  count: 1000,
                                                                  timeBetweenSamples: .microseconds(100),
                                                                  eventLoop: self.group.next())
-        let keepRunning = NIOAtomic<Bool>.makeAtomic(value: true)
+        let keepRunning = ManagedAtomic<Bool>(true)
         samples.whenComplete { _ in
-            keepRunning.store(false)
+            keepRunning.store(false, ordering: .relaxed)
         }
-        while keepRunning.load() {
+        while keepRunning.load(ordering: .relaxed) {
             XCTAssertNoThrow(try MultiThreadedEventLoopGroup(numberOfThreads: 64).syncShutdownGracefully())
         }
 

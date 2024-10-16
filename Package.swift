@@ -13,6 +13,7 @@ let package = Package(
             targets: ["ProfileRecorderSampleConverter"]),
     ],
     dependencies: [
+        .package(url: "https://github.com/apple/swift-atomics.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.6.1"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.75.0"),
         .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.24.1"),
@@ -57,6 +58,7 @@ let package = Package(
         .testTarget(name: "ProfileRecorderTests",
                     dependencies: [
                         "ProfileRecorder",
+                        .product(name: "Atomics", package: "swift-atomics"),
                         .product(name: "NIO", package: "swift-nio"),
                     ]),
     ],
