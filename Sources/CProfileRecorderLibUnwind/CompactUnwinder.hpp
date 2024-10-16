@@ -11,7 +11,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
-//===-------------------------- CompactUnwinder.hpp -----------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -32,6 +32,7 @@
 #include "mach-o/compact_unwind_encoding.h"
 
 #include "Registers.hpp"
+#include "libunwind_ext.h"
 
 #define EXTRACT_BITS(value, mask)                                              \
   ((value >> __builtin_ctz(mask)) & (((1 << __builtin_popcount(mask))) - 1))

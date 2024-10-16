@@ -28,7 +28,7 @@ final internal class LLVMStackFrameEncoderHandler: ChannelOutboundHandler {
     }
 
     func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?) {
-        let stackFrame = self.unwrapOutboundIn(data)
+        let stackFrame = Self.unwrapOutboundIn(data)
 
         var buffer = context.channel.allocator.buffer(capacity: 256)
 
@@ -38,14 +38,15 @@ final internal class LLVMStackFrameEncoderHandler: ChannelOutboundHandler {
         }.first
 
         if let matched = matched, self.fileManager.fileExists(atPath: matched.path) {
+            buffer.writeString("\"")
             buffer.writeString(matched.path)
-            buffer.writeString(" 0x")
+            buffer.writeString("\" 0x")
             buffer.writeString(String(stackFrame.instructionPointer - matched.fileMappedAddress, radix: 16))
         } else {
-            buffer.writeString("CODE 0x")
+            buffer.writeString("/ignore/errors/about/this 0x")
             buffer.writeString(String(stackFrame.instructionPointer, radix: 16))
         }
         buffer.writeString("\n")
-        context.write(self.wrapOutboundOut(buffer), promise: promise)
+        context.write(Self.wrapOutboundOut(buffer), promise: promise)
     }
 }

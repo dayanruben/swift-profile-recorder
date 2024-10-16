@@ -13,8 +13,9 @@ let package = Package(
             targets: ["ProfileRecorderSampleConverter"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", from: "2.32.3"),
-        .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.10.2"),
+        .package(url: "https://github.com/apple/swift-log.git", from: "1.6.1"),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.75.0"),
+        .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.24.1"),
     
     ],
     targets: [
@@ -30,6 +31,7 @@ let package = Package(
             name: "ProfileRecorderSampleConverter",
             dependencies: [
                 .product(name: "NIO", package: "swift-nio"),
+                .product(name: "Logging", package: "swift-log"),
                 .product(name: "NIOExtras", package: "swift-nio-extras"),
                 
             ]),
@@ -43,7 +45,10 @@ let package = Package(
             ]),
         .target(
             name: "CProfileRecorderLibUnwind",
-            dependencies: []),
+            dependencies: [],
+            cSettings: [.define("_LIBUNWIND_IS_NATIVE_ONLY")],
+            cxxSettings: [.define("_LIBUNWIND_IS_NATIVE_ONLY")]
+        ),
         .target(
             name: "CProfileRecorderSampler",
             dependencies: ["CProfileRecorderLibUnwind"]),

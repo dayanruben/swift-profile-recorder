@@ -20,7 +20,7 @@ final internal class LLVMOutputParserHandler: ChannelInboundHandler {
 
     private var accumulation: [ByteBuffer] = []
 
-    private struct CouldNotParseOutputError: Error {
+    struct CouldNotParseOutputError: Error {
         init(output: [ByteBuffer]) {
             self.output = output.map { String(buffer: $0) }
         }
@@ -29,7 +29,7 @@ final internal class LLVMOutputParserHandler: ChannelInboundHandler {
     }
 
     internal func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-        let data = self.unwrapInboundIn(data)
+        let data = Self.unwrapInboundIn(data)
 
         if data.readableBytes == 0 {
             // done, process now
@@ -40,12 +40,12 @@ final internal class LLVMOutputParserHandler: ChannelInboundHandler {
             } else {
                 let out = "\(String(buffer: self.accumulation[0])) \(String(buffer: self.accumulation[1]))+0x0 (somewhere)"
                 self.accumulation.removeAll()
-                context.fireChannelRead(self.wrapInboundOut(out))
+                context.fireChannelRead(Self.wrapInboundOut(out))
             }
         } else {
             if self.accumulation.isEmpty && String(buffer: data).starts(with: "CODE ") {
                 let address = String(String(buffer: data).dropFirst(5))
-                context.fireChannelRead(self.wrapInboundOut("\(address) \(address) (somewhere)"))
+                context.fireChannelRead(Self.wrapInboundOut("\(address) \(address) (somewhere)"))
             } else {
                 self.accumulation.append(data)
             }

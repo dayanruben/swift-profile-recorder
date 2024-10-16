@@ -20,7 +20,7 @@ private let globalProfileRecorder: ProfileRecorderSampler = {
     return ProfileRecorderSampler()
 }()
 
-public final class ProfileRecorderSampler {
+public final class ProfileRecorderSampler: Sendable {
     private let threadPool: NIOThreadPool
 
     public static var sharedInstance: ProfileRecorderSampler {
@@ -46,7 +46,7 @@ public final class ProfileRecorderSampler {
                                count: Int,
                                timeBetweenSamples: TimeAmount,
                                queue: DispatchQueue,
-                               _ handler: @escaping (Result<String, Error>) -> Void) {
+                               _ handler: @Sendable @escaping (Result<String, Error>) -> Void) {
         self.requestSamples(outputFilePath: outputFilePath,
                             failIfFileExists: failIfFileExists,
                             count: count,

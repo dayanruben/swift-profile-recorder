@@ -11,7 +11,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
-//===---------------------------- libunwind.h -----------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -94,7 +94,7 @@ typedef struct swipr_unw_addr_space *swipr_unw_addr_space_t;
 
 typedef int swipr_unw_regnum_t;
 typedef uintptr_t swipr_unw_word_t;
-#if defined(__arm__) && !defined(__ARM_DWARF_EH__)
+#if defined(__arm__) && !defined(__ARM_DWARF_EH__) && !defined(__SEH__)
 typedef uint64_t swipr_unw_fpreg_t;
 #else
 typedef double swipr_unw_fpreg_t;
@@ -133,6 +133,9 @@ extern int swipr_unw_resume(swipr_unw_cursor_t *) LIBUNWIND_AVAIL;
 extern void swipr_unw_save_vfp_as_X(swipr_unw_cursor_t *) LIBUNWIND_AVAIL;
 #endif
 
+#ifdef _AIX
+extern uintptr_t swipr_unw_get_data_rel_base(swipr_unw_cursor_t *) LIBUNWIND_AVAIL;
+#endif
 
 extern const char *swipr_unw_regname(swipr_unw_cursor_t *, swipr_unw_regnum_t) LIBUNWIND_AVAIL;
 extern int swipr_unw_get_proc_info(swipr_unw_cursor_t *, swipr_unw_proc_info_t *) LIBUNWIND_AVAIL;
@@ -731,7 +734,8 @@ enum {
   UNW_ARM_WR14 = 126,
   UNW_ARM_WR15 = 127,
   // 128-133 -- SPSR, SPSR_{FIQ|IRQ|ABT|UND|SVC}
-  // 134-143 -- Reserved
+  // 134-142 -- Reserved
+  UNW_ARM_RA_AUTH_CODE = 143,
   // 144-150 -- R8_USR-R14_USR
   // 151-157 -- R8_FIQ-R14_FIQ
   // 158-159 -- R13_IRQ-R14_IRQ
@@ -885,6 +889,9 @@ enum {
   UNW_MIPS_F29 = 61,
   UNW_MIPS_F30 = 62,
   UNW_MIPS_F31 = 63,
+  // HI,LO have been dropped since r6, we keep them here.
+  // So, when we add DSP/MSA etc, we can use the same register indexes
+  // for r6 and pre-r6.
   UNW_MIPS_HI = 64,
   UNW_MIPS_LO = 65,
 };
@@ -1032,6 +1039,16 @@ enum {
   UNW_RISCV_F29 = 61,
   UNW_RISCV_F30 = 62,
   UNW_RISCV_F31 = 63,
+  // 65-95 -- Reserved for future standard extensions
+  // 96-127 -- v0-v31 (Vector registers)
+  // 128-3071 -- Reserved for future standard extensions
+  // 3072-4095 -- Reserved for custom extensions
+  // 4096-8191 -- CSRs
+  //
+  // VLENB CSR number: 0xC22 -- defined by section 3 of v-spec:
+  // https://github.com/riscv/riscv-v-spec/blob/master/v-spec.adoc#3-vector-extension-programmers-model
+  // VLENB DWARF number: 0x1000 + 0xC22
+  UNW_RISCV_VLENB = 0x1C22,
 };
 
 // VE register numbers
@@ -1184,6 +1201,116 @@ enum {
   // Following registers don't have DWARF register numbers.
   UNW_VE_VIXR = 144,
   UNW_VE_VL   = 145,
+};
+
+// s390x register numbers
+enum {
+  UNW_S390X_R0      = 0,
+  UNW_S390X_R1      = 1,
+  UNW_S390X_R2      = 2,
+  UNW_S390X_R3      = 3,
+  UNW_S390X_R4      = 4,
+  UNW_S390X_R5      = 5,
+  UNW_S390X_R6      = 6,
+  UNW_S390X_R7      = 7,
+  UNW_S390X_R8      = 8,
+  UNW_S390X_R9      = 9,
+  UNW_S390X_R10     = 10,
+  UNW_S390X_R11     = 11,
+  UNW_S390X_R12     = 12,
+  UNW_S390X_R13     = 13,
+  UNW_S390X_R14     = 14,
+  UNW_S390X_R15     = 15,
+  UNW_S390X_F0      = 16,
+  UNW_S390X_F2      = 17,
+  UNW_S390X_F4      = 18,
+  UNW_S390X_F6      = 19,
+  UNW_S390X_F1      = 20,
+  UNW_S390X_F3      = 21,
+  UNW_S390X_F5      = 22,
+  UNW_S390X_F7      = 23,
+  UNW_S390X_F8      = 24,
+  UNW_S390X_F10     = 25,
+  UNW_S390X_F12     = 26,
+  UNW_S390X_F14     = 27,
+  UNW_S390X_F9      = 28,
+  UNW_S390X_F11     = 29,
+  UNW_S390X_F13     = 30,
+  UNW_S390X_F15     = 31,
+  // 32-47 Control Registers
+  // 48-63 Access Registers
+  UNW_S390X_PSWM    = 64,
+  UNW_S390X_PSWA    = 65,
+  // 66-67 Reserved
+  // 68-83 Vector Registers %v16-%v31
+};
+
+// LoongArch registers.
+enum {
+  UNW_LOONGARCH_R0 = 0,
+  UNW_LOONGARCH_R1 = 1,
+  UNW_LOONGARCH_R2 = 2,
+  UNW_LOONGARCH_R3 = 3,
+  UNW_LOONGARCH_R4 = 4,
+  UNW_LOONGARCH_R5 = 5,
+  UNW_LOONGARCH_R6 = 6,
+  UNW_LOONGARCH_R7 = 7,
+  UNW_LOONGARCH_R8 = 8,
+  UNW_LOONGARCH_R9 = 9,
+  UNW_LOONGARCH_R10 = 10,
+  UNW_LOONGARCH_R11 = 11,
+  UNW_LOONGARCH_R12 = 12,
+  UNW_LOONGARCH_R13 = 13,
+  UNW_LOONGARCH_R14 = 14,
+  UNW_LOONGARCH_R15 = 15,
+  UNW_LOONGARCH_R16 = 16,
+  UNW_LOONGARCH_R17 = 17,
+  UNW_LOONGARCH_R18 = 18,
+  UNW_LOONGARCH_R19 = 19,
+  UNW_LOONGARCH_R20 = 20,
+  UNW_LOONGARCH_R21 = 21,
+  UNW_LOONGARCH_R22 = 22,
+  UNW_LOONGARCH_R23 = 23,
+  UNW_LOONGARCH_R24 = 24,
+  UNW_LOONGARCH_R25 = 25,
+  UNW_LOONGARCH_R26 = 26,
+  UNW_LOONGARCH_R27 = 27,
+  UNW_LOONGARCH_R28 = 28,
+  UNW_LOONGARCH_R29 = 29,
+  UNW_LOONGARCH_R30 = 30,
+  UNW_LOONGARCH_R31 = 31,
+  UNW_LOONGARCH_F0 = 32,
+  UNW_LOONGARCH_F1 = 33,
+  UNW_LOONGARCH_F2 = 34,
+  UNW_LOONGARCH_F3 = 35,
+  UNW_LOONGARCH_F4 = 36,
+  UNW_LOONGARCH_F5 = 37,
+  UNW_LOONGARCH_F6 = 38,
+  UNW_LOONGARCH_F7 = 39,
+  UNW_LOONGARCH_F8 = 40,
+  UNW_LOONGARCH_F9 = 41,
+  UNW_LOONGARCH_F10 = 42,
+  UNW_LOONGARCH_F11 = 43,
+  UNW_LOONGARCH_F12 = 44,
+  UNW_LOONGARCH_F13 = 45,
+  UNW_LOONGARCH_F14 = 46,
+  UNW_LOONGARCH_F15 = 47,
+  UNW_LOONGARCH_F16 = 48,
+  UNW_LOONGARCH_F17 = 49,
+  UNW_LOONGARCH_F18 = 50,
+  UNW_LOONGARCH_F19 = 51,
+  UNW_LOONGARCH_F20 = 52,
+  UNW_LOONGARCH_F21 = 53,
+  UNW_LOONGARCH_F22 = 54,
+  UNW_LOONGARCH_F23 = 55,
+  UNW_LOONGARCH_F24 = 56,
+  UNW_LOONGARCH_F25 = 57,
+  UNW_LOONGARCH_F26 = 58,
+  UNW_LOONGARCH_F27 = 59,
+  UNW_LOONGARCH_F28 = 60,
+  UNW_LOONGARCH_F29 = 61,
+  UNW_LOONGARCH_F30 = 62,
+  UNW_LOONGARCH_F31 = 63,
 };
 
 #endif

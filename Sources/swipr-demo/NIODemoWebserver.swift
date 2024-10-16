@@ -145,8 +145,8 @@ private final class HTTPHandler: ChannelInboundHandler {
             self.buffer.writeString(response)
             var headers = HTTPHeaders()
             headers.add(name: "Content-Length", value: "\(response.utf8.count)")
-            context.write(self.wrapOutboundOut(.head(httpResponseHead(request: self.infoSavedRequestHead!, status: .ok, headers: headers))), promise: nil)
-            context.write(self.wrapOutboundOut(.body(.byteBuffer(self.buffer))), promise: nil)
+            context.write(Self.wrapOutboundOut(.head(httpResponseHead(request: self.infoSavedRequestHead!, status: .ok, headers: headers))), promise: nil)
+            context.write(Self.wrapOutboundOut(.body(.byteBuffer(self.buffer))), promise: nil)
             self.completeResponse(context, trailers: nil, promise: nil)
         }
     }
@@ -164,21 +164,21 @@ private final class HTTPHandler: ChannelInboundHandler {
             if balloonInMemory {
                 self.buffer.clear()
             } else {
-                context.writeAndFlush(self.wrapOutboundOut(.head(httpResponseHead(request: request, status: .ok))), promise: nil)
+                context.writeAndFlush(Self.wrapOutboundOut(.head(httpResponseHead(request: request, status: .ok))), promise: nil)
             }
         case .body(buffer: var buf):
             if balloonInMemory {
                 self.buffer.writeBuffer(&buf)
             } else {
-                context.writeAndFlush(self.wrapOutboundOut(.body(.byteBuffer(buf))), promise: nil)
+                context.writeAndFlush(Self.wrapOutboundOut(.body(.byteBuffer(buf))), promise: nil)
             }
         case .end:
             self.state.requestComplete()
             if balloonInMemory {
                 var headers = HTTPHeaders()
                 headers.add(name: "Content-Length", value: "\(self.buffer.readableBytes)")
-                context.write(self.wrapOutboundOut(.head(httpResponseHead(request: self.infoSavedRequestHead!, status: .ok, headers: headers))), promise: nil)
-                context.write(self.wrapOutboundOut(.body(.byteBuffer(self.buffer))), promise: nil)
+                context.write(Self.wrapOutboundOut(.head(httpResponseHead(request: self.infoSavedRequestHead!, status: .ok, headers: headers))), promise: nil)
+                context.write(Self.wrapOutboundOut(.body(.byteBuffer(self.buffer))), promise: nil)
                 self.completeResponse(context, trailers: nil, promise: nil)
             } else {
                 self.completeResponse(context, trailers: nil, promise: nil)
@@ -191,15 +191,19 @@ private final class HTTPHandler: ChannelInboundHandler {
         case .head(let request):
             self.keepAlive = request.isKeepAlive
             self.state.requestReceived()
-            context.writeAndFlush(self.wrapOutboundOut(.head(httpResponseHead(request: request, status: statusCode))), promise: nil)
+            context.writeAndFlush(Self.wrapOutboundOut(.head(httpResponseHead(request: request, status: statusCode))), promise: nil)
         case .body(buffer: _):
             ()
         case .end:
             self.state.requestComplete()
+            let loopBoundContext = NIOLoopBound(context, eventLoop: context.eventLoop)
+            let loopBoundSelf = NIOLoopBound(self, eventLoop: context.eventLoop)
             context.eventLoop.scheduleTask(in: delay) { () -> Void in
+                let `self` = loopBoundSelf.value
+                let context = loopBoundContext.value
                 var buf = context.channel.allocator.buffer(capacity: string.utf8.count)
                 buf.writeString(string)
-                context.writeAndFlush(self.wrapOutboundOut(.body(.byteBuffer(buf))), promise: nil)
+                context.writeAndFlush(Self.wrapOutboundOut(.body(.byteBuffer(buf))), promise: nil)
                 var trailers: HTTPHeaders? = nil
                 if let trailer = trailer {
                     trailers = HTTPHeaders()
@@ -217,17 +221,22 @@ private final class HTTPHandler: ChannelInboundHandler {
             self.keepAlive = request.isKeepAlive
             self.continuousCount = 0
             self.state.requestReceived()
-            func doNext() {
+            let eventLoop = context.eventLoop
+            let loopBoundContext = NIOLoopBound(context, eventLoop: eventLoop)
+            let loopBoundSelf = NIOLoopBound(self, eventLoop: eventLoop)
+            @Sendable func doNext() {
+                let `self` = loopBoundSelf.value
+                let context = loopBoundContext.value
                 self.buffer.clear()
                 self.continuousCount += 1
                 self.buffer.writeString("line \(self.continuousCount)\n")
-                context.writeAndFlush(self.wrapOutboundOut(.body(.byteBuffer(self.buffer)))).map {
-                    context.eventLoop.scheduleTask(in: .milliseconds(400), doNext)
+                context.writeAndFlush(Self.wrapOutboundOut(.body(.byteBuffer(self.buffer)))).map {
+                    eventLoop.scheduleTask(in: .milliseconds(400), doNext)
                 }.whenFailure { (_: Error) in
-                    self.completeResponse(context, trailers: nil, promise: nil)
+                    loopBoundSelf.value.completeResponse(loopBoundContext.value, trailers: nil, promise: nil)
                 }
             }
-            context.writeAndFlush(self.wrapOutboundOut(.head(httpResponseHead(request: request, status: .ok))), promise: nil)
+            context.writeAndFlush(Self.wrapOutboundOut(.head(httpResponseHead(request: request, status: .ok))), promise: nil)
             doNext()
         case .end:
             self.state.requestComplete()
@@ -242,19 +251,26 @@ private final class HTTPHandler: ChannelInboundHandler {
             self.keepAlive = request.isKeepAlive
             self.continuousCount = 0
             self.state.requestReceived()
-            func doNext() {
+            let eventLoop = context.eventLoop
+            let loopBoundContext = NIOLoopBound(context, eventLoop: eventLoop)
+            let loopBoundSelf = NIOLoopBound(self, eventLoop: eventLoop)
+            @Sendable func doNext() {
+                let `self` = loopBoundSelf.value
+                let context = loopBoundContext.value
                 self.buffer.clear()
                 self.buffer.writeString(strings[self.continuousCount])
                 self.continuousCount += 1
-                context.writeAndFlush(self.wrapOutboundOut(.body(.byteBuffer(self.buffer)))).whenSuccess {
+                context.writeAndFlush(Self.wrapOutboundOut(.body(.byteBuffer(self.buffer)))).whenSuccess {
+                    let `self` = loopBoundSelf.value
+                    let context = loopBoundContext.value
                     if self.continuousCount < strings.count {
-                        context.eventLoop.scheduleTask(in: delay, doNext)
+                        eventLoop.scheduleTask(in: delay, doNext)
                     } else {
                         self.completeResponse(context, trailers: nil, promise: nil)
                     }
                 }
             }
-            context.writeAndFlush(self.wrapOutboundOut(.head(httpResponseHead(request: request, status: .ok))), promise: nil)
+            context.writeAndFlush(Self.wrapOutboundOut(.head(httpResponseHead(request: request, status: .ok))), promise: nil)
             doNext()
         case .end:
             self.state.requestComplete()
@@ -311,11 +327,16 @@ private final class HTTPHandler: ChannelInboundHandler {
 
         let sampleCount = seconds * 1_000 / 10
         let sampleDelay: TimeAmount = .milliseconds(10)
-        ProfileRecorderSampler.sharedInstance.requestSamples(outputFilePath: samplePath,
-                                                   count: .init(sampleCount),
-                                                   timeBetweenSamples: sampleDelay,
-                                                   eventLoop: context.eventLoop).flatMap { () -> EventLoopFuture<String> in
-            let promise = context.eventLoop.makePromise(of: String.self)
+        let eventLoop = context.eventLoop
+        let loopBoundContext = NIOLoopBound(context, eventLoop: eventLoop)
+        let allocator = context.channel.allocator
+        ProfileRecorderSampler.sharedInstance.requestSamples(
+            outputFilePath: samplePath,
+            count: .init(sampleCount),
+            timeBetweenSamples: sampleDelay,
+            eventLoop: eventLoop
+        ).flatMap { () -> EventLoopFuture<String> in
+            let promise = eventLoop.makePromise(of: String.self)
             DispatchQueue.main.async {
                 let p = Process()
                 p.standardInput = FileHandle(forReadingAtPath: samplePath)
@@ -327,31 +348,37 @@ private final class HTTPHandler: ChannelInboundHandler {
                 }
             }
             return promise.futureResult
-        }.flatMap { path -> EventLoopFuture<(NIOFileHandle, FileRegion)> in
+        }.flatMap { [fileIO = self.fileIO] path -> EventLoopFuture<(NIOFileHandle, FileRegion)> in
             var head = HTTPResponseHead(version: .http1_1, status: .ok)
             head.headers.replaceOrAdd(name: "content-disposition", value: "filename=\"some-samples.perf\"")
             head.headers.replaceOrAdd(name: "content-type", value: "application/octet-stream")
-            return context.writeAndFlush(self.wrapOutboundOut(.head(head))).flatMap {
-                self.fileIO.openFile(path: path, eventLoop: context.eventLoop)
+            let context = loopBoundContext.value
+            return context.writeAndFlush(Self.wrapOutboundOut(.head(head))).flatMap {
+                fileIO.openFile(path: path, eventLoop: eventLoop)
             }
-        }.flatMap { fhAndRegion in
-            self.fileIO.readChunked(fileRegion: fhAndRegion.1,
-                                    allocator: context.channel.allocator,
-                                    eventLoop: context.eventLoop) { chunk in
-                context.writeAndFlush(self.wrapOutboundOut(.body(.byteBuffer(chunk))))
+        }.flatMap { [fileIO = self.fileIO] fhAndRegion in
+            let fh = NIOLoopBound(fhAndRegion.0, eventLoop: eventLoop)
+            let region: FileRegion = fhAndRegion.1
+            return fileIO.readChunked(fileRegion: region, allocator: allocator, eventLoop: eventLoop) { chunk -> EventLoopFuture<Void> in
+                loopBoundContext.value.writeAndFlush(Self.wrapOutboundOut(.body(.byteBuffer(chunk))))
             }.always { _ in
-                try! fhAndRegion.0.close()
+                try! fh.value.close()
             }
-        }.whenSuccess { _ in
-            context.writeAndFlush(self.wrapOutboundOut(.end(nil)), promise: nil)
+        }.whenSuccess { () -> Void in
+            loopBoundContext.value.writeAndFlush(Self.wrapOutboundOut(.end(nil)), promise: nil)
         }
     }
 
     private func handleFile(context: ChannelHandlerContext, request: HTTPServerRequestPart, ioMethod: FileIOMethod, path: String) {
         self.buffer.clear()
+        let eventLoop = context.eventLoop
+        let allocator = context.channel.allocator
+        let loopBoundContext = NIOLoopBound(context, eventLoop: eventLoop)
+        let loopBoundSelf = NIOLoopBound(self, eventLoop: eventLoop)
 
-        func sendErrorResponse(request: HTTPRequestHead, _ error: Error) {
-            var body = context.channel.allocator.buffer(capacity: 128)
+        @Sendable func sendErrorResponse(request: HTTPRequestHead, _ error: Error) {
+            let context = loopBoundContext.value
+            var body = allocator.buffer(capacity: 128)
             let response = { () -> HTTPResponseHead in
                 switch error {
                 case let e as IOError where e.errnoCode == ENOENT:
@@ -369,13 +396,13 @@ private final class HTTPHandler: ChannelInboundHandler {
             }()
             body.writeString("\(error)")
             body.writeStaticString("\r\n")
-            context.write(self.wrapOutboundOut(.head(response)), promise: nil)
-            context.write(self.wrapOutboundOut(.body(.byteBuffer(body))), promise: nil)
-            context.writeAndFlush(self.wrapOutboundOut(.end(nil)), promise: nil)
+            context.write(Self.wrapOutboundOut(.head(response)), promise: nil)
+            context.write(Self.wrapOutboundOut(.body(.byteBuffer(body))), promise: nil)
+            context.writeAndFlush(Self.wrapOutboundOut(.end(nil)), promise: nil)
             context.channel.close(promise: nil)
         }
 
-        func responseHead(request: HTTPRequestHead, fileRegion region: FileRegion) -> HTTPResponseHead {
+        @Sendable func responseHead(request: HTTPRequestHead, fileRegion region: FileRegion) -> HTTPResponseHead {
             var response = httpResponseHead(request: request, status: .ok)
             response.headers.add(name: "Content-Length", value: "\(region.endIndex)")
             response.headers.add(name: "Content-Type", value: "text/plain; charset=utf-8")
@@ -388,7 +415,7 @@ private final class HTTPHandler: ChannelInboundHandler {
             self.state.requestReceived()
             guard !request.uri.containsDotDot() else {
                 let response = httpResponseHead(request: request, status: .forbidden)
-                context.write(self.wrapOutboundOut(.head(response)), promise: nil)
+                context.write(Self.wrapOutboundOut(.head(response)), promise: nil)
                 self.completeResponse(context, trailers: nil, promise: nil)
                 return
             }
@@ -397,37 +424,43 @@ private final class HTTPHandler: ChannelInboundHandler {
             fileHandleAndRegion.whenFailure {
                 sendErrorResponse(request: request, $0)
             }
-            fileHandleAndRegion.whenSuccess { (file, region) in
+            fileHandleAndRegion.whenSuccess { [fileIO = self.fileIO] (file, region) in
+                let context = loopBoundContext.value
                 switch ioMethod {
                 case .nonblockingFileIO:
-                    var responseStarted = false
+                    let responseStarted = NIOLoopBoundBox(false, eventLoop: eventLoop)
                     let response = responseHead(request: request, fileRegion: region)
                     if region.readableBytes == 0 {
-                        responseStarted = true
-                        context.write(self.wrapOutboundOut(.head(response)), promise: nil)
+                        responseStarted.value = true
+                        context.write(Self.wrapOutboundOut(.head(response)), promise: nil)
                     }
-                    return self.fileIO.readChunked(fileRegion: region,
+                    return fileIO.readChunked(fileRegion: region,
                                                    chunkSize: 32 * 1024,
                                                    allocator: context.channel.allocator,
                                                    eventLoop: context.eventLoop) { buffer in
-                                                    if !responseStarted {
-                                                        responseStarted = true
-                                                        context.write(self.wrapOutboundOut(.head(response)), promise: nil)
-                                                    }
-                                                    return context.writeAndFlush(self.wrapOutboundOut(.body(.byteBuffer(buffer))))
+                        let context = loopBoundContext.value
+                        if !responseStarted.value {
+                            responseStarted.value = true
+                            context.write(Self.wrapOutboundOut(.head(response)), promise: nil)
+                        }
+                        return context.writeAndFlush(Self.wrapOutboundOut(.body(.byteBuffer(buffer))))
                     }.flatMap { () -> EventLoopFuture<Void> in
+                        let context = loopBoundContext.value
+                        let `self` = loopBoundSelf.value
                         let p = context.eventLoop.makePromise(of: Void.self)
                         self.completeResponse(context, trailers: nil, promise: p)
                         return p.futureResult
                     }.flatMapError { error in
-                        if !responseStarted {
+                        let context = loopBoundContext.value
+                        let `self` = loopBoundSelf.value
+                        if !responseStarted.value {
                             let response = httpResponseHead(request: request, status: .ok)
-                            context.write(self.wrapOutboundOut(.head(response)), promise: nil)
+                            context.write(Self.wrapOutboundOut(.head(response)), promise: nil)
                             var buffer = context.channel.allocator.buffer(capacity: 100)
                             buffer.writeString("fail: \(error)")
-                            context.write(self.wrapOutboundOut(.body(.byteBuffer(buffer))), promise: nil)
+                            context.write(Self.wrapOutboundOut(.body(.byteBuffer(buffer))), promise: nil)
                             self.state.responseComplete()
-                            return context.writeAndFlush(self.wrapOutboundOut(.end(nil)))
+                            return context.writeAndFlush(Self.wrapOutboundOut(.end(nil)))
                         } else {
                             return context.close()
                         }
@@ -435,14 +468,16 @@ private final class HTTPHandler: ChannelInboundHandler {
                         _ = try? file.close()
                     }
                 case .sendfile:
+                    let context = loopBoundContext.value
                     let response = responseHead(request: request, fileRegion: region)
-                    context.write(self.wrapOutboundOut(.head(response)), promise: nil)
-                    context.writeAndFlush(self.wrapOutboundOut(.body(.fileRegion(region)))).flatMap {
+                    context.write(Self.wrapOutboundOut(.head(response)), promise: nil)
+                    context.writeAndFlush(Self.wrapOutboundOut(.body(.fileRegion(region)))).flatMap {
+                        let context = loopBoundContext.value
                         let p = context.eventLoop.makePromise(of: Void.self)
-                        self.completeResponse(context, trailers: nil, promise: p)
+                        loopBoundSelf.value.completeResponse(context, trailers: nil, promise: p)
                         return p.futureResult
                     }.flatMapError { (_: Error) in
-                        context.close()
+                        loopBoundContext.value.close()
                     }.whenComplete { (_: Result<Void, Error>) in
                         _ = try? file.close()
                     }
@@ -457,18 +492,22 @@ private final class HTTPHandler: ChannelInboundHandler {
 
     private func completeResponse(_ context: ChannelHandlerContext, trailers: HTTPHeaders?, promise: EventLoopPromise<Void>?) {
         self.state.responseComplete()
+        let loopBoundContext = NIOLoopBound(context, eventLoop: context.eventLoop)
 
         let promise = self.keepAlive ? promise : (promise ?? context.eventLoop.makePromise())
         if !self.keepAlive {
-            promise!.futureResult.whenComplete { (_: Result<Void, Error>) in context.close(promise: nil) }
+            promise!.futureResult.whenComplete { (_: Result<Void, Error>) in
+                let context = loopBoundContext.value
+                context.close(promise: nil)
+            }
         }
         self.handler = nil
 
-        context.writeAndFlush(self.wrapOutboundOut(.end(trailers)), promise: promise)
+        context.writeAndFlush(Self.wrapOutboundOut(.end(trailers)), promise: promise)
     }
 
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-        let reqPart = self.unwrapInboundIn(data)
+        let reqPart = Self.unwrapInboundIn(data)
         if let handler = self.handler {
             handler(context, reqPart)
             return
@@ -502,13 +541,13 @@ private final class HTTPHandler: ChannelInboundHandler {
             self.buffer.writeString(self.defaultResponse)
             responseHead.headers.add(name: "content-length", value: "\(self.buffer!.readableBytes)")
             let response = HTTPServerResponsePart.head(responseHead)
-            context.write(self.wrapOutboundOut(response), promise: nil)
+            context.write(Self.wrapOutboundOut(response), promise: nil)
         case .body:
             break
         case .end:
             self.state.requestComplete()
             let content = HTTPServerResponsePart.body(.byteBuffer(buffer!.slice()))
-            context.write(self.wrapOutboundOut(content), promise: nil)
+            context.write(Self.wrapOutboundOut(content), promise: nil)
             self.completeResponse(context, trailers: nil, promise: nil)
         }
     }
@@ -590,7 +629,7 @@ func runWebServer() -> Void {
     let threadPool = NIOThreadPool(numberOfThreads: 6)
     threadPool.start()
 
-    func childChannelInitializer(channel: Channel) -> EventLoopFuture<Void> {
+    @Sendable func childChannelInitializer(channel: Channel) -> EventLoopFuture<Void> {
         return channel.pipeline.configureHTTPServerPipeline(withErrorHandling: true).flatMap {
             channel.pipeline.addHandler(HTTPHandler(fileIO: fileIO, htdocsPath: htdocs))
         }
@@ -630,7 +669,10 @@ func runWebServer() -> Void {
         case .unixDomainSocket(let path):
             return try socketBootstrap.bind(unixDomainSocketPath: path).wait()
         case .stdio:
-            return try pipeBootstrap.withPipes(inputDescriptor: STDIN_FILENO, outputDescriptor: STDOUT_FILENO).wait()
+            return try pipeBootstrap.takingOwnershipOfDescriptors(
+                input: STDIN_FILENO,
+                output: STDOUT_FILENO
+            ).wait()
         }
     }()
 

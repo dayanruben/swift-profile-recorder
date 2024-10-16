@@ -11,7 +11,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
-//===------------------------- UnwindLevel1.c -----------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -44,7 +44,8 @@
 #include "libunwind_ext.h"
 #include "unwind.h"
 
-#if !defined(_LIBUNWIND_ARM_EHABI) && !defined(__USING_SJLJ_EXCEPTIONS__)
+#if !defined(_LIBUNWIND_ARM_EHABI) && !defined(__USING_SJLJ_EXCEPTIONS__) &&   \
+    !defined(__wasm__)
 
 #ifndef _LIBUNWIND_SUPPORT_SEH_UNWIND
 
@@ -54,11 +55,16 @@
 // In exception handing, some stack frames will be skipped before jumping to
 // landing pad and we must adjust CET shadow stack accordingly.
 // _LIBUNWIND_POP_CET_SSP is used to adjust CET shadow stack pointer and we
-// directly jump to __libunwind_Registerts_x86/x86_64_jumpto instead of using
+// directly jump to __libunwind_Registers_x86/x86_64_jumpto instead of using
 // a regular function call to avoid pushing to CET shadow stack again.
-#if !defined(_LIBUNWIND_USE_CET)
-#define __swipr_unw_phase2_resume(cursor, fn) __swipr_unw_resume((cursor))
+#if !defined(_LIBUNWIND_USE_CET) && !defined(_LIBUNWIND_USE_GCS)
+#define __swipr_unw_phase2_resume(cursor, fn)                                        \
+  do {                                                                         \
+    (void)fn;                                                                  \
+    __swipr_unw_resume((cursor));                                                    \
+  } while (0)
 #elif defined(_LIBUNWIND_TARGET_I386)
+#define __cet_ss_step_size 4
 #define __swipr_unw_phase2_resume(cursor, fn)                                        \
   do {                                                                         \
     _LIBUNWIND_POP_CET_SSP((fn));                                              \
@@ -70,6 +76,7 @@
                      "d"(cetJumpAddress));                                     \
   } while (0)
 #elif defined(_LIBUNWIND_TARGET_X86_64)
+#define __cet_ss_step_size 8
 #define __swipr_unw_phase2_resume(cursor, fn)                                        \
   do {                                                                         \
     _LIBUNWIND_POP_CET_SSP((fn));                                              \
@@ -77,6 +84,19 @@
     void *cetJumpAddress = __libunwind_cet_get_jump_target();                  \
     __asm__ volatile("jmpq *%%rdx\n\t" :: "D"(cetRegContext),                  \
                      "d"(cetJumpAddress));                                     \
+  } while (0)
+#elif defined(_LIBUNWIND_TARGET_AARCH64)
+#define __cet_ss_step_size 8
+#define __swipr_unw_phase2_resume(cursor, fn)                                        \
+  do {                                                                         \
+    _LIBUNWIND_POP_CET_SSP((fn));                                              \
+    void *cetRegContext = __libunwind_cet_get_registers((cursor));             \
+    void *cetJumpAddress = __libunwind_cet_get_jump_target();                  \
+    __asm__ volatile("mov x0, %0\n\t"                                          \
+                     "br %1\n\t"                                               \
+                     :                                                         \
+                     : "r"(cetRegContext), "r"(cetJumpAddress)                 \
+                     : "x0");                                                  \
   } while (0)
 #endif
 
@@ -91,13 +111,13 @@ unwind_phase1(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor, _swipr_Unwind
     int stepResult = __swipr_unw_step(cursor);
     if (stepResult == 0) {
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase1(ex_ojb=%p): __swipr_unw_step() reached "
+          "unwind_phase1(ex_obj=%p): __swipr_unw_step() reached "
           "bottom => _URC_END_OF_STACK",
           (void *)exception_object);
       return _URC_END_OF_STACK;
     } else if (stepResult < 0) {
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase1(ex_ojb=%p): __swipr_unw_step failed => "
+          "unwind_phase1(ex_obj=%p): __swipr_unw_step failed => "
           "_URC_FATAL_PHASE1_ERROR",
           (void *)exception_object);
       return _URC_FATAL_PHASE1_ERROR;
@@ -108,7 +128,7 @@ unwind_phase1(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor, _swipr_Unwind
     swipr_unw_word_t sp;
     if (__swipr_unw_get_proc_info(cursor, &frameInfo) != UNW_ESUCCESS) {
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase1(ex_ojb=%p): __swipr_unw_get_proc_info "
+          "unwind_phase1(ex_obj=%p): __swipr_unw_get_proc_info "
           "failed => _URC_FATAL_PHASE1_ERROR",
           (void *)exception_object);
       return _URC_FATAL_PHASE1_ERROR;
@@ -127,7 +147,7 @@ unwind_phase1(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor, _swipr_Unwind
       swipr_unw_word_t pc;
       __swipr_unw_get_reg(cursor, UNW_REG_IP, &pc);
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase1(ex_ojb=%p): pc=0x%" PRIxPTR ", start_ip=0x%" PRIxPTR
+          "unwind_phase1(ex_obj=%p): pc=0x%" PRIxPTR ", start_ip=0x%" PRIxPTR
           ", func=%s, lsda=0x%" PRIxPTR ", personality=0x%" PRIxPTR "",
           (void *)exception_object, pc, frameInfo.start_ip, functionName,
           frameInfo.lsda, frameInfo.handler);
@@ -140,7 +160,7 @@ unwind_phase1(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor, _swipr_Unwind
       _swipr_Unwind_Personality_Fn p =
           (_swipr_Unwind_Personality_Fn)(uintptr_t)(frameInfo.handler);
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase1(ex_ojb=%p): calling personality function %p",
+          "unwind_phase1(ex_obj=%p): calling personality function %p",
           (void *)exception_object, (void *)(uintptr_t)p);
       _swipr_Unwind_Reason_Code personalityResult =
           (*p)(1, _UA_SEARCH_PHASE, exception_object->exception_class,
@@ -152,13 +172,13 @@ unwind_phase1(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor, _swipr_Unwind
         __swipr_unw_get_reg(cursor, UNW_REG_SP, &sp);
         exception_object->private_2 = (uintptr_t)sp;
         _LIBUNWIND_TRACE_UNWINDING(
-            "unwind_phase1(ex_ojb=%p): _URC_HANDLER_FOUND",
+            "unwind_phase1(ex_obj=%p): _URC_HANDLER_FOUND",
             (void *)exception_object);
         return _URC_NO_REASON;
 
       case _URC_CONTINUE_UNWIND:
         _LIBUNWIND_TRACE_UNWINDING(
-            "unwind_phase1(ex_ojb=%p): _URC_CONTINUE_UNWIND",
+            "unwind_phase1(ex_obj=%p): _URC_CONTINUE_UNWIND",
             (void *)exception_object);
         // continue unwinding
         break;
@@ -166,7 +186,7 @@ unwind_phase1(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor, _swipr_Unwind
       default:
         // something went wrong
         _LIBUNWIND_TRACE_UNWINDING(
-            "unwind_phase1(ex_ojb=%p): _URC_FATAL_PHASE1_ERROR",
+            "unwind_phase1(ex_obj=%p): _URC_FATAL_PHASE1_ERROR",
             (void *)exception_object);
         return _URC_FATAL_PHASE1_ERROR;
       }
@@ -174,33 +194,44 @@ unwind_phase1(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor, _swipr_Unwind
   }
   return _URC_NO_REASON;
 }
+extern int __swipr_unw_step_stage2(swipr_unw_cursor_t *);
 
-
+#if defined(_LIBUNWIND_USE_GCS)
+// Enable the GCS target feature to permit gcspop instructions to be used.
+__attribute__((target("gcs")))
+#endif
 static _swipr_Unwind_Reason_Code
 unwind_phase2(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor, _swipr_Unwind_Exception *exception_object) {
   __swipr_unw_init_local(cursor, uc);
 
-  _LIBUNWIND_TRACE_UNWINDING("unwind_phase2(ex_ojb=%p)",
+  _LIBUNWIND_TRACE_UNWINDING("unwind_phase2(ex_obj=%p)",
                              (void *)exception_object);
 
   // uc is initialized by __swipr_unw_getcontext in the parent frame. The first stack
   // frame walked is unwind_phase2.
   unsigned framesWalked = 1;
+#if defined(_LIBUNWIND_USE_CET)
+  unsigned long shadowStackTop = _get_ssp();
+#elif defined(_LIBUNWIND_USE_GCS)
+  unsigned long shadowStackTop = 0;
+  if (__chkfeat(_CHKFEAT_GCS))
+    shadowStackTop = (unsigned long)__gcspr();
+#endif
   // Walk each frame until we reach where search phase said to stop.
   while (true) {
 
     // Ask libunwind to get next frame (skip over first which is
     // _swipr_Unwind_RaiseException).
-    int stepResult = __swipr_unw_step(cursor);
+    int stepResult = __swipr_unw_step_stage2(cursor);
     if (stepResult == 0) {
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase2(ex_ojb=%p): __swipr_unw_step() reached "
+          "unwind_phase2(ex_obj=%p): __swipr_unw_step_stage2() reached "
           "bottom => _URC_END_OF_STACK",
           (void *)exception_object);
       return _URC_END_OF_STACK;
     } else if (stepResult < 0) {
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase2(ex_ojb=%p): __swipr_unw_step failed => "
+          "unwind_phase2(ex_obj=%p): __swipr_unw_step_stage2 failed => "
           "_URC_FATAL_PHASE1_ERROR",
           (void *)exception_object);
       return _URC_FATAL_PHASE2_ERROR;
@@ -212,7 +243,7 @@ unwind_phase2(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor, _swipr_Unwind
     __swipr_unw_get_reg(cursor, UNW_REG_SP, &sp);
     if (__swipr_unw_get_proc_info(cursor, &frameInfo) != UNW_ESUCCESS) {
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase2(ex_ojb=%p): __swipr_unw_get_proc_info "
+          "unwind_phase2(ex_obj=%p): __swipr_unw_get_proc_info "
           "failed => _URC_FATAL_PHASE1_ERROR",
           (void *)exception_object);
       return _URC_FATAL_PHASE2_ERROR;
@@ -228,7 +259,7 @@ unwind_phase2(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor, _swipr_Unwind
                                &offset) != UNW_ESUCCESS) ||
           (frameInfo.start_ip + offset > frameInfo.end_ip))
         functionName = ".anonymous.";
-      _LIBUNWIND_TRACE_UNWINDING("unwind_phase2(ex_ojb=%p): start_ip=0x%" PRIxPTR
+      _LIBUNWIND_TRACE_UNWINDING("unwind_phase2(ex_obj=%p): start_ip=0x%" PRIxPTR
                                  ", func=%s, sp=0x%" PRIxPTR ", lsda=0x%" PRIxPTR
                                  ", personality=0x%" PRIxPTR,
                                  (void *)exception_object, frameInfo.start_ip,
@@ -237,6 +268,20 @@ unwind_phase2(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor, _swipr_Unwind
     }
 #endif
 
+// In CET enabled environment, we check return address stored in normal stack
+// against return address stored in CET shadow stack, if the 2 addresses don't
+// match, it means return address in normal stack has been corrupted, we return
+// _URC_FATAL_PHASE2_ERROR.
+#if defined(_LIBUNWIND_USE_CET) || defined(_LIBUNWIND_USE_GCS)
+    if (shadowStackTop != 0) {
+      swipr_unw_word_t retInNormalStack;
+      __swipr_unw_get_reg(cursor, UNW_REG_IP, &retInNormalStack);
+      unsigned long retInShadowStack = *(
+          unsigned long *)(shadowStackTop + __cet_ss_step_size * framesWalked);
+      if (retInNormalStack != retInShadowStack)
+        return _URC_FATAL_PHASE2_ERROR;
+    }
+#endif
     ++framesWalked;
     // If there is a personality routine, tell it we are unwinding.
     if (frameInfo.handler != 0) {
@@ -254,7 +299,7 @@ unwind_phase2(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor, _swipr_Unwind
       case _URC_CONTINUE_UNWIND:
         // Continue unwinding
         _LIBUNWIND_TRACE_UNWINDING(
-            "unwind_phase2(ex_ojb=%p): _URC_CONTINUE_UNWIND",
+            "unwind_phase2(ex_obj=%p): _URC_CONTINUE_UNWIND",
             (void *)exception_object);
         if (sp == exception_object->private_2) {
           // Phase 1 said we would stop at this frame, but we did not...
@@ -264,7 +309,7 @@ unwind_phase2(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor, _swipr_Unwind
         break;
       case _URC_INSTALL_CONTEXT:
         _LIBUNWIND_TRACE_UNWINDING(
-            "unwind_phase2(ex_ojb=%p): _URC_INSTALL_CONTEXT",
+            "unwind_phase2(ex_obj=%p): _URC_INSTALL_CONTEXT",
             (void *)exception_object);
         // Personality routine says to transfer control to landing pad.
         // We may get control back if landing pad calls _swipr_Unwind_Resume().
@@ -272,7 +317,7 @@ unwind_phase2(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor, _swipr_Unwind
           swipr_unw_word_t pc;
           __swipr_unw_get_reg(cursor, UNW_REG_IP, &pc);
           __swipr_unw_get_reg(cursor, UNW_REG_SP, &sp);
-          _LIBUNWIND_TRACE_UNWINDING("unwind_phase2(ex_ojb=%p): re-entering "
+          _LIBUNWIND_TRACE_UNWINDING("unwind_phase2(ex_obj=%p): re-entering "
                                      "user code with ip=0x%" PRIxPTR
                                      ", sp=0x%" PRIxPTR,
                                      (void *)exception_object, pc, sp);
@@ -295,6 +340,10 @@ unwind_phase2(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor, _swipr_Unwind
   return _URC_FATAL_PHASE2_ERROR;
 }
 
+#if defined(_LIBUNWIND_USE_GCS)
+// Enable the GCS target feature to permit gcspop instructions to be used.
+__attribute__((target("gcs")))
+#endif
 static _swipr_Unwind_Reason_Code
 unwind_phase2_forced(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor,
                      _swipr_Unwind_Exception *exception_object,
@@ -305,14 +354,15 @@ unwind_phase2_forced(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor,
   // frame walked is unwind_phase2_forced.
   unsigned framesWalked = 1;
   // Walk each frame until we reach where search phase said to stop
-  while (__swipr_unw_step(cursor) > 0) {
+  while (__swipr_unw_step_stage2(cursor) > 0) {
 
     // Update info about this frame.
     swipr_unw_proc_info_t frameInfo;
     if (__swipr_unw_get_proc_info(cursor, &frameInfo) != UNW_ESUCCESS) {
-      _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_ojb=%p): __swipr_unw_step "
-                                 "failed => _URC_END_OF_STACK",
-                                 (void *)exception_object);
+      _LIBUNWIND_TRACE_UNWINDING(
+          "unwind_phase2_forced(ex_obj=%p): __swipr_unw_get_proc_info "
+          "failed => _URC_END_OF_STACK",
+          (void *)exception_object);
       return _URC_FATAL_PHASE2_ERROR;
     }
 
@@ -327,7 +377,7 @@ unwind_phase2_forced(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor,
           (frameInfo.start_ip + offset > frameInfo.end_ip))
         functionName = ".anonymous.";
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase2_forced(ex_ojb=%p): start_ip=0x%" PRIxPTR
+          "unwind_phase2_forced(ex_obj=%p): start_ip=0x%" PRIxPTR
           ", func=%s, lsda=0x%" PRIxPTR ", personality=0x%" PRIxPTR,
           (void *)exception_object, frameInfo.start_ip, functionName,
           frameInfo.lsda, frameInfo.handler);
@@ -341,11 +391,11 @@ unwind_phase2_forced(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor,
         (*stop)(1, action, exception_object->exception_class, exception_object,
                 (struct _swipr_Unwind_Context *)(cursor), stop_parameter);
     _LIBUNWIND_TRACE_UNWINDING(
-        "unwind_phase2_forced(ex_ojb=%p): stop function returned %d",
+        "unwind_phase2_forced(ex_obj=%p): stop function returned %d",
         (void *)exception_object, stopResult);
     if (stopResult != _URC_NO_REASON) {
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase2_forced(ex_ojb=%p): stopped by stop function",
+          "unwind_phase2_forced(ex_obj=%p): stopped by stop function",
           (void *)exception_object);
       return _URC_FATAL_PHASE2_ERROR;
     }
@@ -356,21 +406,21 @@ unwind_phase2_forced(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor,
       _swipr_Unwind_Personality_Fn p =
           (_swipr_Unwind_Personality_Fn)(intptr_t)(frameInfo.handler);
       _LIBUNWIND_TRACE_UNWINDING(
-          "unwind_phase2_forced(ex_ojb=%p): calling personality function %p",
+          "unwind_phase2_forced(ex_obj=%p): calling personality function %p",
           (void *)exception_object, (void *)(uintptr_t)p);
       _swipr_Unwind_Reason_Code personalityResult =
           (*p)(1, action, exception_object->exception_class, exception_object,
                (struct _swipr_Unwind_Context *)(cursor));
       switch (personalityResult) {
       case _URC_CONTINUE_UNWIND:
-        _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_ojb=%p): "
+        _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_obj=%p): "
                                    "personality returned "
                                    "_URC_CONTINUE_UNWIND",
                                    (void *)exception_object);
         // Destructors called, continue unwinding
         break;
       case _URC_INSTALL_CONTEXT:
-        _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_ojb=%p): "
+        _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_obj=%p): "
                                    "personality returned "
                                    "_URC_INSTALL_CONTEXT",
                                    (void *)exception_object);
@@ -379,7 +429,7 @@ unwind_phase2_forced(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor,
         break;
       default:
         // Personality routine returned an unknown result code.
-        _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_ojb=%p): "
+        _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_obj=%p): "
                                    "personality returned %d, "
                                    "_URC_FATAL_PHASE2_ERROR",
                                    (void *)exception_object, personalityResult);
@@ -390,7 +440,7 @@ unwind_phase2_forced(swipr_unw_context_t *uc, swipr_unw_cursor_t *cursor,
 
   // Call stop function one last time and tell it we've reached the end
   // of the stack.
-  _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_ojb=%p): calling stop "
+  _LIBUNWIND_TRACE_UNWINDING("unwind_phase2_forced(ex_obj=%p): calling stop "
                              "function with _UA_END_OF_STACK",
                              (void *)exception_object);
   _swipr_Unwind_Action lastAction =
@@ -434,7 +484,7 @@ _swipr_Unwind_RaiseException(_swipr_Unwind_Exception *exception_object) {
 /// may force a jump to a landing pad in that function, the landing
 /// pad code may then call _swipr_Unwind_Resume() to continue with the
 /// unwinding.  Note: the call to _swipr_Unwind_Resume() is from compiler
-/// geneated user code.  All other _swipr_Unwind_* routines are called
+/// generated user code.  All other _swipr_Unwind_* routines are called
 /// by the C++ runtime __cxa_* routines.
 ///
 /// Note: re-throwing an exception (as opposed to continuing the unwind)
@@ -493,11 +543,13 @@ _swipr_Unwind_GetLanguageSpecificData(struct _swipr_Unwind_Context *context) {
   _LIBUNWIND_TRACE_API(
       "_swipr_Unwind_GetLanguageSpecificData(context=%p) => 0x%" PRIxPTR,
       (void *)context, result);
+#if !defined(_LIBUNWIND_SUPPORT_TBTAB_UNWIND)
   if (result != 0) {
     if (*((uint8_t *)result) != 0xFF)
       _LIBUNWIND_DEBUG_LOG("lsda at 0x%" PRIxPTR " does not start with 0xFF",
                            result);
   }
+#endif
   return result;
 }
 

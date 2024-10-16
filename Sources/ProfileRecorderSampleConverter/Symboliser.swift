@@ -15,6 +15,7 @@
 import NIO
 import Foundation
 import NIOExtras
+import Logging
 
 /// Symbolises `StackFrame`s.
 ///
@@ -25,10 +26,18 @@ public class Symboliser {
     private let llvmSymboliser: LLVMSymboliser
     private var cache: [UInt: String] = [:]
 
-    public init(dynamicLibraryMappings: [DynamicLibMapping], group: EventLoopGroup) throws {
+    public init(
+        dynamicLibraryMappings: [DynamicLibMapping],
+        group: EventLoopGroup,
+        logger: Logger
+    ) throws {
         self.dynamicLibraryMappings = dynamicLibraryMappings
         self.group = group
-        self.llvmSymboliser = LLVMSymboliser(dynamicLibraryMappings: dynamicLibraryMappings, group: group)
+        self.llvmSymboliser = LLVMSymboliser(
+            dynamicLibraryMappings: dynamicLibraryMappings,
+            group: group,
+            logger: logger
+        )
         try self.llvmSymboliser.start()
     }
 
@@ -47,6 +56,23 @@ public class Symboliser {
     }
 }
 
+final class LogErrorHandler: ChannelInboundHandler {
+    typealias InboundIn = NIOAny
+
+    let logger: Logger
+
+    internal init(logger: Logger) {
+        self.logger = logger
+    }
+
+    func errorCaught(context: ChannelHandlerContext, error: Error) {
+        defer {
+            context.fireErrorCaught(error)
+        }
+        self.logger.warning("error whilst interacting with llvm-symbolizer", metadata: ["error": "\(error)"])
+    }
+}
+
 /// Symbolises `StackFrame`s using `llvm-symbolizer`.
 ///
 /// Not thread-safe.
@@ -56,10 +82,12 @@ internal class LLVMSymboliser {
     private var process: Process? = nil
     private var channel: Channel? = nil
     private var unstucker: RepeatedTask? = nil
+    private let logger: Logger
 
-    internal init(dynamicLibraryMappings: [DynamicLibMapping], group: EventLoopGroup) {
+    internal init(dynamicLibraryMappings: [DynamicLibMapping], group: EventLoopGroup, logger: Logger) {
         self.dynamicLibraryMappings = dynamicLibraryMappings
         self.group = group
+        self.logger = logger
     }
 
     internal func start() throws {
@@ -77,22 +105,33 @@ internal class LLVMSymboliser {
         }
 
         p.executableURL = URL(fileURLWithPath: symboliserPath)
-        p.arguments = ["--use-symbol-table=true", "--print-address", "--demangle=1", "--inlining=true", "--functions=linkage", "--color=1"]
+        p.arguments = [
+            "--print-address",
+            "--demangle",
+            "--inlining=true",
+            "--functions=linkage",
+            "--color=1"
+        ]
         try p.run()
         self.process = p
 
         let channel: Channel = try NIOPipeBootstrap(group: self.group)
-            .channelInitializer { channel in
+            .channelInitializer { [
+                dynamicLibraryMappings = self.dynamicLibraryMappings,
+                logger = self.logger
+            ] channel in
                 return channel.pipeline.addHandlers([
                     ByteToMessageHandler(LineBasedFrameDecoder()),
                     LLVMOutputParserHandler(),
-                    LLVMStackFrameEncoderHandler(dynamicLibraryMappings: self.dynamicLibraryMappings),
+                    LLVMStackFrameEncoderHandler(dynamicLibraryMappings: dynamicLibraryMappings),
+                    LogErrorHandler(logger: logger),
                     RequestResponseHandler<StackFrame, String>()
                     ])
             }
-            .withPipes(inputDescriptor: dup(stdOut.fileHandleForReading.fileDescriptor),
-                       outputDescriptor: dup(stdIn.fileHandleForWriting.fileDescriptor))
-            .wait()
+            .takingOwnershipOfDescriptors(
+                input: dup(stdOut.fileHandleForReading.fileDescriptor),
+                output: dup(stdIn.fileHandleForWriting.fileDescriptor)
+            ).wait()
         self.channel = channel
         self.unstucker = channel.eventLoop.scheduleRepeatedTask(initialDelay: .milliseconds(100),
                                                                 delay: .milliseconds(10)) { _ in
@@ -103,7 +142,6 @@ internal class LLVMSymboliser {
                     fputs("unexpected PING message result '\(str)'\n", stderr)
                 }
             }
-
         }
     }
 
@@ -114,14 +152,21 @@ internal class LLVMSymboliser {
             var matchingMappings: [DynamicLibMapping]
         }
         let promise = self.channel!.eventLoop.makePromise(of: String.self)
-        let sched = promise.futureResult.eventLoop.scheduleTask(in: .seconds(10)) {
+        let sched = promise.futureResult.eventLoop.scheduleTask(
+            in: .seconds(10)
+        ) { [dynamicLibraryMappings = self.dynamicLibraryMappings] in
             promise.fail(TimeoutError(stackFrame: stackFrame,
-                                      allMappings: self.dynamicLibraryMappings,
-                                      matchingMappings: self.dynamicLibraryMappings.filter { mapping in
+                                      allMappings: dynamicLibraryMappings,
+                                      matchingMappings: dynamicLibraryMappings.filter { mapping in
                 stackFrame.instructionPointer >= mapping.segmentStartAddress && stackFrame.instructionPointer < mapping.segmentEndAddress
             }))
         }
-        try self.channel!.writeAndFlush((stackFrame, promise)).wait()
+        do {
+            try self.channel!.writeAndFlush((stackFrame, promise)).wait()
+        } catch {
+            self.logger.error("write to llvm-symbolizer pipe failed", metadata: ["error": "\(error)"])
+            promise.fail(error)
+        }
         promise.futureResult.whenComplete { _ in
             sched.cancel()
         }
@@ -129,12 +174,17 @@ internal class LLVMSymboliser {
     }
 
     internal func shutdown() throws {
+        self.logger.debug("shutting down")
         self.unstucker?.cancel(promise: nil)
 
         self.process?.terminate()
         self.process = nil
 
-        try self.channel?.close().wait()
+        do {
+            try self.channel?.close().wait()
+        } catch ChannelError.alreadyClosed {
+            // ok
+        }
         self.channel = nil
     }
 

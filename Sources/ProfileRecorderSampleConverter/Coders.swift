@@ -23,7 +23,7 @@ public struct Message: Decodable {
     var exit: CInt?
 }
 
-public struct DynamicLibMapping: Decodable, CustomStringConvertible {
+public struct DynamicLibMapping: Decodable & Sendable & CustomStringConvertible {
     enum CodingKeys: CodingKey {
         case path
         case fileMappedAddress
@@ -76,7 +76,7 @@ public struct SampleHeader: Codable {
     var timeNSec: Int
 }
 
-public struct StackFrame: Codable, CustomStringConvertible, Hashable {
+public struct StackFrame: Codable & Sendable & CustomStringConvertible & Hashable {
     public enum CodingKeys: String, CodingKey {
         case instructionPointer = "ip"
         case stackPointer = "sp"

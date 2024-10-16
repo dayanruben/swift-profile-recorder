@@ -248,6 +248,10 @@ swipr_make_sample(struct swipr_minidump *minidumps,
                          stack_frame->sf_sp,
                          ret);
         }
+        UNSAFE_DEBUG("[%d: %lu] unwind done, ret=%d\n",
+                     i,
+                     (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id,
+                     ret);
         minidumps[i].md_stack_depth = next_stack_frame_idx;
         minidumps[i].md_time = start_time;
         minidumps[i].md_pid = getpid();
