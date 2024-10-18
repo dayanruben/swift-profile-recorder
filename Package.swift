@@ -41,9 +41,16 @@ let package = Package(
         .target(
             name: "ProfileRecorder",
             dependencies: [
-                "CProfileRecorderSampler",
+                .targetItem(
+                    name: "CProfileRecorderSampler",
+                    // We currently only support Linux but we compile just fine on macOS too.
+                    // llvm unwind doesn't currently compile on watchOS, presumably because of arm64_32.
+                    // Let's be a little conservative and allow-list macOS & Linux.
+                    condition: .when(platforms: [.macOS, .linux])
+                ),
                 .product(name: "NIO", package: "swift-nio"),
-            ]),
+            ]
+        ),
         .target(
             name: "CProfileRecorderLibUnwind",
             dependencies: [],
@@ -52,7 +59,15 @@ let package = Package(
         ),
         .target(
             name: "CProfileRecorderSampler",
-            dependencies: ["CProfileRecorderLibUnwind"]),
+            dependencies: [
+                .targetItem(
+                    name: "CProfileRecorderLibUnwind",
+                    // We currently only support Linux but we compile just fine on macOS too.
+                    // llvm unwind doesn't currently compile on watchOS, presumably because of arm64_32.
+                    // Let's be a little conservative and allow-list macOS & Linux.
+                    condition: .when(platforms: [.macOS, .linux])
+                ),
+            ]),
 
         // MARK: - Tests
         .testTarget(name: "ProfileRecorderTests",

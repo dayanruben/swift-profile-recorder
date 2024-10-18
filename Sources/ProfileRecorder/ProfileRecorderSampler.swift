@@ -13,15 +13,21 @@
 //===----------------------------------------------------------------------===//
 import NIO
 import Dispatch
+#if canImport(CProfileRecorderSampler) // only on macOS & Linux
 @_implementationOnly import CProfileRecorderSampler
+#endif
 
 private let globalProfileRecorder: ProfileRecorderSampler = {
+#if canImport(CProfileRecorderSampler) // only on macOS & Linux
     swipr_initialize()
+#endif
     return ProfileRecorderSampler()
 }()
 
 public final class ProfileRecorderSampler: Sendable {
     private let threadPool: NIOThreadPool
+
+    internal struct UnsupportedOperation: Error {}
 
     public static var sharedInstance: ProfileRecorderSampler {
         return globalProfileRecorder
@@ -36,9 +42,13 @@ public final class ProfileRecorderSampler: Sendable {
                                 count: Int,
                                 timeBetweenSamples: TimeAmount,
                                 eventLoop: EventLoop) -> EventLoopFuture<Void> {
+#if canImport(CProfileRecorderSampler) // only on macOS & Linux
         return self.threadPool.runIfActive(eventLoop: eventLoop) {
             swipr_request_sample(output, .init(count), .init(timeBetweenSamples.nanoseconds / 1000))
         }
+#else
+        return eventLoop.makeFailedFuture(UnsupportedOperation())
+#endif
     }
 
     public func requestSamples(outputFilePath: String,
