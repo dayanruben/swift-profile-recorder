@@ -29,6 +29,12 @@ let package = Package(
                 .product(name: "NIOHTTP1", package: "swift-nio"),
             ]),
         .executableTarget(
+            name: "swipr-mini-demo",
+            dependencies: [
+                "ProfileRecorder",
+                .product(name: "NIO", package: "swift-nio"),
+            ]),
+        .executableTarget(
             name: "ProfileRecorderSampleConverter",
             dependencies: [
                 .product(name: "NIO", package: "swift-nio"),

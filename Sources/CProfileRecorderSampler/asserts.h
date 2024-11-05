@@ -17,6 +17,11 @@
 
 #include <stdlib.h>
 
-#define swipr_precondition(_x) do { if (!(_x)) { abort(); } } while(0)
+#define swipr_precondition(_x) do { \
+    if (!(_x)) { \
+        fprintf(stderr, "assertion failed: %s:%d: " #_x "\n", __FILE__, __LINE__); \
+        abort(); \
+    } \
+} while(0)
 
 #endif /* asserts_h */
