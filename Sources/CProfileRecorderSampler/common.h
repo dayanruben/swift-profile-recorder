@@ -27,4 +27,12 @@
 #  define SWIPR_USE_LIBUNWIND_UNWIND (1)
 #endif
 
+#if defined(SWIPR_USE_FRAME_POINTER_UNWIND)
+#  define SWIPR_UNWIND_STR "[frame pointer]"
+#elif defined(SWIPR_USE_LIBUNWIND_UNWIND)
+#  define SWIPR_UNWIND_STR "[libunwind]"
+#else
+#  error unknown unwinder
+#endif
+
 #endif /* common_h */

@@ -17,6 +17,7 @@
 
 #include "common.h"
 #include "os_dep.h"
+#include "fp_unwinder.h"
 // FIXME: Proper import.
 #include "../CProfileRecorderLibUnwind/include/CProfileRecorderLibUnwind.h"
 
@@ -27,17 +28,12 @@ enum swipr_c2ms_state {
     swipr_c2m_processing = 3,
 };
 
-struct swipr_tiny_context {
-    intptr_t ip;
-    intptr_t fp;
-};
-
 struct collector_to_mutator {
     swipr_os_dep_thread_id c2m_thread_id;
     swipr_os_dep_sem c2m_proceed;
     swipr_os_dep_sem m2c_proceed;
     swipr_unw_context_t c2m_context;
-    struct swipr_tiny_context c2m_tiny_context;
+    struct swipr_fp_unwinder_context c2m_tiny_context;
 };
 
 struct collector_to_mutators {

@@ -25,10 +25,15 @@
 #include "os_dep.h"
 #include "interface.h"
 #include "asserts.h"
-
+#include "common.h"
 
 #if defined(SWIPR_ENABLE_UNSAFE_DEBUG)
-#  define UNSAFE_DEBUG(...) do { fprintf(stderr, "ProfileRecorder: " __VA_ARGS__); fflush(stderr); } while (0)
+#  define UNSAFE_DEBUG(...) \
+    do { \
+        char buffer[512] = {0}; \
+        snprintf(buffer, sizeof(buffer), "ProfileRecorder: " __VA_ARGS__); \
+        write(STDERR_FILENO, buffer, strlen(buffer)); \
+    } while (0)
 #else
 #  define UNSAFE_DEBUG(...) do { } while (0)
 #endif
@@ -212,10 +217,10 @@ swipr_make_sample(struct swipr_minidump *minidumps,
             if (err) {
                 if (swipr_os_dep_kill(thread_id, 0) == -1 && errno == ESRCH) {
                     UNSAFE_DEBUG("thread %d/%ld died, that's probably okay\n",
-                                 i, thread_id);
+                                 i, (long)thread_id);
                     g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
                 } else {
-                    UNSAFE_DEBUG("OUTCH, timeout, thread still alive but no response %d/%ld of %zu\n",
+                    UNSAFE_DEBUG("OUTCH, timeout, thread still alive but no response %d/%d of %zu\n",
                                  i, thread_id, num_threads);
                     // FIXME: We can't just continue here...
                     g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
@@ -231,15 +236,17 @@ swipr_make_sample(struct swipr_minidump *minidumps,
             continue;
         }
 
-        swipr_unw_cursor_t cursor = { 0 };
 #if defined(SWIPR_USE_LIBUNWIND_UNWIND)
+        swipr_unw_cursor_t cursor = { 0 };
         swipr_unw_init_local(&cursor, &g_swipr_c2ms.c2ms_c2ms[i].c2m_context);
 #elif defined(SWIPR_USE_FRAME_POINTER_UNWIND)
+        struct swipr_fp_unwinder_cursor cursor = { 0 };
+        swipr_fp_unwinder_init(&cursor, &g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context);
 #else
 #error unknown unwinder
 #endif
 
-        UNSAFE_DEBUG("[%d: %lu] starting unwind\n",
+        UNSAFE_DEBUG("[%d: %lu] " SWIPR_UNWIND_STR " starting unwind\n",
                      i,
                      (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id);
 
@@ -247,42 +254,30 @@ swipr_make_sample(struct swipr_minidump *minidumps,
         size_t next_stack_frame_idx = 0;
 #if defined(SWIPR_USE_LIBUNWIND_UNWIND)
         while ((ret = swipr_unw_step(&cursor)) > 0 && next_stack_frame_idx < SWIPR_MAX_STACK_DEPTH) {
+#elif defined(SWIPR_USE_FRAME_POINTER_UNWIND)
+        while ((ret = swipr_fp_unwinder_step(&cursor)) > 0 && next_stack_frame_idx < SWIPR_MAX_STACK_DEPTH) {
+#else
+#  error unknown unwinder
+#endif
             struct swipr_stackframe *stack_frame = &minidumps[i].md_stack[next_stack_frame_idx++];
+#if defined(SWIPR_USE_LIBUNWIND_UNWIND)
             swipr_unw_get_reg(&cursor, UNW_REG_IP, &stack_frame->sf_ip);
             swipr_unw_get_reg(&cursor, UNW_REG_SP, &stack_frame->sf_sp);
-
-            UNSAFE_DEBUG("[%d: %lu] [libunwind] ip=%lx, sp=%lx, ret=%d\n",
-                         i,
-                         (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id,
-                         stack_frame->sf_ip,
-                         stack_frame->sf_sp,
-                         ret);
-        }
 #elif defined(SWIPR_USE_FRAME_POINTER_UNWIND)
-        struct swipr_tiny_context current_frame = g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context;
+            swipr_fp_unwinder_get_reg(&cursor, SWIPR_FP_UNWINDER_REG_IP, &stack_frame->sf_ip);
+            swipr_fp_unwinder_get_reg(&cursor, SWIPR_FP_UNWINDER_REG_FP, &stack_frame->sf_sp);
+#else
+#  error unknown unwinder
+#endif
 
-        while ((current_frame.fp != (intptr_t)0) && next_stack_frame_idx < SWIPR_MAX_STACK_DEPTH) {
-            struct swipr_stackframe *stack_frame = &minidumps[i].md_stack[next_stack_frame_idx++];
-            stack_frame->sf_ip = current_frame.ip;
-            stack_frame->sf_sp = 0x0;
-
-            UNSAFE_DEBUG("[%d: %lu] [tiny] ip=%lx, sp=%lx, ret=%d\n",
+            UNSAFE_DEBUG("[%d: %lu] " SWIPR_UNWIND_STR " ip=%lx, sp=%lx, ret=%d\n",
                          i,
                          (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id,
                          stack_frame->sf_ip,
                          stack_frame->sf_sp,
                          ret);
-
-            current_frame.fp = *(intptr_t *)current_frame.fp;
-            if (current_frame.fp != 0) {
-                current_frame.ip = *((intptr_t *)current_frame.fp + 1);
-            } else {
-                break;
-            }
         }
-#else
-#error unknown unwinder
-#endif
+
         UNSAFE_DEBUG("[%d: %lu] unwind done, ret=%d\n",
                      i,
                      (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id,
@@ -309,7 +304,7 @@ swipr_make_sample(struct swipr_minidump *minidumps,
             err = swipr_os_dep_sem_wait_with_deadline(g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed, deadline);
             if (err) {
                 UNSAFE_DEBUG("OUTCH, timeout (B), thread %d/%ld of %zu\n",
-                             i, thread_id, num_threads);
+                             i, (long)thread_id, num_threads);
                 // FIXME: Continuing here is unsafe, the tests might still exist, and below, we'll free the semaphore.
                 // Probably best to leak it or so.
             }
@@ -416,34 +411,14 @@ profiling_handler(int signo, siginfo_t *info, void *ucontext_untyped)
 
 #if defined(SWIPR_USE_LIBUNWIND_UNWIND)
     int err = swipr_unw_getcontext(&g_swipr_c2ms.c2ms_c2ms[my_idx].c2m_context);
-    swipr_precondition(err == 0);
-    UNSAFE_DEBUG("thread %lu: done collecting [libunwind] context\n", (uintptr_t)my_thread_id);
 #elif defined(SWIPR_USE_FRAME_POINTER_UNWIND)
     ucontext_t *uc = (ucontext_t *)ucontext_untyped;
-    UNSAFE_DEBUG("thread %lu: ucontext at %p\n", (uintptr_t)my_thread_id, uc);
-
-#if defined(__linux__) && defined(__x86_64__)
-    intptr_t reg_ip = uc->uc_mcontext.gregs[REG_RIP];
-    intptr_t reg_fp = uc->uc_mcontext.gregs[REG_RBP];
-#elif defined(__linux__) && defined(__aarch64__)
-    intptr_t reg_ip = uc->uc_mcontext.pc;
-    intptr_t reg_fp = uc->uc_mcontext.regs[29];
-#elif defined(__APPLE__) && defined(__x86_64__)
-    intptr_t reg_ip = uc->uc_mcontext->__ss.__rip;
-    intptr_t reg_fp = uc->uc_mcontext->__ss.__rbp;
-#elif defined(__APPLE__) && defined(__aarch64__)
-    intptr_t reg_ip = uc->uc_mcontext->__ss.__pc;
-    intptr_t reg_fp = uc->uc_mcontext->__ss.__fp;
-#else
-#error unknown OS/arch combination
-#endif
-
-    g_swipr_c2ms.c2ms_c2ms[my_idx].c2m_tiny_context.fp = reg_fp;
-    g_swipr_c2ms.c2ms_c2ms[my_idx].c2m_tiny_context.ip = reg_ip;
-    UNSAFE_DEBUG("thread %lu: done collecting [tiny] context\n", (uintptr_t)my_thread_id);
+    int err = swipr_fp_unwinder_getcontext(&g_swipr_c2ms.c2ms_c2ms[my_idx].c2m_tiny_context, uc);
 #else
 #error unknown unwinder
 #endif
+    swipr_precondition(err == 0);
+    UNSAFE_DEBUG("thread %lu: done collecting " SWIPR_UNWIND_STR " context\n", (uintptr_t)my_thread_id);
 
     swipr_os_dep_sem_signal(g_swipr_c2ms.c2ms_c2ms[my_idx].m2c_proceed);
     UNSAFE_DEBUG("thread %lu: waiting for collector\n", (uintptr_t)my_thread_id);

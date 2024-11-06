@@ -19,7 +19,9 @@
 
 #define swipr_precondition(_x) do { \
     if (!(_x)) { \
-        fprintf(stderr, "assertion failed: %s:%d: " #_x "\n", __FILE__, __LINE__); \
+        char buffer[128] = { 0 }; \
+        snprintf(buffer, sizeof(buffer), "ProfileRecorder precondition failed: %s:%d: " #_x "\n", __FILE__, __LINE__); \
+        write(STDERR_FILENO, buffer, strlen(buffer)); \
         abort(); \
     } \
 } while(0)

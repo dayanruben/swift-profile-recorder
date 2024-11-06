@@ -40,7 +40,7 @@ swipr_os_dep_sem_wait(swipr_os_dep_sem sem) {
 
 static inline int
 swipr_os_dep_sem_wait_with_deadline(swipr_os_dep_sem sem, swipr_os_dep_deadline deadline) {
-    return dispatch_semaphore_wait(sem, deadline);
+    return (int)dispatch_semaphore_wait(sem, deadline);
 }
 
 static inline swipr_os_dep_thread_id
