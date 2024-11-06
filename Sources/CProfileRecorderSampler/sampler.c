@@ -27,17 +27,6 @@
 #include "asserts.h"
 #include "common.h"
 
-#if defined(SWIPR_ENABLE_UNSAFE_DEBUG)
-#  define UNSAFE_DEBUG(...) \
-    do { \
-        char buffer[512] = {0}; \
-        snprintf(buffer, sizeof(buffer), "ProfileRecorder: " __VA_ARGS__); \
-        write(STDERR_FILENO, buffer, strlen(buffer)); \
-    } while (0)
-#else
-#  define UNSAFE_DEBUG(...) do { } while (0)
-#endif
-
 struct collector_to_mutators g_swipr_c2ms = {0};
 
 static inline void
@@ -375,6 +364,7 @@ swipr_request_sample(FILE *output,
             for (size_t s=0; s<minidump->md_stack_depth; s++) {
                 fprintf(output,
                         "[SWIPR] STCK {"
+                        "\"m\": \"" SWIPR_UNWIND_STR_SHORT "\", "
                         "\"ip\": \"0x%lx\", "
                         "\"sp\": \"0x%lx\""
                         "}\n",

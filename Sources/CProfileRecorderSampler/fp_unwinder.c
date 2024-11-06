@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 #include "fp_unwinder.h"
+#include "common.h"
 
 void swipr_fp_unwinder_init(struct swipr_fp_unwinder_cursor *cursor, struct swipr_fp_unwinder_context *context) {
     cursor->sfuc_fp = context->sfuctx_fp;
@@ -25,14 +26,18 @@ int swipr_fp_unwinder_step(struct swipr_fp_unwinder_cursor *cursor) {
     // FIXME: The layout (previous frame followed by return address), stack direction (down) & stack size (128k) are technically arch dependent
     if (
         cursor->sfuc_fp != 0 && // We're not at the end, ...
-        cursor->sfuc_fp > cursor->sfuc_original_sp && // ... we're walking the right direction and ...
-        cursor->sfuc_fp - cursor->sfuc_original_sp < 128*1024 // ... we no more than 128k away from the top of the stack.
+        cursor->sfuc_fp >= cursor->sfuc_original_sp && // ... we're walking the right direction and ...
+        cursor->sfuc_fp - cursor->sfuc_original_sp <= 128*1024 // ... we no more than 128k away from the top of the stack.
     ) {
         uintptr_t *fp = (uintptr_t *)cursor->sfuc_fp;
         cursor->sfuc_fp = fp[0];
         cursor->sfuc_ip = fp[1];
         return 1; // >0 == continue
     } else {
+            UNSAFE_DEBUG("ending stack unwind (fp!=0: %d, fp>sp: %d, fp-sp: %ld)",
+                         cursor->sfuc_fp != 0,
+                         cursor->sfuc_fp >= cursor->sfuc_original_sp,
+                         cursor->sfuc_fp - cursor->sfuc_original_sp);
         return 0; // 0 == stop
     }
 }

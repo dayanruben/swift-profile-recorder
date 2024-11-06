@@ -16,6 +16,9 @@
 #ifndef common_h
 #define common_h
 
+#include <string.h>
+#include <stdio.h>
+
 #define SWIPR_MAX_MUTATOR_THREADS 1024
 #define SWIPR_MAX_STACK_DEPTH 128
 
@@ -29,10 +32,23 @@
 
 #if defined(SWIPR_USE_FRAME_POINTER_UNWIND)
 #  define SWIPR_UNWIND_STR "[frame pointer]"
+#  define SWIPR_UNWIND_STR_SHORT "fp"
 #elif defined(SWIPR_USE_LIBUNWIND_UNWIND)
 #  define SWIPR_UNWIND_STR "[libunwind]"
+#  define SWIPR_UNWIND_STR_SHORT "lu"
 #else
 #  error unknown unwinder
+#endif
+
+#if defined(SWIPR_ENABLE_UNSAFE_DEBUG)
+#  define UNSAFE_DEBUG(...) \
+    do { \
+        char buffer[512] = {0}; \
+        snprintf(buffer, sizeof(buffer), "ProfileRecorder: " __VA_ARGS__); \
+        write(STDERR_FILENO, buffer, strlen(buffer)); \
+    } while (0)
+#else
+#  define UNSAFE_DEBUG(...) do { } while (0)
 #endif
 
 #endif /* common_h */
