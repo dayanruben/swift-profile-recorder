@@ -57,7 +57,7 @@ int swipr_fp_unwinder_getcontext(struct swipr_fp_unwinder_context *context, ucon
 #if defined(__linux__) && defined(__x86_64__)
     intptr_t reg_ip = uc->uc_mcontext.gregs[REG_RIP];
     intptr_t reg_fp = uc->uc_mcontext.gregs[REG_RBP];
-    intptr_t reg_sp = uc->uc_mcontext.greps[REG_RSP];
+    intptr_t reg_sp = uc->uc_mcontext.gregs[REG_RSP];
 #elif defined(__linux__) && defined(__aarch64__)
     intptr_t reg_ip = uc->uc_mcontext.pc;
     intptr_t reg_fp = uc->uc_mcontext.regs[29];
