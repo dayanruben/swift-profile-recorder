@@ -11,6 +11,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+#include <stdbool.h>
 #include "fp_unwinder.h"
 #include "common.h"
 
@@ -18,10 +19,16 @@ void swipr_fp_unwinder_init(struct swipr_fp_unwinder_cursor *cursor, struct swip
     cursor->sfuc_fp = context->sfuctx_fp;
     cursor->sfuc_ip = context->sfuctx_ip;
     cursor->sfuc_original_sp = context->sfuctx_sp;
+    cursor->sfuc_is_first_frame = true;
 }
 
 int swipr_fp_unwinder_step(struct swipr_fp_unwinder_cursor *cursor) {
     struct swipr_fp_unwinder_cursor old_cursor = *cursor;
+
+    if (cursor->sfuc_is_first_frame) {
+        cursor->sfuc_is_first_frame = false;
+        return 1; // >0 == continue
+    }
 
     // FIXME: The layout (previous frame followed by return address), stack direction (down) & stack size (128k) are technically arch dependent
     if (

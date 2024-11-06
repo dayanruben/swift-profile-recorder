@@ -22,6 +22,7 @@ struct swipr_fp_unwinder_cursor {
     intptr_t sfuc_fp;
     intptr_t sfuc_ip;
     intptr_t sfuc_original_sp;
+    bool sfuc_is_first_frame;
 };
 
 struct swipr_fp_unwinder_context {
