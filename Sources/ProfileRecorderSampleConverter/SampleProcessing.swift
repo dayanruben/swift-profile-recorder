@@ -12,10 +12,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-func processModern(_ sample: Sample, symboliser: Symboliser) throws {
+func processModern(_ sample: Sample, printFileLine: Bool, symboliser: Symboliser) throws {
     print("\(sample.threadName)-T\(sample.tid)     \(sample.pid)/\(sample.tid)     \(sample.timeSec).\(sample.timeNSec):    swipr")
     for stackFrame in sample.stack.dropFirst() {
-        print("\t \(try symboliser.symbolise(stackFrame))")
+        for symbolicatedFrame in try symboliser.symbolise(stackFrame).allFrames {
+            print("""
+                  \t    \
+                  \(symbolicatedFrame.address) \
+                  \(symbolicatedFrame.functionName)+0x\(String(symbolicatedFrame.functionOffset, radix: 16)) \
+                  (\(symbolicatedFrame.library))
+                  """
+                )
+            if printFileLine, let file = symbolicatedFrame.file, let line = symbolicatedFrame.line {
+                print("  \(file):\(line)")
+            }
+        }
     }
     print()
 }

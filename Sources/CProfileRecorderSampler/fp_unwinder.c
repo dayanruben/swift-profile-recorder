@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Profile Recorder open source project
 //
-// Copyright (c) 2022-2025 Apple Inc. and the Swift Profile Recorder project authors
+// Copyright (c) 2021 Apple Inc. and the Swift Profile Recorder project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -11,6 +11,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+
 #include <stdbool.h>
 #include "fp_unwinder.h"
 #include "common.h"
@@ -19,14 +20,15 @@ void swipr_fp_unwinder_init(struct swipr_fp_unwinder_cursor *cursor, struct swip
     cursor->sfuc_fp = context->sfuctx_fp;
     cursor->sfuc_ip = context->sfuctx_ip;
     cursor->sfuc_original_sp = context->sfuctx_sp;
-    cursor->sfuc_is_first_frame = true;
+    cursor->sfuc_frame_depth = 0;
 }
 
 int swipr_fp_unwinder_step(struct swipr_fp_unwinder_cursor *cursor) {
     struct swipr_fp_unwinder_cursor old_cursor = *cursor;
 
-    if (cursor->sfuc_is_first_frame) {
-        cursor->sfuc_is_first_frame = false;
+    cursor->sfuc_frame_depth++;
+    if (cursor->sfuc_frame_depth <= 2) {
+        // We return the original IP twice because we're stripping it once in the sample conv.
         return 1; // >0 == continue
     }
 
@@ -83,7 +85,10 @@ int swipr_fp_unwinder_getcontext(struct swipr_fp_unwinder_context *context, ucon
     intptr_t reg_fp = uc->uc_mcontext->__ss.__fp;
     intptr_t reg_sp = uc->uc_mcontext->__ss.__sp;
 #else
-#error unknown OS/arch combination
+#warning unknown OS/arch combination
+    intptr_t reg_ip = 0;
+    intptr_t reg_fp = 0;
+    intptr_t reg_sp = 0;
 #endif
 
     context->sfuctx_fp = reg_fp;

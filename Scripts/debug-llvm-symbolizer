@@ -1,0 +1,4 @@
+#!/bin/bash
+
+set -eu
+tee /tmp/llvm-symbolizer-input | llvm-symbolizer "$@" | tee /tmp/llvm-symbolizer-output

@@ -13,6 +13,7 @@ let package = Package(
             targets: ["ProfileRecorderSampleConverter"]),
     ],
     dependencies: [
+        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-atomics.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.6.1"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.75.0"),
@@ -32,12 +33,15 @@ let package = Package(
             name: "swipr-mini-demo",
             dependencies: [
                 "ProfileRecorder",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "NIO", package: "swift-nio"),
             ]),
         .executableTarget(
             name: "ProfileRecorderSampleConverter",
             dependencies: [
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "NIO", package: "swift-nio"),
+                .product(name: "NIOFoundationCompat", package: "swift-nio"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "NIOExtras", package: "swift-nio-extras"),
                 

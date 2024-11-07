@@ -17,6 +17,19 @@ import Foundation
 import NIOExtras
 import Logging
 
+public struct SymbolisedStackFrame: Sendable {
+    internal struct SingleFrame: Sendable {
+        var address: String
+        var functionName: String
+        var functionOffset: UInt
+        var library: String
+        var file: Optional<String>
+        var line: Optional<Int>
+    }
+
+    var allFrames: [SingleFrame]
+}
+
 /// Symbolises `StackFrame`s.
 ///
 /// Not thread-safe.
@@ -24,9 +37,10 @@ public class Symboliser {
     private let dynamicLibraryMappings: [DynamicLibMapping]
     private let group: EventLoopGroup
     private let llvmSymboliser: LLVMSymboliser
-    private var cache: [UInt: String] = [:]
+    private var cache: [UInt: SymbolisedStackFrame] = [:]
 
     public init(
+        llvmSymboliserConfig: LLVMSymboliserConfig,
         dynamicLibraryMappings: [DynamicLibMapping],
         group: EventLoopGroup,
         logger: Logger
@@ -34,6 +48,7 @@ public class Symboliser {
         self.dynamicLibraryMappings = dynamicLibraryMappings
         self.group = group
         self.llvmSymboliser = LLVMSymboliser(
+            config: llvmSymboliserConfig,
             dynamicLibraryMappings: dynamicLibraryMappings,
             group: group,
             logger: logger
@@ -41,7 +56,7 @@ public class Symboliser {
         try self.llvmSymboliser.start()
     }
 
-    public func symbolise(_ stackFrame: StackFrame) throws -> String {
+    public func symbolise(_ stackFrame: StackFrame) throws -> SymbolisedStackFrame {
         if let symd = self.cache[stackFrame.instructionPointer] {
             return symd
         } else {
@@ -73,6 +88,11 @@ final class LogErrorHandler: ChannelInboundHandler {
     }
 }
 
+public struct LLVMSymboliserConfig: Sendable {
+    var viaJSON: Bool
+    var unstuckerWorkaround: Bool
+}
+
 /// Symbolises `StackFrame`s using `llvm-symbolizer`.
 ///
 /// Not thread-safe.
@@ -83,8 +103,15 @@ internal class LLVMSymboliser {
     private var channel: Channel? = nil
     private var unstucker: RepeatedTask? = nil
     private let logger: Logger
+    private let config: LLVMSymboliserConfig
 
-    internal init(dynamicLibraryMappings: [DynamicLibMapping], group: EventLoopGroup, logger: Logger) {
+    internal init(
+        config: LLVMSymboliserConfig,
+        dynamicLibraryMappings: [DynamicLibMapping],
+        group: EventLoopGroup,
+        logger: Logger
+    ) {
+        self.config = config
         self.dynamicLibraryMappings = dynamicLibraryMappings
         self.group = group
         self.logger = logger
@@ -110,48 +137,51 @@ internal class LLVMSymboliser {
             "--demangle",
             "--inlining=true",
             "--functions=linkage",
-            "--color=1"
-        ]
+            "--basenames",
+        ] + (self.config.viaJSON ? ["--output-style=JSON"] : [])
         try p.run()
         self.process = p
 
         let channel: Channel = try NIOPipeBootstrap(group: self.group)
             .channelInitializer { [
                 dynamicLibraryMappings = self.dynamicLibraryMappings,
-                logger = self.logger
+                logger = self.logger,
+                viaJSON = self.config.viaJSON
             ] channel in
                 return channel.pipeline.addHandlers([
                     ByteToMessageHandler(LineBasedFrameDecoder()),
-                    LLVMOutputParserHandler(),
+                    viaJSON ? LLVMJSONOutputParserHandler() : LLVMOutputParserHandler(),
                     LLVMStackFrameEncoderHandler(dynamicLibraryMappings: dynamicLibraryMappings),
                     LogErrorHandler(logger: logger),
-                    RequestResponseHandler<StackFrame, String>()
-                    ])
+                    RequestResponseHandler<StackFrame, SymbolisedStackFrame>()
+                ])
             }
             .takingOwnershipOfDescriptors(
                 input: dup(stdOut.fileHandleForReading.fileDescriptor),
                 output: dup(stdIn.fileHandleForWriting.fileDescriptor)
             ).wait()
         self.channel = channel
-        self.unstucker = channel.eventLoop.scheduleRepeatedTask(initialDelay: .milliseconds(100),
-                                                                delay: .milliseconds(10)) { _ in
-            let p = channel.eventLoop.makePromise(of: String.self)
-            channel.writeAndFlush((StackFrame(instructionPointer: .max, stackPointer: 0), p)).cascadeFailure(to: p)
-            p.futureResult.whenSuccess { str in
-                if !str.starts(with: "0xffffffffffffffff") {
-                    fputs("unexpected PING message result '\(str)'\n", stderr)
+        if self.config.unstuckerWorkaround {
+            self.unstucker = channel.eventLoop.scheduleRepeatedTask(initialDelay: .milliseconds(1000),
+                                                                    delay: .milliseconds(1000)) { _ in
+                let p = channel.eventLoop.makePromise(of: SymbolisedStackFrame.self)
+                channel.writeAndFlush((StackFrame(instructionPointer: .max, stackPointer: 0), p)).cascadeFailure(to: p)
+                p.futureResult.whenSuccess { str in
+                    if !(str.allFrames.first?.address ?? "n/a").starts(with: "0xffffffffffffffff") {
+                        fputs("unexpected PING message result '\(str)'\n", stderr)
+                    }
                 }
             }
         }
     }
 
-    internal func symbolise(_ stackFrame: StackFrame) throws -> String {
+    internal func symbolise(_ stackFrame: StackFrame) throws -> SymbolisedStackFrame {
         struct TimeoutError: Error {
             var stackFrame: StackFrame
             var allMappings: [DynamicLibMapping]
             var matchingMappings: [DynamicLibMapping]
         }
-        let promise = self.channel!.eventLoop.makePromise(of: String.self)
+        let promise = self.channel!.eventLoop.makePromise(of: SymbolisedStackFrame.self)
         let sched = promise.futureResult.eventLoop.scheduleTask(
             in: .seconds(10)
         ) { [dynamicLibraryMappings = self.dynamicLibraryMappings] in

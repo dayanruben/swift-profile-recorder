@@ -16,7 +16,7 @@ import NIO
 
 final internal class LLVMOutputParserHandler: ChannelInboundHandler {
     typealias InboundIn = ByteBuffer
-    typealias InboundOut = String
+    typealias InboundOut = SymbolisedStackFrame
 
     private var accumulation: [ByteBuffer] = []
 
@@ -38,14 +38,38 @@ final internal class LLVMOutputParserHandler: ChannelInboundHandler {
                 context.fireErrorCaught(CouldNotParseOutputError(output: self.accumulation))
                 self.accumulation.removeAll()
             } else {
-                let out = "\(String(buffer: self.accumulation[0])) \(String(buffer: self.accumulation[1]))+0x0 (somewhere)"
+                let out = SymbolisedStackFrame(
+                    allFrames: [
+                        .init(
+                            address: String(buffer: self.accumulation[0]),
+                            functionName: String(buffer: self.accumulation[1]),
+                            functionOffset: 0,
+                            library: "somewhere",
+                            file: nil,
+                            line: nil
+                        )
+                    ]
+                )
                 self.accumulation.removeAll()
                 context.fireChannelRead(Self.wrapInboundOut(out))
             }
         } else {
             if self.accumulation.isEmpty && String(buffer: data).starts(with: "CODE ") {
                 let address = String(String(buffer: data).dropFirst(5))
-                context.fireChannelRead(Self.wrapInboundOut("\(address) \(address) (somewhere)"))
+                let out = SymbolisedStackFrame(
+                    allFrames: [
+                        .init(
+                            address: address,
+                            functionName: address,
+                            functionOffset: 0,
+                            library: "somewhere",
+                            file: nil,
+                            line: nil
+                        )
+                    ]
+                )
+
+                context.fireChannelRead(Self.wrapInboundOut(out))
             } else {
                 self.accumulation.append(data)
             }

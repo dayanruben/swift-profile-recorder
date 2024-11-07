@@ -12,32 +12,51 @@
 //
 //===----------------------------------------------------------------------===//
 
+import ArgumentParser
 
 import Foundation
 import NIO
 import Logging
 
 @main
-struct Main {
-    static func main() {
+struct ProfileRecorderSampleConverter: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "swipr-sample-conv",
+        version: EmbeddedAppVersion().description
+    )
+
+    @Option(help: "Use llvm-symbolizer's JSON format instead of the text format?")
+    var viaJSON: Bool = true
+
+    @Option(help: "Enable the llvm-symbolizer getting stuck workaround?")
+    var unstuckerWorkaround: Bool = false
+
+    @Option(help: "Should we attempt to print file:line information?")
+    var enableFileLine: Bool = false
+
+    func run() {
         var logger = Logger(label: "swipr-sample-conv")
         logger.logLevel = .info
         do {
-            try Self.go(logger: logger)
+            try Self.go(
+                llvmSymboliserConfig: LLVMSymboliserConfig(
+                    viaJSON: self.viaJSON,
+                    unstuckerWorkaround: self.unstuckerWorkaround
+                ),
+                printFileLine: self.enableFileLine,
+                logger: logger
+            )
         } catch {
             fputs("ERROR: \(error)\n", stderr)
-            exit(EXIT_FAILURE)
+            Foundation.exit(EXIT_FAILURE)
         }
     }
 
-    static func go(logger: Logger) throws {
-        let appVersion = "1.0"
-
-        if CommandLine.arguments.count == 2 && (CommandLine.arguments[1] == "--version" || CommandLine.arguments[1] == "-v") {
-            print(appVersion)
-            exit(EX_OK)
-        }
-
+    static func go(
+        llvmSymboliserConfig: LLVMSymboliserConfig,
+        printFileLine: Bool,
+        logger: Logger
+    ) throws {
         let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         defer {
             try! group.syncShutdownGracefully()
@@ -64,19 +83,19 @@ struct Main {
                 }
                 logger.info("\(message.message)")
                 if let exitCode = message.exit {
-                    exit(exitCode)
+                    Foundation.exit(exitCode)
                 }
             case "VERS":
                 guard let version = try? decoder.decode(Version.self, from: Data(line.dropFirst(13).utf8)) else {
                     logger.error("Could not decode Swift Profile Recorder version", metadata: ["line": "\(line)"])
-                    exit(EXIT_FAILURE)
+                    Foundation.exit(EXIT_FAILURE)
                 }
                 guard version.version == 1 else {
                     logger.error(
                         "This is a Swift Profile Recorder trace of the wrong version, but we're only compatible with version 1",
                         metadata: ["trace-version": "\(version.version)", "our-version": "1"]
                     )
-                    exit(EXIT_FAILURE)
+                    Foundation.exit(EXIT_FAILURE)
                 }
             case "VMAP":
                 guard let mapping = try? decoder.decode(DynamicLibMapping.self, from: Data(line.dropFirst(13).utf8)) else {
@@ -94,6 +113,7 @@ struct Main {
                 vmapsRead = true
                 if symboliser == nil {
                     symboliser = try Symboliser(
+                        llvmSymboliserConfig: llvmSymboliserConfig,
                         dynamicLibraryMappings: vmaps,
                         group: group,
                         logger: logger
@@ -112,7 +132,7 @@ struct Main {
                 currentSample?.stack.append(stackFrame)
             case "DONE":
                 if let sample = currentSample, let symboliser = symboliser {
-                    try processModern(sample, symboliser: symboliser)
+                    try processModern(sample, printFileLine: printFileLine, symboliser: symboliser)
                 }
             default:
                 logger.warning("unknown line, ignoring", metadata: ["line": "\(line.dropFirst(8).prefix(4)))"])

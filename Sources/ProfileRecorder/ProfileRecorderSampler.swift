@@ -24,6 +24,10 @@ private let globalProfileRecorder: ProfileRecorderSampler = {
     return ProfileRecorderSampler()
 }()
 
+struct CouldNotOpenFileError: Error {
+    var path: String
+}
+
 public final class ProfileRecorderSampler: Sendable {
     private let threadPool: NIOThreadPool
 
@@ -79,9 +83,6 @@ public final class ProfileRecorderSampler: Sendable {
                                        count: count, timeBetweenSamples: timeBetweenSamples, eventLoop: eventLoop)
         } else {
             guard let output = fopen(outputFilePath, "w\(failIfFileExists ? "x" : "")") else {
-                struct CouldNotOpenFileError: Error {
-                    var path: String
-                }
                 return eventLoop.makeFailedFuture(CouldNotOpenFileError(path: outputFilePath))
             }
 

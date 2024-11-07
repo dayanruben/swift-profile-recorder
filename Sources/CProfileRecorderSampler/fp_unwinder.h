@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Profile Recorder open source project
 //
-// Copyright (c) 2022-2025 Apple Inc. and the Swift Profile Recorder project authors
+// Copyright (c) 2021 Apple Inc. and the Swift Profile Recorder project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -11,6 +11,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+
 #ifndef FP_UNWINDER_H
 #define FP_UNWINDER_H
 
@@ -22,7 +23,7 @@ struct swipr_fp_unwinder_cursor {
     intptr_t sfuc_fp;
     intptr_t sfuc_ip;
     intptr_t sfuc_original_sp;
-    bool sfuc_is_first_frame;
+    int sfuc_frame_depth;
 };
 
 struct swipr_fp_unwinder_context {
