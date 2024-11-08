@@ -73,70 +73,70 @@ final internal class LLVMJSONOutputParserHandler: ChannelInboundHandler {
     private var accumulation: [ByteBuffer] = []
     private let jsonDecoder = JSONDecoder()
 
-    struct CouldNotParseOutputError: Error {
-        init(output: ByteBuffer) {
-            self.output = String(buffer: output)
-        }
-
-        var output: String
-    }
-
     internal func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let data = Self.unwrapInboundIn(data)
+        var outputFrames: [SymbolisedStackFrame.SingleFrame] = []
+        defer {
+            context.fireChannelRead(Self.wrapInboundOut(SymbolisedStackFrame(allFrames: outputFrames)))
+        }
+
+        let decoded: LLVMSymbolizerJSONOutput
         do {
-            let decoded = try self.jsonDecoder.decode(LLVMSymbolizerJSONOutput.self, from: data)
-            guard let address = decoded.Address else {
-                context.fireErrorCaught(CouldNotParseOutputError(output: data))
-                return
-            }
-            guard let symbolList = decoded.Symbol, !symbolList.isEmpty else {
-                context.fireChannelRead(
-                    Self.wrapInboundOut(
-                        SymbolisedStackFrame(
-                            allFrames: [SymbolisedStackFrame.SingleFrame(
-                                address: address,
-                                functionName: "<unknown-unset>",
-                                functionOffset: 0,
-                                library: decoded.ModuleName ?? "unknown-library",
-                                file: nil,
-                                line: nil
-                            )]
-                        )
+            decoded = try self.jsonDecoder.decode(LLVMSymbolizerJSONOutput.self, from: data)
+        } catch {
+            fputs(
+                  """
+                  WARNING: failed to parse llvm-symbolizer JSON output (\(error)), got '\(data)'\n
+                  """,
+                  stderr
+            )
+            return
+        }
+        guard let address = decoded.Address else {
+            fputs(
+                  """
+                  WARNING: unexpected llvm-symbolizer JSON output, got '\(data)'\n
+                  """,
+                  stderr
+            )
+            return
+        }
+        guard let symbolList = decoded.Symbol, !symbolList.isEmpty else {
+            context.fireChannelRead(
+                Self.wrapInboundOut(
+                    SymbolisedStackFrame(
+                        allFrames: [SymbolisedStackFrame.SingleFrame(
+                            address: address,
+                            functionName: "<unknown-unset>",
+                            functionOffset: 0,
+                            library: decoded.ModuleName ?? "unknown-library",
+                            file: nil,
+                            line: nil
+                        )]
                     )
                 )
-                return
+            )
+            return
+        }
+
+        for symbol in symbolList {
+            var output = SymbolisedStackFrame.SingleFrame(
+                address: address,
+                functionName: "<unknown-unset>",
+                functionOffset: 0,
+                library: decoded.ModuleName ?? "unknown-unset",
+                file: nil,
+                line: nil
+            )
+
+            if let goodSymbol = symbol.goodSymbol(address: address) {
+                output.functionName = goodSymbol.functionName
+                output.functionOffset = goodSymbol.offset
+                output.line = goodSymbol.sourceLine
+                output.file = goodSymbol.sourceFile
             }
 
-            let hasMultiple = symbolList.count > 1
-            var outputFrames: [SymbolisedStackFrame.SingleFrame] = []
-            for index in symbolList.indices {
-                let symbol = symbolList[index]
-                let isLast = index == symbolList.endIndex - 1
-
-                var output = SymbolisedStackFrame.SingleFrame(
-                    address: address,
-                    functionName: "<unknown-unset>",
-                    functionOffset: 0,
-                    library: decoded.ModuleName ?? "unknown-unset",
-                    file: nil,
-                    line: nil
-                )
-
-                if let goodSymbol = symbol.goodSymbol(address: address) {
-                    output.functionName = goodSymbol.functionName
-                    output.functionOffset = goodSymbol.offset
-                    output.line = goodSymbol.sourceLine
-                    output.file = goodSymbol.sourceFile
-                }
-
-                if hasMultiple && !isLast {
-                    output.functionName += " [inlined]"
-                }
-                outputFrames.append(output)
-            }
-            context.fireChannelRead(Self.wrapInboundOut(SymbolisedStackFrame(allFrames: outputFrames)))
-        } catch {
-            context.fireErrorCaught(error)
+            outputFrames.append(output)
         }
     }
 }

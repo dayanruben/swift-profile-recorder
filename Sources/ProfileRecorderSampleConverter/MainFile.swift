@@ -26,7 +26,7 @@ struct ProfileRecorderSampleConverter: ParsableCommand {
     )
 
     @Option(help: "Use llvm-symbolizer's JSON format instead of the text format?")
-    var viaJSON: Bool = true
+    var viaJSON: Bool = false
 
     @Option(help: "Enable the llvm-symbolizer getting stuck workaround?")
     var unstuckerWorkaround: Bool = false

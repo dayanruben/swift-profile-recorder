@@ -20,39 +20,57 @@ final internal class LLVMOutputParserHandler: ChannelInboundHandler {
 
     private var accumulation: [ByteBuffer] = []
 
-    struct CouldNotParseOutputError: Error {
-        init(output: [ByteBuffer]) {
-            self.output = output.map { String(buffer: $0) }
-        }
-
-        var output: [String]
-    }
-
     internal func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let data = Self.unwrapInboundIn(data)
 
         if data.readableBytes == 0 {
             // done, process now
+            var frames: [SymbolisedStackFrame.SingleFrame] = []
 
             if self.accumulation.count < 3 {
-                context.fireErrorCaught(CouldNotParseOutputError(output: self.accumulation))
-                self.accumulation.removeAll()
+                fputs(
+                      """
+                      WARNING: unexpected llvm-symbolizer text output (expected 1 + 2*n lines), \
+                      ignoring all: \(self.accumulation)\n
+                      """,
+                      stderr
+                )
             } else {
-                let out = SymbolisedStackFrame(
-                    allFrames: [
-                        .init(
-                            address: String(buffer: self.accumulation[0]),
-                            functionName: String(buffer: self.accumulation[1]),
+                var remaining = self.accumulation[...]
+                let address = String(buffer: remaining.removeFirst())
+
+                frames.reserveCapacity(remaining.count / 2)
+                while !remaining.isEmpty {
+                    guard remaining.count >= 2 else {
+                        fputs(
+                              """
+                              WARNING: unexpected llvm-symbolizer text output (expected 1 + 2*n lines), \
+                              ignoring last: \(self.accumulation)\n
+                              """,
+                              stderr
+                        )
+                        break
+                    }
+                    let functionName = String(buffer: remaining.removeFirst())
+                    let fileLineColumn = String(buffer: remaining.removeFirst())
+                    let fileLineColumnSplit = fileLineColumn.split(separator: ":", maxSplits: 2)
+                    frames.append(
+                        SymbolisedStackFrame.SingleFrame(
+                            address: address,
+                            functionName: functionName,
                             functionOffset: 0,
                             library: "somewhere",
-                            file: nil,
-                            line: nil
+                            file: String(fileLineColumnSplit.first ?? "unknown"),
+                            line: fileLineColumnSplit.dropFirst().first.flatMap { Int($0) }
                         )
-                    ]
-                )
-                self.accumulation.removeAll()
-                context.fireChannelRead(Self.wrapInboundOut(out))
+                    )
+
+                }
             }
+
+            self.accumulation.removeAll()
+            let out = SymbolisedStackFrame(allFrames: frames)
+            context.fireChannelRead(Self.wrapInboundOut(out))
         } else {
             if self.accumulation.isEmpty && String(buffer: data).starts(with: "CODE ") {
                 let address = String(String(buffer: data).dropFirst(5))

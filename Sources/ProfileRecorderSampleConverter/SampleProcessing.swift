@@ -15,11 +15,17 @@
 func processModern(_ sample: Sample, printFileLine: Bool, symboliser: Symboliser) throws {
     print("\(sample.threadName)-T\(sample.tid)     \(sample.pid)/\(sample.tid)     \(sample.timeSec).\(sample.timeNSec):    swipr")
     for stackFrame in sample.stack.dropFirst() {
-        for symbolicatedFrame in try symboliser.symbolise(stackFrame).allFrames {
+        let framesIncludingInlinedFrames = try symboliser.symbolise(stackFrame).allFrames
+        let hasMultiple = framesIncludingInlinedFrames.count > 1
+        for index in framesIncludingInlinedFrames.indices {
+            let symbolicatedFrame = framesIncludingInlinedFrames[index]
+            let isLast = index == framesIncludingInlinedFrames.endIndex - 1
+
             print("""
                   \t    \
                   \(symbolicatedFrame.address) \
-                  \(symbolicatedFrame.functionName)+0x\(String(symbolicatedFrame.functionOffset, radix: 16)) \
+                  \(symbolicatedFrame.functionName)\(hasMultiple && !isLast ? " [inlined]" :"")\
+                  +0x\(String(symbolicatedFrame.functionOffset, radix: 16)) \
                   (\(symbolicatedFrame.library))
                   """
                 )
