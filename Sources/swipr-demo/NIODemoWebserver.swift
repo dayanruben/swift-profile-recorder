@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Profile Recorder open source project
 //
-// Copyright (c) 2021 Apple Inc. and the Swift Profile Recorder project authors
+// Copyright (c) 2021-2024 Apple Inc. and the Swift Profile Recorder project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -426,6 +426,7 @@ private final class HTTPHandler: ChannelInboundHandler {
             }
             fileHandleAndRegion.whenSuccess { [fileIO = self.fileIO] (file, region) in
                 let context = loopBoundContext.value
+                let loopBoundFile = NIOLoopBound(file, eventLoop: eventLoop)
                 switch ioMethod {
                 case .nonblockingFileIO:
                     let responseStarted = NIOLoopBoundBox(false, eventLoop: eventLoop)
@@ -465,7 +466,7 @@ private final class HTTPHandler: ChannelInboundHandler {
                             return context.close()
                         }
                     }.whenComplete { (_: Result<Void, Error>) in
-                        _ = try? file.close()
+                        _ = try? loopBoundFile.value.close()
                     }
                 case .sendfile:
                     let context = loopBoundContext.value
@@ -479,7 +480,7 @@ private final class HTTPHandler: ChannelInboundHandler {
                     }.flatMapError { (_: Error) in
                         loopBoundContext.value.close()
                     }.whenComplete { (_: Result<Void, Error>) in
-                        _ = try? file.close()
+                        _ = try? loopBoundFile.value.close()
                     }
                 }
         }

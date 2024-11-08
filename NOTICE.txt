@@ -34,3 +34,12 @@ This product contains LLVM's libunwind.
     * https://github.com/llvm/llvm-project/blob/main/libunwind
 
 ---
+
+This product contains the ELF/DWARF parsing library of Swift Backtrace.
+
+  * LICENSE (Apache License v2.0, with Runtime Library Exception to the Apache 2.0 License):
+    * https://github.com/swiftlang/swift/blob/main/LICENSE.txt
+  * HOMEPAGE:
+    * https://github.com/swiftlang/swift
+
+

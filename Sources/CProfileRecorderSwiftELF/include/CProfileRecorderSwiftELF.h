@@ -12,15 +12,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef swipr_os_dep_dawin_h
-#define swipr_os_dep_dawin_h
+#ifndef CProfileRecorderSWIFTELF_h
+#define CProfileRecorderSWIFTELF_h
 
-#import <pthread.h>
+#include "elf.h"
+#include "eh_frame_hdr.h"
+#include "dwarf.h"
 
-typedef intptr_t swipr_os_dep_thread_id;
-
-static inline int swipr_os_dep_kill(swipr_os_dep_thread_id thread_id, int signal) {
-    return pthread_kill((pthread_t)thread_id, signal);
-}
-
-#endif /* swipr_os_dep_dawin_h */
+#endif

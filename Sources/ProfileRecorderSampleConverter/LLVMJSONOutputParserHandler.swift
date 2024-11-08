@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Profile Recorder open source project
 //
-// Copyright (c) 2021 Apple Inc. and the Swift Profile Recorder project authors
+// Copyright (c) 2021-2024 Apple Inc. and the Swift Profile Recorder project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -37,17 +37,11 @@ struct LLVMSymbolizerJSONOutput: Codable & Sendable {
         var StartFileName: String?
         var StartLine: Int?
 
-        func goodSymbol(address: String) -> GoodSymbol? {
+        func goodSymbol(address: UInt) -> GoodSymbol? {
             guard let functionName = self.FunctionName else { return nil }
 
-            let maybeAddress = UInt(hexDigits: address)
-            let maybeStartAddress = UInt(hexDigits: self.StartAddress ?? address) ?? maybeAddress
-            let offset: UInt
-            if let address = maybeAddress, let startAddress = maybeStartAddress, address >= startAddress {
-                offset = address - startAddress
-            } else {
-                offset = 0
-            }
+            let startAddress = self.StartAddress.flatMap({ UInt(hexDigits: $0) }) ?? address
+            let offset = address >= startAddress ? address - startAddress : 0
 
             return GoodSymbol(
                 functionName: functionName.isEmpty ? "<unknown in \(self.FileName.flatMap { $0.isEmpty ? nil : $0 } ?? "empty")>": functionName,
@@ -92,7 +86,7 @@ final internal class LLVMJSONOutputParserHandler: ChannelInboundHandler {
             )
             return
         }
-        guard let address = decoded.Address else {
+        guard let addressString = decoded.Address, let address = UInt(hexDigits: addressString) else {
             fputs(
                   """
                   WARNING: unexpected llvm-symbolizer JSON output, got '\(data)'\n

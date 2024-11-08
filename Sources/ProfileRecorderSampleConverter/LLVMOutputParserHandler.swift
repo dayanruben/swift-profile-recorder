@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Profile Recorder open source project
 //
-// Copyright (c) 2021 Apple Inc. and the Swift Profile Recorder project authors
+// Copyright (c) 2021-2024 Apple Inc. and the Swift Profile Recorder project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -37,7 +37,7 @@ final internal class LLVMOutputParserHandler: ChannelInboundHandler {
                 )
             } else {
                 var remaining = self.accumulation[...]
-                let address = String(buffer: remaining.removeFirst())
+                let address = UInt(hexDigits: String(buffer: remaining.removeFirst())) ?? 0xdeadbef
 
                 frames.reserveCapacity(remaining.count / 2)
                 while !remaining.isEmpty {
@@ -73,12 +73,12 @@ final internal class LLVMOutputParserHandler: ChannelInboundHandler {
             context.fireChannelRead(Self.wrapInboundOut(out))
         } else {
             if self.accumulation.isEmpty && String(buffer: data).starts(with: "CODE ") {
-                let address = String(String(buffer: data).dropFirst(5))
+                let address = UInt(hexDigits: String(String(buffer: data).dropFirst(5))) ?? 0xdeadcaf
                 let out = SymbolisedStackFrame(
                     allFrames: [
                         .init(
                             address: address,
-                            functionName: address,
+                            functionName: "0x" + String(address, radix: 16),
                             functionOffset: 0,
                             library: "somewhere",
                             file: nil,

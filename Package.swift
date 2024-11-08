@@ -39,6 +39,7 @@ let package = Package(
         .executableTarget(
             name: "ProfileRecorderSampleConverter",
             dependencies: [
+                "CProfileRecorderSwiftELF",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOFoundationCompat", package: "swift-nio"),
@@ -66,6 +67,10 @@ let package = Package(
             dependencies: [],
             cSettings: [.define("_LIBUNWIND_IS_NATIVE_ONLY")],
             cxxSettings: [.define("_LIBUNWIND_IS_NATIVE_ONLY")]
+        ),
+        .target(
+            name: "CProfileRecorderSwiftELF",
+            dependencies: []
         ),
         .target(
             name: "CProfileRecorderSampler",

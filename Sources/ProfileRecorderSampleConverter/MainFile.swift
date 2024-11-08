@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Profile Recorder open source project
 //
-// Copyright (c) 2021 Apple Inc. and the Swift Profile Recorder project authors
+// Copyright (c) 2021-2024 Apple Inc. and the Swift Profile Recorder project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -28,6 +28,9 @@ struct ProfileRecorderSampleConverter: ParsableCommand {
     @Option(help: "Use llvm-symbolizer's JSON format instead of the text format?")
     var viaJSON: Bool = false
 
+    @Option(help: "Use the native symboliser?")
+    var useNativeSymbolizer: Bool = false
+
     @Option(help: "Enable the llvm-symbolizer getting stuck workaround?")
     var unstuckerWorkaround: Bool = false
 
@@ -39,6 +42,7 @@ struct ProfileRecorderSampleConverter: ParsableCommand {
         logger.logLevel = .info
         do {
             try Self.go(
+                useNativeSymbolizer: self.useNativeSymbolizer,
                 llvmSymboliserConfig: LLVMSymboliserConfig(
                     viaJSON: self.viaJSON,
                     unstuckerWorkaround: self.unstuckerWorkaround
@@ -53,6 +57,7 @@ struct ProfileRecorderSampleConverter: ParsableCommand {
     }
 
     static func go(
+        useNativeSymbolizer: Bool,
         llvmSymboliserConfig: LLVMSymboliserConfig,
         printFileLine: Bool,
         logger: Logger
@@ -113,6 +118,7 @@ struct ProfileRecorderSampleConverter: ParsableCommand {
                 vmapsRead = true
                 if symboliser == nil {
                     symboliser = try Symboliser(
+                        useNativeSymbolizer: useNativeSymbolizer,
                         llvmSymboliserConfig: llvmSymboliserConfig,
                         dynamicLibraryMappings: vmaps,
                         group: group,

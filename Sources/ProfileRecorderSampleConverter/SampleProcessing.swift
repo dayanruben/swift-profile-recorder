@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Profile Recorder open source project
 //
-// Copyright (c) 2021 Apple Inc. and the Swift Profile Recorder project authors
+// Copyright (c) 2021-2024 Apple Inc. and the Swift Profile Recorder project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -23,7 +23,7 @@ func processModern(_ sample: Sample, printFileLine: Bool, symboliser: Symboliser
 
             print("""
                   \t    \
-                  \(symbolicatedFrame.address) \
+                  \(String(symbolicatedFrame.address, radix: 16)) \
                   \(symbolicatedFrame.functionName)\(hasMultiple && !isLast ? " [inlined]" :"")\
                   +0x\(String(symbolicatedFrame.functionOffset, radix: 16)) \
                   (\(symbolicatedFrame.library))

@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Profile Recorder open source project
 //
-// Copyright (c) 2021 Apple Inc. and the Swift Profile Recorder project authors
+// Copyright (c) 2021-2024 Apple Inc. and the Swift Profile Recorder project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -19,7 +19,7 @@ import Logging
 
 public struct SymbolisedStackFrame: Sendable {
     internal struct SingleFrame: Sendable {
-        var address: String
+        var address: UInt
         var functionName: String
         var functionOffset: UInt
         var library: String
@@ -30,16 +30,91 @@ public struct SymbolisedStackFrame: Sendable {
     var allFrames: [SingleFrame]
 }
 
+protocol Symbolizer {
+    func start() throws
+    func symbolise(_ stackFrame: StackFrame) throws -> SymbolisedStackFrame
+    func shutdown() throws
+}
+
+public class NativeSymboliser: Symbolizer {
+    private let dynamicLibraryMappings: [DynamicLibMapping]
+    private var elfSourceCache: [String: any ElfImageProtocol] = [:]
+
+    public init(dynamicLibraryMappings: [DynamicLibMapping]) {
+        self.dynamicLibraryMappings = dynamicLibraryMappings
+    }
+
+    public func start() throws {}
+
+    public func symbolise(_ stackFrame: StackFrame) throws -> SymbolisedStackFrame {
+        let matched = self.dynamicLibraryMappings.filter { mapping in
+            stackFrame.instructionPointer >= mapping.segmentStartAddress &&
+            stackFrame.instructionPointer < mapping.segmentEndAddress
+        }.first
+
+        lazy var failed = SymbolisedStackFrame(
+            allFrames: [SymbolisedStackFrame.SingleFrame(
+                address: stackFrame.instructionPointer,
+                functionName: "\(stackFrame.instructionPointer)",
+                functionOffset: 0,
+                library: "unknown-lib",
+                file: nil,
+                line: nil
+            )]
+        )
+
+        guard let matched = matched else {
+            return failed
+        }
+
+        var elfImage: (any ElfImageProtocol)? = self.elfSourceCache[matched.path]
+        if elfImage == nil {
+            if let source = try? FileImageSource(path: matched.path) {
+                if let image = try? Elf32Image(source: source) {
+                    elfImage = image
+                } else if let image = try? Elf64Image(source: source) {
+                    elfImage = image
+                } else {
+                    elfImage = nil
+                }
+            }
+            self.elfSourceCache[matched.path] = elfImage
+        }
+        guard let elfImage = elfImage else {
+            return failed
+        }
+
+        let result = elfImage.lookupSymbol(address: UInt64(stackFrame.instructionPointer - matched.segmentStartAddress))
+
+        guard let result = result else {
+            return failed
+        }
+        return SymbolisedStackFrame(
+            allFrames: [SymbolisedStackFrame.SingleFrame(
+                address: stackFrame.instructionPointer,
+                functionName: result.name,
+                functionOffset: UInt(exactly: result.offset) ?? 0,
+                library: matched.path,
+                file: nil,
+                line: nil
+            )]
+        )
+    }
+
+    public func shutdown() throws {}
+}
+
 /// Symbolises `StackFrame`s.
 ///
 /// Not thread-safe.
 public class Symboliser {
     private let dynamicLibraryMappings: [DynamicLibMapping]
     private let group: EventLoopGroup
-    private let llvmSymboliser: LLVMSymboliser
+    private let llvmSymboliser: any Symbolizer
     private var cache: [UInt: SymbolisedStackFrame] = [:]
 
     public init(
+        useNativeSymbolizer: Bool,
         llvmSymboliserConfig: LLVMSymboliserConfig,
         dynamicLibraryMappings: [DynamicLibMapping],
         group: EventLoopGroup,
@@ -47,12 +122,16 @@ public class Symboliser {
     ) throws {
         self.dynamicLibraryMappings = dynamicLibraryMappings
         self.group = group
-        self.llvmSymboliser = LLVMSymboliser(
-            config: llvmSymboliserConfig,
-            dynamicLibraryMappings: dynamicLibraryMappings,
-            group: group,
-            logger: logger
-        )
+        if useNativeSymbolizer {
+            self.llvmSymboliser = NativeSymboliser(dynamicLibraryMappings: dynamicLibraryMappings)
+        } else {
+            self.llvmSymboliser = LLVMSymboliser(
+                config: llvmSymboliserConfig,
+                dynamicLibraryMappings: dynamicLibraryMappings,
+                group: group,
+                logger: logger
+            )
+        }
         try self.llvmSymboliser.start()
     }
 
@@ -96,7 +175,7 @@ public struct LLVMSymboliserConfig: Sendable {
 /// Symbolises `StackFrame`s using `llvm-symbolizer`.
 ///
 /// Not thread-safe.
-internal class LLVMSymboliser {
+internal class LLVMSymboliser: Symbolizer {
     private let dynamicLibraryMappings: [DynamicLibMapping]
     private let group: EventLoopGroup
     private var process: Process? = nil
@@ -167,7 +246,7 @@ internal class LLVMSymboliser {
                 let p = channel.eventLoop.makePromise(of: SymbolisedStackFrame.self)
                 channel.writeAndFlush((StackFrame(instructionPointer: .max, stackPointer: 0), p)).cascadeFailure(to: p)
                 p.futureResult.whenSuccess { str in
-                    if !(str.allFrames.first?.address ?? "n/a").starts(with: "0xffffffffffffffff") {
+                    if !(str.allFrames.first?.address ?? 0 == .max) {
                         fputs("unexpected PING message result '\(str)'\n", stderr)
                     }
                 }
