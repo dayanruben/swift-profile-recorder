@@ -15,7 +15,21 @@
 func processModern(_ sample: Sample, printFileLine: Bool, symboliser: Symboliser) throws {
     print("\(sample.threadName)-T\(sample.tid)     \(sample.pid)/\(sample.tid)     \(sample.timeSec).\(sample.timeNSec):    swipr")
     for stackFrame in sample.stack.dropFirst() {
-        let framesIncludingInlinedFrames = try symboliser.symbolise(stackFrame).allFrames
+        // We would have received the instruction pointer just _behind_ the actual instruction, so to accurately
+        // get the right frame, we need to get the intruction prior. On ARM that's easy (subtract 4) but on Intel
+        // that's impossible so we just subtract 1 instead.
+        var fixedUpStackFrame = stackFrame
+        if fixedUpStackFrame.instructionPointer >= 4 {
+            #if arch(arm) || arch(arm64)
+            // Known fixed-width instruction format
+            fixedUpStackFrame.instructionPointer -= 4
+            #else
+            // Unknown, subtract 1
+            fixedUpStackFrame.instructionPointer -= 1
+            #endif
+        }
+
+        let framesIncludingInlinedFrames = try symboliser.symbolise(fixedUpStackFrame).allFrames
         let hasMultiple = framesIncludingInlinedFrames.count > 1
         for index in framesIncludingInlinedFrames.indices {
             let symbolicatedFrame = framesIncludingInlinedFrames[index]

@@ -342,6 +342,7 @@ private final class HTTPHandler: ChannelInboundHandler {
                 p.standardInput = FileHandle(forReadingAtPath: samplePath)
                 p.standardOutput = try! FileHandle(forWritingTo: outURL)
                 p.executableURL = Bundle.main.executableURL!.deletingLastPathComponent().appendingPathComponent("swipr-sample-conv")
+                p.arguments = ["--use-native-symbolizer", "true"]
                 try! p.run()
                 p.terminationHandler = { _ in
                     promise.succeed(outURL.path)
@@ -368,6 +369,51 @@ private final class HTTPHandler: ChannelInboundHandler {
             loopBoundContext.value.writeAndFlush(Self.wrapOutboundOut(.end(nil)), promise: nil)
         }
     }
+
+    private func handleRawSample(context: ChannelHandlerContext, request: HTTPServerRequestPart, seconds: Int64) {
+        guard case .end(_) = request else {
+            return
+        }
+        self.handler = nil
+
+        let dirURL = URL(fileURLWithPath: NSTemporaryDirectory() + "/" + "\(UUID())")
+        try! FileManager.default.createDirectory(at: dirURL, withIntermediateDirectories: false)
+
+        let samplePath = dirURL.path + "/samples"
+        let outURL = URL(fileURLWithPath: dirURL.path + "/thing.perf")
+        try! Data().write(to: outURL)
+
+        let sampleCount = seconds * 1_000 / 10
+        let sampleDelay: TimeAmount = .milliseconds(10)
+        let eventLoop = context.eventLoop
+        let loopBoundContext = NIOLoopBound(context, eventLoop: eventLoop)
+        let allocator = context.channel.allocator
+        ProfileRecorderSampler.sharedInstance.requestSamples(
+            outputFilePath: samplePath,
+            count: .init(sampleCount),
+            timeBetweenSamples: sampleDelay,
+            eventLoop: eventLoop
+        ).flatMap { [fileIO = self.fileIO] () -> EventLoopFuture<(NIOFileHandle, FileRegion)> in
+            var head = HTTPResponseHead(version: .http1_1, status: .ok)
+            head.headers.replaceOrAdd(name: "content-disposition", value: "filename=\"some-samples.raw\"")
+            head.headers.replaceOrAdd(name: "content-type", value: "application/octet-stream")
+            let context = loopBoundContext.value
+            return context.writeAndFlush(Self.wrapOutboundOut(.head(head))).flatMap {
+                fileIO.openFile(path: samplePath, eventLoop: eventLoop)
+            }
+        }.flatMap { [fileIO = self.fileIO] fhAndRegion in
+            let fh = NIOLoopBound(fhAndRegion.0, eventLoop: eventLoop)
+            let region: FileRegion = fhAndRegion.1
+            return fileIO.readChunked(fileRegion: region, allocator: allocator, eventLoop: eventLoop) { chunk -> EventLoopFuture<Void> in
+                loopBoundContext.value.writeAndFlush(Self.wrapOutboundOut(.body(.byteBuffer(chunk))))
+            }.always { _ in
+                try! fh.value.close()
+            }
+        }.whenSuccess { () -> Void in
+            loopBoundContext.value.writeAndFlush(Self.wrapOutboundOut(.end(nil)), promise: nil)
+        }
+    }
+
 
     private func handleFile(context: ChannelHandlerContext, request: HTTPServerRequestPart, ioMethod: FileIOMethod, path: String) {
         self.buffer.clear()
@@ -530,6 +576,10 @@ private final class HTTPHandler: ChannelInboundHandler {
                 return
             } else if let seconds = request.uri.chopPrefix("/sample/") {
                 self.handler = { self.handleSample(context: $0, request: $1, seconds: Int64(seconds) ?? 1) }
+                self.handler!(context, reqPart)
+                return
+            } else if let seconds = request.uri.chopPrefix("/sample-raw/") {
+                self.handler = { self.handleRawSample(context: $0, request: $1, seconds: Int64(seconds) ?? 1) }
                 self.handler!(context, reqPart)
                 return
             }

@@ -37,16 +37,42 @@ protocol Symbolizer {
 }
 
 enum AnyElfImage {
-
     case elf32(Elf32Image)
     case elf64(Elf64Image)
 
-    func lookupSymbol(address: UInt64) -> ImageSymbol? {
+    func lookupRealAndInlinedFrames(address: UInt64) -> [ImageSymbol]? {
         switch self {
         case .elf32(let image):
-            return image.lookupSymbol(address: UInt32(truncatingIfNeeded: address))
+            guard let realFrame = image.lookupSymbol(address: UInt32(truncatingIfNeeded: address)) else {
+                return nil
+            }
+            var symbols: [ImageSymbol] = []
+            for inlineFrame in image.inlineCallSites(at: UInt32(truncatingIfNeeded: address)).reversed() {
+                symbols.append(
+                    ImageSymbol(
+                        name: inlineFrame.name ?? "unknown in \(inlineFrame.filename)",
+                        offset: 0
+                    )
+                )
+            }
+            symbols.append(realFrame)
+            return symbols
         case .elf64(let image):
-            return image.lookupSymbol(address: address)
+            guard let realFrame = image.lookupSymbol(address: address) else {
+                return nil
+            }
+
+            var symbols: [ImageSymbol] = []
+            for inlineFrame in image.inlineCallSites(at: address).reversed() {
+                symbols.append(
+                    ImageSymbol(
+                        name: inlineFrame.name ?? "unknown in \(inlineFrame.filename)",
+                        offset: 0
+                    )
+                )
+            }
+            symbols.append(realFrame)
+            return symbols
         }
     }
 
@@ -78,7 +104,7 @@ public class NativeSymboliser: Symbolizer {
 
         lazy var failed = SymbolisedStackFrame(
             allFrames: [SymbolisedStackFrame.SingleFrame(
-                address: stackFrame.instructionPointer,
+                address: stackFrame.instructionPointer - (matched?.segmentStartAddress ?? 0),
                 functionName: "\(stackFrame.instructionPointer)",
                 functionOffset: 0,
                 library: "unknown-lib",
@@ -108,20 +134,23 @@ public class NativeSymboliser: Symbolizer {
             return failed
         }
 
-        let result = elfImage.lookupSymbol(address: UInt64(stackFrame.instructionPointer - matched.segmentStartAddress))
+        let results = elfImage.lookupRealAndInlinedFrames(
+            address: UInt64(stackFrame.instructionPointer - matched.segmentStartAddress)
+        )
 
-        guard let result = result else {
+        guard let results = results else {
             return failed
         }
         return SymbolisedStackFrame(
-            allFrames: [SymbolisedStackFrame.SingleFrame(
-                address: stackFrame.instructionPointer,
+            allFrames: results.map { result in SymbolisedStackFrame.SingleFrame(
+                address: stackFrame.instructionPointer - matched.segmentStartAddress,
                 functionName: result.name,
                 functionOffset: UInt(exactly: result.offset) ?? 0,
                 library: matched.path,
                 file: nil,
                 line: nil
-            )]
+            )
+            }
         )
     }
 
@@ -134,7 +163,7 @@ public class NativeSymboliser: Symbolizer {
 public class Symboliser {
     private let dynamicLibraryMappings: [DynamicLibMapping]
     private let group: EventLoopGroup
-    private let llvmSymboliser: any Symbolizer
+    private let symbolizer: any Symbolizer
     private var cache: [UInt: SymbolisedStackFrame] = [:]
 
     public init(
@@ -147,30 +176,30 @@ public class Symboliser {
         self.dynamicLibraryMappings = dynamicLibraryMappings
         self.group = group
         if useNativeSymbolizer {
-            self.llvmSymboliser = NativeSymboliser(dynamicLibraryMappings: dynamicLibraryMappings)
+            self.symbolizer = NativeSymboliser(dynamicLibraryMappings: dynamicLibraryMappings)
         } else {
-            self.llvmSymboliser = LLVMSymboliser(
+            self.symbolizer = LLVMSymboliser(
                 config: llvmSymboliserConfig,
                 dynamicLibraryMappings: dynamicLibraryMappings,
                 group: group,
                 logger: logger
             )
         }
-        try self.llvmSymboliser.start()
+        try self.symbolizer.start()
     }
 
     public func symbolise(_ stackFrame: StackFrame) throws -> SymbolisedStackFrame {
         if let symd = self.cache[stackFrame.instructionPointer] {
             return symd
         } else {
-            let symd = try self.llvmSymboliser.symbolise(stackFrame)
+            let symd = try self.symbolizer.symbolise(stackFrame)
             self.cache[stackFrame.instructionPointer] = symd
             return symd
         }
     }
 
     public func shutdown() throws {
-        try self.llvmSymboliser.shutdown()
+        try self.symbolizer.shutdown()
     }
 }
 
