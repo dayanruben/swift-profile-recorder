@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Profile Recorder open source project
 //
-// Copyright (c) 2021-2024 Apple Inc. and the Swift Profile Recorder project authors
+// Copyright (c) 2024 Apple Inc. and the Swift Profile Recorder project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -36,6 +36,11 @@
 #define SWIFT_ELF_H
 
 #include <inttypes.h>
+
+#ifdef __cplusplus
+namespace swift {
+namespace runtime {
+#endif
 
 /* .. Useful macros ......................................................... */
 
@@ -663,23 +668,31 @@ typedef struct {
   SWIPR_Elf64_Xword st_size;
 } SWIPR_Elf64_Sym;
 
-static inline SWIPR_Elf_Sym_Binding ELF32_ST_BIND(SWIPR_Elf_Byte i) { return i >> 4; }
-static inline SWIPR_Elf_Sym_Type ELF32_ST_TYPE(SWIPR_Elf_Byte i) { return i & 0xf; }
+static inline SWIPR_Elf_Sym_Binding ELF32_ST_BIND(SWIPR_Elf_Byte i) {
+  return (SWIPR_Elf_Sym_Binding)(i >> 4);
+}
+static inline SWIPR_Elf_Sym_Type ELF32_ST_TYPE(SWIPR_Elf_Byte i) {
+  return (SWIPR_Elf_Sym_Type)(i & 0xf);
+}
 static inline SWIPR_Elf_Byte ELF32_ST_INFO(SWIPR_Elf_Sym_Binding b, SWIPR_Elf_Sym_Type t) {
-  return (b << 4) | (t & 0xf);
+  return (SWIPR_Elf_Byte)((b << 4) | (t & 0xf));
 }
 
-static inline SWIPR_Elf_Sym_Binding ELF64_ST_BIND(SWIPR_Elf_Byte i) { return i >> 4; }
-static inline SWIPR_Elf_Sym_Type ELF64_ST_TYPE(SWIPR_Elf_Byte i) { return i & 0xf; }
+static inline SWIPR_Elf_Sym_Binding ELF64_ST_BIND(SWIPR_Elf_Byte i) {
+  return (SWIPR_Elf_Sym_Binding)(i >> 4);
+}
+static inline SWIPR_Elf_Sym_Type ELF64_ST_TYPE(SWIPR_Elf_Byte i) {
+  return (SWIPR_Elf_Sym_Type)(i & 0xf);
+}
 static inline SWIPR_Elf_Byte ELF64_ST_INFO(SWIPR_Elf_Sym_Binding b, SWIPR_Elf_Sym_Type t) {
-  return (b << 4) | (t & 0xf);
+  return (SWIPR_Elf_Byte)((b << 4) | (t & 0xf));
 }
 
 static inline SWIPR_Elf_Sym_Visibility ELF32_ST_VISIBILITY(SWIPR_Elf_Byte o) {
-  return o & 3;
+  return (SWIPR_Elf_Sym_Visibility)(o & 3);
 }
 static inline SWIPR_Elf_Sym_Visibility ELF64_ST_VISIBILITY(SWIPR_Elf_Byte o) {
-  return o & 3;
+  return (SWIPR_Elf_Sym_Visibility)(o & 3);
 }
 
 /* .. Relocation ............................................................ */
@@ -798,5 +811,10 @@ elf_hash(const unsigned char *name)
   }
   return h;
 }
+
+#ifdef __cplusplus
+} // namespace runtime
+} // namespace swift
+#endif
 
 #endif // ELF_H

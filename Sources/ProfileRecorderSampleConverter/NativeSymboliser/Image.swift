@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Profile Recorder open source project
 //
-// Copyright (c) 2021-2024 Apple Inc. and the Swift Profile Recorder project authors
+// Copyright (c) 2024 Apple Inc. and the Swift Profile Recorder project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -30,7 +30,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Swift
+
 
 struct ImageSymbol {
   var name: String
@@ -38,17 +38,15 @@ struct ImageSymbol {
 }
 
 internal protocol Image {
-  associatedtype Source: ImageSource
-
   typealias UUID = [UInt8]
-  typealias Address = Source.Address
+  typealias Address = ImageSource.Address
 
-  init(source: Source, baseAddress: Address, endAddress: Address) throws
+  init(source: ImageSource, baseAddress: Address, endAddress: Address) throws
 
   var baseAddress: Address { get set }
   var endAddress: Address { get set }
 
-  var source: Source { get }
+  var source: ImageSource { get }
   var uuid: UUID? { get }
   var shouldByteSwap: Bool { get }
 

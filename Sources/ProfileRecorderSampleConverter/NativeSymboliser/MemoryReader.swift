@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Profile Recorder open source project
 //
-// Copyright (c) 2021-2024 Apple Inc. and the Swift Profile Recorder project authors
+// Copyright (c) 2024 Apple Inc. and the Swift Profile Recorder project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -30,7 +30,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Foundation
+
+
+#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+import Darwin
+#elseif os(Windows)
+import ucrt
+#elseif canImport(Glibc)
+import Glibc
+#elseif canImport(Musl)
+import Musl
+#endif
+
+#if os(macOS)
+
+#endif
 
 @_spi(MemoryReaders) public protocol MemoryReader {
   typealias Address = UInt64
@@ -58,6 +72,9 @@ import Foundation
 
   /// Fetch a NUL terminated string from the specified location in the source
   func fetchString(from addr: Address) throws -> String?
+
+  /// Fetch a fixed-length string from the specified location in the source
+  func fetchString(from addr: Address, length: Int) throws -> String?
 }
 
 extension MemoryReader {
@@ -107,4 +124,8 @@ extension MemoryReader {
     return String(decoding: bytes, as: UTF8.self)
   }
 
+  public func fetchString(from addr: Address, length: Int) throws -> String? {
+    let bytes = try fetch(from: addr, count: length, as: UInt8.self)
+    return String(decoding: bytes, as: UTF8.self)
+  }
 }

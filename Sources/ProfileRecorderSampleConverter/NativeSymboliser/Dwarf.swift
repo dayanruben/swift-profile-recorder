@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Profile Recorder open source project
 //
-// Copyright (c) 2021-2024 Apple Inc. and the Swift Profile Recorder project authors
+// Copyright (c) 2024 Apple Inc. and the Swift Profile Recorder project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -30,8 +30,263 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Foundation
-@_implementationOnly import CProfileRecorderSwiftELF
+
+
+import CProfileRecorderSwiftELF
+
+
+// .. Use *our* Dwarf definitions ..............................................
+
+// To avoid confusion with other similar sets of definitions, we've put ours
+// into a C++ wrapper, which means we need aliases here.
+
+typealias SWIPR_Dwarf_Byte   = CProfileRecorderSwiftELF.SWIPR_Dwarf_Byte
+typealias SWIPR_Dwarf_Half   = CProfileRecorderSwiftELF.SWIPR_Dwarf_Half
+typealias SWIPR_Dwarf_Word   = CProfileRecorderSwiftELF.SWIPR_Dwarf_Word
+typealias SWIPR_Dwarf_Xword  = CProfileRecorderSwiftELF.SWIPR_Dwarf_Xword
+typealias SWIPR_Dwarf_Sbyte  = CProfileRecorderSwiftELF.SWIPR_Dwarf_Sbyte
+typealias SWIPR_Dwarf_Sword  = CProfileRecorderSwiftELF.SWIPR_Dwarf_Sword
+typealias SWIPR_Dwarf_Sxword = CProfileRecorderSwiftELF.SWIPR_Dwarf_Sxword
+
+typealias Dwarf32_Offset = CProfileRecorderSwiftELF.Dwarf32_Offset
+typealias Dwarf32_Size   = CProfileRecorderSwiftELF.Dwarf32_Size
+typealias Dwarf32_Length = CProfileRecorderSwiftELF.Dwarf32_Length
+
+typealias Dwarf64_Offset = CProfileRecorderSwiftELF.Dwarf64_Offset
+typealias Dwarf64_Size   = CProfileRecorderSwiftELF.Dwarf64_Size
+typealias Dwarf64_Length = CProfileRecorderSwiftELF.Dwarf64_Length
+
+typealias SWIPR_Dwarf_UnitType           = CProfileRecorderSwiftELF.SWIPR_Dwarf_UnitType
+typealias SWIPR_Dwarf_Tag                = CProfileRecorderSwiftELF.SWIPR_Dwarf_Tag
+typealias SWIPR_Dwarf_ChildDetermination = CProfileRecorderSwiftELF.SWIPR_Dwarf_ChildDetermination
+typealias SWIPR_Dwarf_Attribute          = CProfileRecorderSwiftELF.SWIPR_Dwarf_Attribute
+typealias SWIPR_Dwarf_Form               = CProfileRecorderSwiftELF.SWIPR_Dwarf_Form
+
+let DW_OP_addr                = CProfileRecorderSwiftELF.DW_OP_addr
+let DW_OP_deref               = CProfileRecorderSwiftELF.DW_OP_deref
+let DW_OP_const1u             = CProfileRecorderSwiftELF.DW_OP_const1u
+let DW_OP_const1s             = CProfileRecorderSwiftELF.DW_OP_const1s
+let DW_OP_const2u             = CProfileRecorderSwiftELF.DW_OP_const2u
+let DW_OP_const2s             = CProfileRecorderSwiftELF.DW_OP_const2s
+let DW_OP_const4u             = CProfileRecorderSwiftELF.DW_OP_const4u
+let DW_OP_const4s             = CProfileRecorderSwiftELF.DW_OP_const4s
+let DW_OP_const8u             = CProfileRecorderSwiftELF.DW_OP_const8u
+let DW_OP_const8s             = CProfileRecorderSwiftELF.DW_OP_const8s
+let DW_OP_constu              = CProfileRecorderSwiftELF.DW_OP_constu
+let DW_OP_consts              = CProfileRecorderSwiftELF.DW_OP_consts
+let DW_OP_dup                 = CProfileRecorderSwiftELF.DW_OP_dup
+let DW_OP_drop                = CProfileRecorderSwiftELF.DW_OP_drop
+let DW_OP_over                = CProfileRecorderSwiftELF.DW_OP_over
+let DW_OP_pick                = CProfileRecorderSwiftELF.DW_OP_pick
+let DW_OP_swap                = CProfileRecorderSwiftELF.DW_OP_swap
+let DW_OP_rot                 = CProfileRecorderSwiftELF.DW_OP_rot
+let DW_OP_xderef              = CProfileRecorderSwiftELF.DW_OP_xderef
+let DW_OP_abs                 = CProfileRecorderSwiftELF.DW_OP_abs
+let DW_OP_and                 = CProfileRecorderSwiftELF.DW_OP_and
+let DW_OP_div                 = CProfileRecorderSwiftELF.DW_OP_div
+let DW_OP_minus               = CProfileRecorderSwiftELF.DW_OP_minus
+let DW_OP_mod                 = CProfileRecorderSwiftELF.DW_OP_mod
+let DW_OP_mul                 = CProfileRecorderSwiftELF.DW_OP_mul
+let DW_OP_neg                 = CProfileRecorderSwiftELF.DW_OP_neg
+let DW_OP_not                 = CProfileRecorderSwiftELF.DW_OP_not
+let DW_OP_or                  = CProfileRecorderSwiftELF.DW_OP_or
+let DW_OP_plus                = CProfileRecorderSwiftELF.DW_OP_plus
+let DW_OP_plus_uconst         = CProfileRecorderSwiftELF.DW_OP_plus_uconst
+let DW_OP_shl                 = CProfileRecorderSwiftELF.DW_OP_shl
+let DW_OP_shr                 = CProfileRecorderSwiftELF.DW_OP_shr
+let DW_OP_shra                = CProfileRecorderSwiftELF.DW_OP_shra
+let DW_OP_xor                 = CProfileRecorderSwiftELF.DW_OP_xor
+let DW_OP_bra                 = CProfileRecorderSwiftELF.DW_OP_bra
+let DW_OP_eq                  = CProfileRecorderSwiftELF.DW_OP_eq
+let DW_OP_ge                  = CProfileRecorderSwiftELF.DW_OP_ge
+let DW_OP_gt                  = CProfileRecorderSwiftELF.DW_OP_gt
+let DW_OP_le                  = CProfileRecorderSwiftELF.DW_OP_le
+let DW_OP_lt                  = CProfileRecorderSwiftELF.DW_OP_lt
+let DW_OP_ne                  = CProfileRecorderSwiftELF.DW_OP_ne
+let DW_OP_skip                = CProfileRecorderSwiftELF.DW_OP_skip
+let DW_OP_lit0                = CProfileRecorderSwiftELF.DW_OP_lit0
+let DW_OP_lit1                = CProfileRecorderSwiftELF.DW_OP_lit1
+let DW_OP_lit2                = CProfileRecorderSwiftELF.DW_OP_lit2
+let DW_OP_lit3                = CProfileRecorderSwiftELF.DW_OP_lit3
+let DW_OP_lit4                = CProfileRecorderSwiftELF.DW_OP_lit4
+let DW_OP_lit5                = CProfileRecorderSwiftELF.DW_OP_lit5
+let DW_OP_lit6                = CProfileRecorderSwiftELF.DW_OP_lit6
+let DW_OP_lit7                = CProfileRecorderSwiftELF.DW_OP_lit7
+let DW_OP_lit8                = CProfileRecorderSwiftELF.DW_OP_lit8
+let DW_OP_lit9                = CProfileRecorderSwiftELF.DW_OP_lit9
+let DW_OP_lit10               = CProfileRecorderSwiftELF.DW_OP_lit10
+let DW_OP_lit11               = CProfileRecorderSwiftELF.DW_OP_lit11
+let DW_OP_lit12               = CProfileRecorderSwiftELF.DW_OP_lit12
+let DW_OP_lit13               = CProfileRecorderSwiftELF.DW_OP_lit13
+let DW_OP_lit14               = CProfileRecorderSwiftELF.DW_OP_lit14
+let DW_OP_lit15               = CProfileRecorderSwiftELF.DW_OP_lit15
+let DW_OP_lit16               = CProfileRecorderSwiftELF.DW_OP_lit16
+let DW_OP_lit17               = CProfileRecorderSwiftELF.DW_OP_lit17
+let DW_OP_lit18               = CProfileRecorderSwiftELF.DW_OP_lit18
+let DW_OP_lit19               = CProfileRecorderSwiftELF.DW_OP_lit19
+let DW_OP_lit20               = CProfileRecorderSwiftELF.DW_OP_lit20
+let DW_OP_lit21               = CProfileRecorderSwiftELF.DW_OP_lit21
+let DW_OP_lit22               = CProfileRecorderSwiftELF.DW_OP_lit22
+let DW_OP_lit23               = CProfileRecorderSwiftELF.DW_OP_lit23
+let DW_OP_lit24               = CProfileRecorderSwiftELF.DW_OP_lit24
+let DW_OP_lit25               = CProfileRecorderSwiftELF.DW_OP_lit25
+let DW_OP_lit26               = CProfileRecorderSwiftELF.DW_OP_lit26
+let DW_OP_lit27               = CProfileRecorderSwiftELF.DW_OP_lit27
+let DW_OP_lit28               = CProfileRecorderSwiftELF.DW_OP_lit28
+let DW_OP_lit29               = CProfileRecorderSwiftELF.DW_OP_lit29
+let DW_OP_lit30               = CProfileRecorderSwiftELF.DW_OP_lit30
+let DW_OP_lit31               = CProfileRecorderSwiftELF.DW_OP_lit31
+
+let DW_OP_reg0                = CProfileRecorderSwiftELF.DW_OP_reg0
+let DW_OP_reg1                = CProfileRecorderSwiftELF.DW_OP_reg1
+let DW_OP_reg2                = CProfileRecorderSwiftELF.DW_OP_reg2
+let DW_OP_reg3                = CProfileRecorderSwiftELF.DW_OP_reg3
+let DW_OP_reg4                = CProfileRecorderSwiftELF.DW_OP_reg4
+let DW_OP_reg5                = CProfileRecorderSwiftELF.DW_OP_reg5
+let DW_OP_reg6                = CProfileRecorderSwiftELF.DW_OP_reg6
+let DW_OP_reg7                = CProfileRecorderSwiftELF.DW_OP_reg7
+let DW_OP_reg8                = CProfileRecorderSwiftELF.DW_OP_reg8
+let DW_OP_reg9                = CProfileRecorderSwiftELF.DW_OP_reg9
+let DW_OP_reg10               = CProfileRecorderSwiftELF.DW_OP_reg10
+let DW_OP_reg11               = CProfileRecorderSwiftELF.DW_OP_reg11
+let DW_OP_reg12               = CProfileRecorderSwiftELF.DW_OP_reg12
+let DW_OP_reg13               = CProfileRecorderSwiftELF.DW_OP_reg13
+let DW_OP_reg14               = CProfileRecorderSwiftELF.DW_OP_reg14
+let DW_OP_reg15               = CProfileRecorderSwiftELF.DW_OP_reg15
+let DW_OP_reg16               = CProfileRecorderSwiftELF.DW_OP_reg16
+let DW_OP_reg17               = CProfileRecorderSwiftELF.DW_OP_reg17
+let DW_OP_reg18               = CProfileRecorderSwiftELF.DW_OP_reg18
+let DW_OP_reg19               = CProfileRecorderSwiftELF.DW_OP_reg19
+let DW_OP_reg20               = CProfileRecorderSwiftELF.DW_OP_reg20
+let DW_OP_reg21               = CProfileRecorderSwiftELF.DW_OP_reg21
+let DW_OP_reg22               = CProfileRecorderSwiftELF.DW_OP_reg22
+let DW_OP_reg23               = CProfileRecorderSwiftELF.DW_OP_reg23
+let DW_OP_reg24               = CProfileRecorderSwiftELF.DW_OP_reg24
+let DW_OP_reg25               = CProfileRecorderSwiftELF.DW_OP_reg25
+let DW_OP_reg26               = CProfileRecorderSwiftELF.DW_OP_reg26
+let DW_OP_reg27               = CProfileRecorderSwiftELF.DW_OP_reg27
+let DW_OP_reg28               = CProfileRecorderSwiftELF.DW_OP_reg28
+let DW_OP_reg29               = CProfileRecorderSwiftELF.DW_OP_reg29
+let DW_OP_reg30               = CProfileRecorderSwiftELF.DW_OP_reg30
+let DW_OP_reg31               = CProfileRecorderSwiftELF.DW_OP_reg31
+
+let DW_OP_breg0               = CProfileRecorderSwiftELF.DW_OP_breg0
+let DW_OP_breg1               = CProfileRecorderSwiftELF.DW_OP_breg1
+let DW_OP_breg2               = CProfileRecorderSwiftELF.DW_OP_breg2
+let DW_OP_breg3               = CProfileRecorderSwiftELF.DW_OP_breg3
+let DW_OP_breg4               = CProfileRecorderSwiftELF.DW_OP_breg4
+let DW_OP_breg5               = CProfileRecorderSwiftELF.DW_OP_breg5
+let DW_OP_breg6               = CProfileRecorderSwiftELF.DW_OP_breg6
+let DW_OP_breg7               = CProfileRecorderSwiftELF.DW_OP_breg7
+let DW_OP_breg8               = CProfileRecorderSwiftELF.DW_OP_breg8
+let DW_OP_breg9               = CProfileRecorderSwiftELF.DW_OP_breg9
+let DW_OP_breg10              = CProfileRecorderSwiftELF.DW_OP_breg10
+let DW_OP_breg11              = CProfileRecorderSwiftELF.DW_OP_breg11
+let DW_OP_breg12              = CProfileRecorderSwiftELF.DW_OP_breg12
+let DW_OP_breg13              = CProfileRecorderSwiftELF.DW_OP_breg13
+let DW_OP_breg14              = CProfileRecorderSwiftELF.DW_OP_breg14
+let DW_OP_breg15              = CProfileRecorderSwiftELF.DW_OP_breg15
+let DW_OP_breg16              = CProfileRecorderSwiftELF.DW_OP_breg16
+let DW_OP_breg17              = CProfileRecorderSwiftELF.DW_OP_breg17
+let DW_OP_breg18              = CProfileRecorderSwiftELF.DW_OP_breg18
+let DW_OP_breg19              = CProfileRecorderSwiftELF.DW_OP_breg19
+let DW_OP_breg20              = CProfileRecorderSwiftELF.DW_OP_breg20
+let DW_OP_breg21              = CProfileRecorderSwiftELF.DW_OP_breg21
+let DW_OP_breg22              = CProfileRecorderSwiftELF.DW_OP_breg22
+let DW_OP_breg23              = CProfileRecorderSwiftELF.DW_OP_breg23
+let DW_OP_breg24              = CProfileRecorderSwiftELF.DW_OP_breg24
+let DW_OP_breg25              = CProfileRecorderSwiftELF.DW_OP_breg25
+let DW_OP_breg26              = CProfileRecorderSwiftELF.DW_OP_breg26
+let DW_OP_breg27              = CProfileRecorderSwiftELF.DW_OP_breg27
+let DW_OP_breg28              = CProfileRecorderSwiftELF.DW_OP_breg28
+let DW_OP_breg29              = CProfileRecorderSwiftELF.DW_OP_breg29
+let DW_OP_breg30              = CProfileRecorderSwiftELF.DW_OP_breg30
+let DW_OP_breg31              = CProfileRecorderSwiftELF.DW_OP_breg31
+let DW_OP_regx                = CProfileRecorderSwiftELF.DW_OP_regx
+let DW_OP_fbreg               = CProfileRecorderSwiftELF.DW_OP_fbreg
+let DW_OP_bregx               = CProfileRecorderSwiftELF.DW_OP_bregx
+let DW_OP_piece               = CProfileRecorderSwiftELF.DW_OP_piece
+let DW_OP_deref_size          = CProfileRecorderSwiftELF.DW_OP_deref_size
+let DW_OP_xderef_size         = CProfileRecorderSwiftELF.DW_OP_xderef_size
+let DW_OP_nop                 = CProfileRecorderSwiftELF.DW_OP_nop
+let DW_OP_push_object_address = CProfileRecorderSwiftELF.DW_OP_push_object_address
+let DW_OP_call2               = CProfileRecorderSwiftELF.DW_OP_call2
+let DW_OP_call4               = CProfileRecorderSwiftELF.DW_OP_call4
+let DW_OP_call_ref            = CProfileRecorderSwiftELF.DW_OP_call_ref
+let DW_OP_form_tls_address    = CProfileRecorderSwiftELF.DW_OP_form_tls_address
+let DW_OP_call_frame_cfa      = CProfileRecorderSwiftELF.DW_OP_call_frame_cfa
+let DW_OP_bit_piece           = CProfileRecorderSwiftELF.DW_OP_bit_piece
+let DW_OP_implicit_value      = CProfileRecorderSwiftELF.DW_OP_implicit_value
+let DW_OP_stack_value         = CProfileRecorderSwiftELF.DW_OP_stack_value
+let DW_OP_implicit_pointer    = CProfileRecorderSwiftELF.DW_OP_implicit_pointer
+let DW_OP_addrx               = CProfileRecorderSwiftELF.DW_OP_addrx
+let DW_OP_constx              = CProfileRecorderSwiftELF.DW_OP_constx
+let DW_OP_entry_value         = CProfileRecorderSwiftELF.DW_OP_entry_value
+let DW_OP_const_type          = CProfileRecorderSwiftELF.DW_OP_const_type
+let DW_OP_regval_type         = CProfileRecorderSwiftELF.DW_OP_regval_type
+let DW_OP_deref_type          = CProfileRecorderSwiftELF.DW_OP_deref_type
+let DW_OP_xderef_type         = CProfileRecorderSwiftELF.DW_OP_xderef_type
+let DW_OP_convert             = CProfileRecorderSwiftELF.DW_OP_convert
+let DW_OP_reinterpret         = CProfileRecorderSwiftELF.DW_OP_reinterpret
+let DW_OP_lo_user             = CProfileRecorderSwiftELF.DW_OP_lo_user
+let DW_OP_hi_user             = CProfileRecorderSwiftELF.DW_OP_hi_user
+
+typealias SWIPR_Dwarf_LNS_Opcode = CProfileRecorderSwiftELF.SWIPR_Dwarf_LNS_Opcode
+typealias SWIPR_Dwarf_LNE_Opcode = CProfileRecorderSwiftELF.SWIPR_Dwarf_LNE_Opcode
+typealias SWIPR_Dwarf_Lhdr_Format = CProfileRecorderSwiftELF.SWIPR_Dwarf_Lhdr_Format
+
+typealias DWARF32_Lhdr = CProfileRecorderSwiftELF.DWARF32_Lhdr
+typealias DWARF64_Lhdr = CProfileRecorderSwiftELF.DWARF64_Lhdr
+
+let DW_CFA_advance_loc        = CProfileRecorderSwiftELF.DW_CFA_advance_loc
+let DW_CFA_offset             = CProfileRecorderSwiftELF.DW_CFA_offset
+let DW_CFA_restore            = CProfileRecorderSwiftELF.DW_CFA_restore
+let DW_CFA_nop                = CProfileRecorderSwiftELF.DW_CFA_nop
+let DW_CFA_set_loc            = CProfileRecorderSwiftELF.DW_CFA_set_loc
+let DW_CFA_advance_loc1       = CProfileRecorderSwiftELF.DW_CFA_advance_loc1
+let DW_CFA_advance_loc2       = CProfileRecorderSwiftELF.DW_CFA_advance_loc2
+let DW_CFA_advance_loc4       = CProfileRecorderSwiftELF.DW_CFA_advance_loc4
+let DW_CFA_offset_extended    = CProfileRecorderSwiftELF.DW_CFA_offset_extended
+let DW_CFA_restore_extended   = CProfileRecorderSwiftELF.DW_CFA_restore_extended
+let DW_CFA_undefined          = CProfileRecorderSwiftELF.DW_CFA_undefined
+let DW_CFA_same_value         = CProfileRecorderSwiftELF.DW_CFA_same_value
+let DW_CFA_register           = CProfileRecorderSwiftELF.DW_CFA_register
+let DW_CFA_remember_state     = CProfileRecorderSwiftELF.DW_CFA_remember_state
+let DW_CFA_restore_state      = CProfileRecorderSwiftELF.DW_CFA_restore_state
+let DW_CFA_def_cfa            = CProfileRecorderSwiftELF.DW_CFA_def_cfa
+let DW_CFA_def_cfa_register   = CProfileRecorderSwiftELF.DW_CFA_def_cfa_register
+let DW_CFA_def_cfa_offset     = CProfileRecorderSwiftELF.DW_CFA_def_cfa_offset
+let DW_CFA_def_cfa_expression = CProfileRecorderSwiftELF.DW_CFA_def_cfa_expression
+let DW_CFA_expression         = CProfileRecorderSwiftELF.DW_CFA_expression
+let DW_CFA_offset_extended_sf = CProfileRecorderSwiftELF.DW_CFA_offset_extended_sf
+let DW_CFA_def_cfa_sf         = CProfileRecorderSwiftELF.DW_CFA_def_cfa_sf
+let DW_CFA_def_cfa_offset_sf  = CProfileRecorderSwiftELF.DW_CFA_def_cfa_offset_sf
+let DW_CFA_val_offset         = CProfileRecorderSwiftELF.DW_CFA_val_offset
+let DW_CFA_val_offset_sf      = CProfileRecorderSwiftELF.DW_CFA_val_offset_sf
+let DW_CFA_val_expression     = CProfileRecorderSwiftELF.DW_CFA_val_expression
+let DW_CFA_lo_user            = CProfileRecorderSwiftELF.DW_CFA_lo_user
+let DW_CFA_hi_user            = CProfileRecorderSwiftELF.DW_CFA_hi_user
+
+typealias SWIPR_Dwarf_RLE_Entry = CProfileRecorderSwiftELF.SWIPR_Dwarf_RLE_Entry
+typealias Dwarf32_CIEHdr  = CProfileRecorderSwiftELF.Dwarf32_CIEHdr
+typealias Dwarf64_CIEHdr  = CProfileRecorderSwiftELF.Dwarf64_CIEHdr
+typealias Dwarf32_FDEHdr  = CProfileRecorderSwiftELF.Dwarf32_FDEHdr
+
+typealias EHFrameHdr      = CProfileRecorderSwiftELF.EHFrameHdr
+typealias EHFrameEncoding = CProfileRecorderSwiftELF.EHFrameEncoding
+
+let DW_EH_PE_omit    = CProfileRecorderSwiftELF.DW_EH_PE_omit
+let DW_EH_PE_uleb128 = CProfileRecorderSwiftELF.DW_EH_PE_uleb128
+let DW_EH_PE_udata2  = CProfileRecorderSwiftELF.DW_EH_PE_udata2
+let DW_EH_PE_udata4  = CProfileRecorderSwiftELF.DW_EH_PE_udata4
+let DW_EH_PE_udata8  = CProfileRecorderSwiftELF.DW_EH_PE_udata8
+let DW_EH_PE_sleb128 = CProfileRecorderSwiftELF.DW_EH_PE_sleb128
+let DW_EH_PE_sdata2  = CProfileRecorderSwiftELF.DW_EH_PE_sdata2
+let DW_EH_PE_sdata4  = CProfileRecorderSwiftELF.DW_EH_PE_sdata4
+let DW_EH_PE_sdata8  = CProfileRecorderSwiftELF.DW_EH_PE_sdata8
+let DW_EH_PE_absptr  = CProfileRecorderSwiftELF.DW_EH_PE_absptr
+let DW_EH_PE_pcrel   = CProfileRecorderSwiftELF.DW_EH_PE_pcrel
+let DW_EH_PE_datarel = CProfileRecorderSwiftELF.DW_EH_PE_datarel
 
 // .. Dwarf specific errors ....................................................
 
@@ -49,7 +304,7 @@ private enum DwarfError: Error {
   case badString
   case missingAbbrev(UInt64)
   case doubleIndirectForm
-  case unknownForm(Dwarf_Form)
+  case unknownForm(SWIPR_Dwarf_Form)
   case missingBaseOffset
   case missingAddrSection
   case missingStrSection
@@ -259,7 +514,7 @@ enum DwarfSection {
 
 protocol DwarfSource {
 
-  func getDwarfSection(_ section: DwarfSection) -> (any ImageSource)?
+  func getDwarfSection(_ section: DwarfSection) -> ImageSource?
 
 }
 
@@ -277,19 +532,19 @@ struct DwarfReader<S: DwarfSource> {
   var source: Source
 
   struct AbbrevInfo {
-    var tag: Dwarf_Tag
+    var tag: SWIPR_Dwarf_Tag
     var hasChildren: Bool
-    var attributes: [(Dwarf_Attribute, Dwarf_Form, Int64?)]
+    var attributes: [(SWIPR_Dwarf_Attribute, SWIPR_Dwarf_Form, Int64?)]
   }
 
-  var infoSection: any ImageSource
-  var abbrevSection: any ImageSource
-  var lineSection: (any ImageSource)?
-  var addrSection: (any ImageSource)?
-  var strSection: (any ImageSource)?
-  var lineStrSection: (any ImageSource)?
-  var strOffsetsSection: (any ImageSource)?
-  var rangesSection: (any ImageSource)?
+  var infoSection: ImageSource
+  var abbrevSection: ImageSource
+  var lineSection: ImageSource?
+  var addrSection: ImageSource?
+  var strSection: ImageSource?
+  var lineStrSection: ImageSource?
+  var strOffsetsSection: ImageSource?
+  var rangesSection: ImageSource?
   var shouldSwap: Bool
 
   typealias DwarfAbbrev = UInt64
@@ -298,7 +553,7 @@ struct DwarfReader<S: DwarfSource> {
     var baseOffset: Address
     var version: Int
     var isDwarf64: Bool
-    var unitType: Dwarf_UnitType
+    var unitType: SWIPR_Dwarf_UnitType
     var addressSize: Int
     var abbrevOffset: Address
     var dieBounds: Bounds
@@ -312,267 +567,13 @@ struct DwarfReader<S: DwarfSource> {
 
     var abbrevs: [DwarfAbbrev: AbbrevInfo]
 
-    var tag: Dwarf_Tag
-    var attributes: [Dwarf_Attribute:DwarfValue] = [:]
-  }
-
-  struct FileInfo {
-    var path: String
-    var directoryIndex: Int?
-    var timestamp: Int?
-    var size: UInt64?
-    var md5sum: [UInt8]?
-  }
-
-  struct LineNumberState: CustomStringConvertible {
-    var address: Address
-    var opIndex: UInt
-    var file: Int
-    var path: String
-    var line: Int
-    var column: Int
-    var isStmt: Bool
-    var basicBlock: Bool
-    var endSequence: Bool
-    var prologueEnd: Bool
-    var epilogueBegin: Bool
-    var isa: UInt
-    var discriminator: UInt
-
-    var description: String {
-      var flags: [String] = []
-      if isStmt {
-        flags.append("is_stmt")
-      }
-      if basicBlock {
-        flags.append("basic_block")
-      }
-      if endSequence {
-        flags.append("end_sequence")
-      }
-      if prologueEnd {
-        flags.append("prologue_end")
-      }
-      if epilogueBegin {
-        flags.append("epilogue_begin")
-      }
-
-      let flagsString = flags.joined(separator:" ")
-
-      return """
-        \(hex(address)) \(pad(line, 6)) \(pad(column, 6)) \(pad(file, 6)) \
-        \(pad(isa, 3)) \(pad(discriminator, 13)) \(flagsString)
-        """
-    }
-  }
-
-  struct LineNumberInfo {
-    var baseOffset: Address
-    var version: Int
-    var addressSize: Int?
-    var selectorSize: Int?
-    var headerLength: UInt64
-    var minimumInstructionLength: UInt
-    var maximumOpsPerInstruction: UInt
-    var defaultIsStmt: Bool
-    var lineBase: Int8
-    var lineRange: UInt8
-    var opcodeBase: UInt8
-    var standardOpcodeLengths: [UInt64]
-    var directories: [String] = []
-    var files: [FileInfo] = []
-    var program: [UInt8] = []
-    var shouldSwap: Bool
-
-    /// Compute the full path for a file, given its index in the file table.
-    func fullPathForFile(index: Int) -> String {
-      if index >= files.count {
-        return "<unknown>"
-      }
-
-      let info = files[index]
-      if info.path.hasPrefix("/") {
-        return info.path
-      }
-
-      let dirName: String
-      if let dirIndex = info.directoryIndex,
-         dirIndex < directories.count {
-        dirName = directories[dirIndex]
-      } else {
-        dirName = "<unknown>"
-      }
-
-      return "\(dirName)/\(info.path)"
-    }
-
-    /// Execute the line number program, calling a closure for every line
-    /// table entry.
-    mutating func executeProgram(
-      line: (LineNumberState, inout Bool) -> ()
-    ) throws {
-      let source = ArrayImageSource(array: program)
-      let bounds = source.bounds!
-      var cursor = ImageSourceCursor(source: source)
-
-      func maybeSwap<T: FixedWidthInteger>(_ x: T) -> T {
-        if shouldSwap {
-          return x.byteSwapped
-        }
-        return x
-      }
-
-      // Table 6.4: Line number program initial state
-      let initialState = LineNumberState(
-        address: 0,
-        opIndex: 0,
-        file: 1,
-        path: fullPathForFile(index: 1),
-        line: 1,
-        column: 0,
-        isStmt: defaultIsStmt,
-        basicBlock: false,
-        endSequence: false,
-        prologueEnd: false,
-        epilogueBegin: false,
-        isa: 0,
-        discriminator: 0
-      )
-
-      var state = initialState
-
-      // Flag to allow fast exit
-      var done = false
-
-      while !done && cursor.pos < bounds.end {
-        let opcode = try cursor.read(as: Dwarf_LNS_Opcode.self)
-
-        if opcode.rawValue >= opcodeBase {
-          // Special opcode
-          let adjustedOpcode = UInt(opcode.rawValue - opcodeBase)
-          let advance = adjustedOpcode / UInt(lineRange)
-          let lineAdvance = adjustedOpcode % UInt(lineRange)
-          let instrAdvance
-            = (state.opIndex + advance) / maximumOpsPerInstruction
-          let newOp = (state.opIndex + advance) % maximumOpsPerInstruction
-          state.address += Address(instrAdvance)
-          state.opIndex = newOp
-          state.line += Int(lineBase) + Int(lineAdvance)
-
-          line(state, &done)
-
-          state.discriminator = 0
-          state.basicBlock = false
-          state.prologueEnd = false
-          state.epilogueBegin = false
-        } else if opcode == .DW_LNS_extended {
-          // Extended opcode
-          let length = try cursor.readULEB128()
-          let opcode = try cursor.read(as: Dwarf_LNE_Opcode.self)
-
-          switch opcode {
-            case .DW_LNE_end_sequence:
-              state.endSequence = true
-              line(state, &done)
-              state = initialState
-            case .DW_LNE_set_address:
-              let address: UInt64
-              guard let addressSize = addressSize else {
-                throw DwarfError.unspecifiedAddressSize
-              }
-              switch addressSize {
-                case 4:
-                  address = UInt64(maybeSwap(try cursor.read(as: UInt32.self)))
-                case 8:
-                  address = maybeSwap(try cursor.read(as: UInt64.self))
-                default:
-                  throw DwarfError.badAddressSize(addressSize)
-              }
-              state.address = Address(address)
-            case .DW_LNE_define_file:
-              guard let path = try cursor.readString() else {
-                throw DwarfError.badString
-              }
-              let directoryIndex = try cursor.readULEB128()
-              let timestamp = try cursor.readULEB128()
-              let size = try cursor.readULEB128()
-              files.append(FileInfo(
-                             path: path,
-                             directoryIndex: Int(directoryIndex),
-                             timestamp: timestamp != 0 ? Int(timestamp) : nil,
-                             size: size != 0 ? size : nil,
-                             md5sum: nil
-                           ))
-            case .DW_LNE_set_discriminator:
-              let discriminator = try cursor.readULEB128()
-              state.discriminator = UInt(discriminator)
-            default:
-              cursor.pos += length - 1
-          }
-        } else {
-          // Standard opcode
-          switch opcode {
-            case .DW_LNS_copy:
-              line(state, &done)
-              state.discriminator = 0
-              state.basicBlock = false
-              state.prologueEnd = false
-              state.epilogueBegin = false
-            case .DW_LNS_advance_pc:
-              let advance = UInt(try cursor.readULEB128())
-              let instrAdvance
-                = (state.opIndex + advance) / maximumOpsPerInstruction
-              let newOp = (state.opIndex + advance) % maximumOpsPerInstruction
-              state.address += Address(instrAdvance)
-              state.opIndex = newOp
-            case .DW_LNS_advance_line:
-              let advance = try cursor.readSLEB128()
-              state.line += Int(advance)
-            case .DW_LNS_set_file:
-              let file = Int(try cursor.readULEB128())
-              state.file = file
-              state.path = fullPathForFile(index: state.file)
-            case .DW_LNS_set_column:
-              let column = Int(try cursor.readULEB128())
-              state.column = column
-            case .DW_LNS_negate_stmt:
-              state.isStmt = !state.isStmt
-            case .DW_LNS_set_basic_block:
-              state.basicBlock = true
-            case .DW_LNS_const_add_pc:
-              let adjustedOpcode = UInt(255 - opcodeBase)
-              let advance = adjustedOpcode / UInt(lineRange)
-              let instrAdvance
-                = (state.opIndex + advance) / maximumOpsPerInstruction
-              let newOp = (state.opIndex + advance) % maximumOpsPerInstruction
-              state.address += Address(instrAdvance)
-              state.opIndex = newOp
-            case .DW_LNS_fixed_advance_pc:
-              let advance = try cursor.read(as: Dwarf_Half.self)
-              state.address += Address(advance)
-              state.opIndex = 0
-            case .DW_LNS_set_prologue_end:
-              state.prologueEnd = true
-            case .DW_LNS_set_epilogue_begin:
-              state.epilogueBegin = true
-            case .DW_LNS_set_isa:
-              let isa = UInt(try cursor.readULEB128())
-              state.isa = isa
-            default:
-              // Skip this unknown opcode
-              let length = standardOpcodeLengths[Int(opcode.rawValue)]
-              for _ in 0..<length {
-                _ = try cursor.readULEB128()
-              }
-          }
-        }
-      }
-    }
+    var tag: SWIPR_Dwarf_Tag
+    var attributes: [SWIPR_Dwarf_Attribute:DwarfValue] = [:]
   }
 
   var units: [Unit] = []
 
-  var lineNumberInfo: [LineNumberInfo] = []
+  var lineNumberInfo: [DwarfLineNumberInfo] = []
 
   struct RangeListInfo {
     var length: UInt64
@@ -586,6 +587,8 @@ struct DwarfReader<S: DwarfSource> {
 
   var rangeListInfo: RangeListInfo?
 
+  @_specialize(kind: full, where S == Elf32Image)
+  @_specialize(kind: full, where S == Elf64Image)
   init(source: Source, shouldSwap: Bool = false) throws {
     // ###TODO: This should be optional, because we can have just line number
     //          information.  We should test that, too.
@@ -632,7 +635,7 @@ struct DwarfReader<S: DwarfSource> {
           }
 
           lineNumberInfo[n].directories[0] = dirname
-          lineNumberInfo[n].files[0] = FileInfo(
+          lineNumberInfo[n].files[0] = DwarfFileInfo(
             path: filename,
             directoryIndex: 0,
             timestamp: nil,
@@ -655,14 +658,11 @@ struct DwarfReader<S: DwarfSource> {
   }
 
   private func readUnits() throws -> [Unit] {
-    guard let bounds = infoSection.bounds else {
-      return []
-    }
-
+    let end = infoSection.bytes.count
     var units: [Unit] = []
     var cursor = ImageSourceCursor(source: infoSection)
 
-    while cursor.pos < bounds.end {
+    while cursor.pos < end {
       // See 7.5.1.1 Full and Partial Compilation Unit Headers
       let base = cursor.pos
 
@@ -671,13 +671,13 @@ struct DwarfReader<S: DwarfSource> {
       let next = cursor.pos + length
 
       // .2 version
-      let version = Int(maybeSwap(try cursor.read(as: Dwarf_Half.self)))
+      let version = Int(maybeSwap(try cursor.read(as: SWIPR_Dwarf_Half.self)))
 
       if version < 3 || version > 5 {
         throw DwarfError.unsupportedVersion(version)
       }
 
-      var unitType: Dwarf_UnitType = .DW_UT_unknown
+      var unitType: SWIPR_Dwarf_UnitType = .DW_UT_unknown
       let addressSize: Int
       let abbrevOffset: Address
       let dieBounds: Bounds
@@ -685,19 +685,19 @@ struct DwarfReader<S: DwarfSource> {
       if dwarf64 {
         if version >= 3 && version <= 4 {
           // .3 debug_abbrev_offset
-          abbrevOffset = Address(maybeSwap(try cursor.read(as: Dwarf_Xword.self)))
+          abbrevOffset = Address(maybeSwap(try cursor.read(as: SWIPR_Dwarf_Xword.self)))
 
           // .4 address_size
-          addressSize = Int(try cursor.read(as: Dwarf_Byte.self))
+          addressSize = Int(try cursor.read(as: SWIPR_Dwarf_Byte.self))
         } else if version == 5 {
           // .3 unit_type
-          unitType = try cursor.read(as: Dwarf_UnitType.self)
+          unitType = try cursor.read(as: SWIPR_Dwarf_UnitType.self)
 
           // .4 address_size
-          addressSize = Int(try cursor.read(as: Dwarf_Byte.self))
+          addressSize = Int(try cursor.read(as: SWIPR_Dwarf_Byte.self))
 
           // .5 debug_abbrev_offset
-          abbrevOffset = Address(maybeSwap(try cursor.read(as: Dwarf_Xword.self)))
+          abbrevOffset = Address(maybeSwap(try cursor.read(as: SWIPR_Dwarf_Xword.self)))
         } else {
           throw DwarfError.unsupportedVersion(version)
         }
@@ -706,19 +706,19 @@ struct DwarfReader<S: DwarfSource> {
       } else {
         if version >= 3 && version <= 4 {
           // .3 debug_abbrev_offset
-          abbrevOffset = Address(maybeSwap(try cursor.read(as: Dwarf_Word.self)))
+          abbrevOffset = Address(maybeSwap(try cursor.read(as: SWIPR_Dwarf_Word.self)))
 
           // .4 address_size
-          addressSize = Int(try cursor.read(as: Dwarf_Byte.self))
+          addressSize = Int(try cursor.read(as: SWIPR_Dwarf_Byte.self))
         } else if version == 5 {
           // .3 unit_type
-          unitType = try cursor.read(as: Dwarf_UnitType.self)
+          unitType = try cursor.read(as: SWIPR_Dwarf_UnitType.self)
 
           // .4 address_size
-          addressSize = Int(try cursor.read(as: Dwarf_Byte.self))
+          addressSize = Int(try cursor.read(as: SWIPR_Dwarf_Byte.self))
 
           // .5 debug_abbrev_offset
-          abbrevOffset = Address(maybeSwap(try cursor.read(as: Dwarf_Word.self)))
+          abbrevOffset = Address(maybeSwap(try cursor.read(as: SWIPR_Dwarf_Word.self)))
         } else {
           throw DwarfError.unsupportedVersion(version)
         }
@@ -812,16 +812,16 @@ struct DwarfReader<S: DwarfSource> {
     return units
   }
 
-  private func readLineNumberInfo() throws -> [LineNumberInfo] {
-    guard let lineSection = lineSection,
-          let bounds = lineSection.bounds else {
+  private func readLineNumberInfo() throws -> [DwarfLineNumberInfo] {
+    guard let lineSection = lineSection else {
       return []
     }
 
-    var result: [LineNumberInfo] = []
+    let end = lineSection.bytes.count
+    var result: [DwarfLineNumberInfo] = []
     var cursor = ImageSourceCursor(source: lineSection, offset: 0)
 
-    while cursor.pos < bounds.end {
+    while cursor.pos < end {
       // 6.2.4 The Line Number Program Header
 
       // .1 unit_length
@@ -834,7 +834,7 @@ struct DwarfReader<S: DwarfSource> {
       let nextOffset = cursor.pos + length
 
       // .2 version
-      let version = Int(maybeSwap(try cursor.read(as: Dwarf_Half.self)))
+      let version = Int(maybeSwap(try cursor.read(as: SWIPR_Dwarf_Half.self)))
 
       if version < 3 || version > 5 {
         cursor.pos = nextOffset
@@ -846,37 +846,37 @@ struct DwarfReader<S: DwarfSource> {
 
       if version == 5 {
         // .3 address_size
-        addressSize = Int(try cursor.read(as: Dwarf_Byte.self))
+        addressSize = Int(try cursor.read(as: SWIPR_Dwarf_Byte.self))
 
         // .4 segment_selector_size
-        segmentSelectorSize = Int(try cursor.read(as: Dwarf_Byte.self))
+        segmentSelectorSize = Int(try cursor.read(as: SWIPR_Dwarf_Byte.self))
       }
 
       // .5 header_length
       let headerLength: UInt64
       if dwarf64 {
-        headerLength = maybeSwap(try cursor.read(as: Dwarf_Xword.self))
+        headerLength = maybeSwap(try cursor.read(as: SWIPR_Dwarf_Xword.self))
       } else {
-        headerLength = UInt64(maybeSwap(try cursor.read(as: Dwarf_Word.self)))
+        headerLength = UInt64(maybeSwap(try cursor.read(as: SWIPR_Dwarf_Word.self)))
       }
 
       // .6 minimum_instruction_length
-      let minimumInstructionLength = UInt(try cursor.read(as: Dwarf_Byte.self))
+      let minimumInstructionLength = UInt(try cursor.read(as: SWIPR_Dwarf_Byte.self))
 
       // .7 maximum_operations_per_instruction
-      let maximumOpsPerInstruction = UInt(try cursor.read(as: Dwarf_Byte.self))
+      let maximumOpsPerInstruction = UInt(try cursor.read(as: SWIPR_Dwarf_Byte.self))
 
       // .8 default_is_stmt
-      let defaultIsStmt = try cursor.read(as: Dwarf_Byte.self) != 0
+      let defaultIsStmt = try cursor.read(as: SWIPR_Dwarf_Byte.self) != 0
 
       // .9 line_base
-      let lineBase = try cursor.read(as: Dwarf_Sbyte.self)
+      let lineBase = try cursor.read(as: SWIPR_Dwarf_Sbyte.self)
 
       // .10 line_range
-      let lineRange = try cursor.read(as: Dwarf_Byte.self)
+      let lineRange = try cursor.read(as: SWIPR_Dwarf_Byte.self)
 
       // .11 opcode_base
-      let opcodeBase = try cursor.read(as: Dwarf_Byte.self)
+      let opcodeBase = try cursor.read(as: SWIPR_Dwarf_Byte.self)
 
       // .12 standard_opcode_lengths
       var standardOpcodeLengths: [UInt64] = [0]
@@ -886,7 +886,7 @@ struct DwarfReader<S: DwarfSource> {
       }
 
       var dirNames: [String] = []
-      var fileInfo: [FileInfo] = []
+      var fileInfo: [DwarfFileInfo] = []
 
       if version == 3 || version == 4 {
         // .11 include_directories
@@ -911,7 +911,7 @@ struct DwarfReader<S: DwarfSource> {
 
         // Prior to version 5, the compilation unit's filename is not included;
         // put a placeholder here for now, which we'll fix up later.
-        fileInfo.append(FileInfo(
+        fileInfo.append(DwarfFileInfo(
                           path: "<unknown>",
                           directoryIndex: 0,
                           timestamp: nil,
@@ -931,7 +931,7 @@ struct DwarfReader<S: DwarfSource> {
           let timestamp = try cursor.readULEB128()
           let size = try cursor.readULEB128()
 
-          fileInfo.append(FileInfo(
+          fileInfo.append(DwarfFileInfo(
                             path: path,
                             directoryIndex: Int(dirIndex),
                             timestamp: timestamp != 0 ? Int(timestamp) : nil,
@@ -940,18 +940,18 @@ struct DwarfReader<S: DwarfSource> {
         }
       } else if version == 5 {
         // .13/.14 directory_entry_format
-        var dirEntryFormat: [(Dwarf_Lhdr_Format, Dwarf_Form)] = []
-        let dirEntryFormatCount = Int(try cursor.read(as: Dwarf_Byte.self))
+        var dirEntryFormat: [(SWIPR_Dwarf_Lhdr_Format, SWIPR_Dwarf_Form)] = []
+        let dirEntryFormatCount = Int(try cursor.read(as: SWIPR_Dwarf_Byte.self))
         for _ in 0..<dirEntryFormatCount {
           let rawType = try cursor.readULEB128()
           let rawForm = try cursor.readULEB128()
 
-          guard let halfType = Dwarf_Half(exactly: rawType),
-                let type = Dwarf_Lhdr_Format(rawValue: halfType) else {
+          guard let halfType = SWIPR_Dwarf_Half(exactly: rawType),
+                let type = SWIPR_Dwarf_Lhdr_Format(rawValue: halfType) else {
             throw DwarfError.badLineContentType(rawType)
           }
-          guard let byteForm = Dwarf_Byte(exactly: rawForm),
-                let form = Dwarf_Form(rawValue: byteForm) else {
+          guard let byteForm = SWIPR_Dwarf_Byte(exactly: rawForm),
+                let form = SWIPR_Dwarf_Form(rawValue: byteForm) else {
             throw DwarfError.badForm(rawForm)
           }
 
@@ -963,7 +963,7 @@ struct DwarfReader<S: DwarfSource> {
 
         // .16 directories
         for _ in 0..<dirCount {
-          var attributes: [Dwarf_Lhdr_Format: DwarfValue] = [:]
+          var attributes: [SWIPR_Dwarf_Lhdr_Format: DwarfValue] = [:]
           for (type, form) in dirEntryFormat {
             attributes[type] = try read(form: form,
                                         at: &cursor,
@@ -982,18 +982,18 @@ struct DwarfReader<S: DwarfSource> {
         }
 
         // .17/.18 file_name_entry_format
-        var fileEntryFormat: [(Dwarf_Lhdr_Format, Dwarf_Form)] = []
-        let fileEntryFormatCount = Int(try cursor.read(as: Dwarf_Byte.self))
+        var fileEntryFormat: [(SWIPR_Dwarf_Lhdr_Format, SWIPR_Dwarf_Form)] = []
+        let fileEntryFormatCount = Int(try cursor.read(as: SWIPR_Dwarf_Byte.self))
         for _ in 0..<fileEntryFormatCount {
           let rawType = try cursor.readULEB128()
           let rawForm = try cursor.readULEB128()
 
-          guard let halfType = Dwarf_Half(exactly: rawType),
-                let type = Dwarf_Lhdr_Format(rawValue: halfType) else {
+          guard let halfType = SWIPR_Dwarf_Half(exactly: rawType),
+                let type = SWIPR_Dwarf_Lhdr_Format(rawValue: halfType) else {
             throw DwarfError.badLineContentType(rawType)
           }
-          guard let byteForm = Dwarf_Byte(exactly: rawForm),
-                let form = Dwarf_Form(rawValue: byteForm) else {
+          guard let byteForm = SWIPR_Dwarf_Byte(exactly: rawForm),
+                let form = SWIPR_Dwarf_Form(rawValue: byteForm) else {
             throw DwarfError.badForm(rawForm)
           }
 
@@ -1005,7 +1005,7 @@ struct DwarfReader<S: DwarfSource> {
 
         // .20 file_names
         for _ in 0..<fileCount {
-          var attributes: [Dwarf_Lhdr_Format: DwarfValue] = [:]
+          var attributes: [SWIPR_Dwarf_Lhdr_Format: DwarfValue] = [:]
           for (type, form) in fileEntryFormat {
             attributes[type] = try read(form: form,
                                         at: &cursor,
@@ -1034,7 +1034,7 @@ struct DwarfReader<S: DwarfSource> {
             md5sum = nil
           }
 
-          fileInfo.append(FileInfo(
+          fileInfo.append(DwarfFileInfo(
                             path: path,
                             directoryIndex: dirIndex,
                             timestamp: timestamp,
@@ -1044,12 +1044,10 @@ struct DwarfReader<S: DwarfSource> {
       }
 
       // The actual program comes next
-      let program = try cursor.read(count: Int(nextOffset - cursor.pos),
-                                    as: UInt8.self)
-
+      let program = cursor.source[cursor.pos..<nextOffset]
       cursor.pos = nextOffset
 
-      result.append(LineNumberInfo(
+      result.append(DwarfLineNumberInfo(
                       baseOffset: baseOffset,
                       version: version,
                       addressSize: addressSize,
@@ -1086,14 +1084,14 @@ struct DwarfReader<S: DwarfSource> {
 
       let rawTag = try cursor.readULEB128()
 
-      guard let tag = Dwarf_Tag(rawValue: rawTag) else {
+      guard let tag = SWIPR_Dwarf_Tag(rawValue: rawTag) else {
         throw DwarfError.badTag(rawTag)
       }
 
-      let children = try cursor.read(as: Dwarf_ChildDetermination.self)
+      let children = try cursor.read(as: SWIPR_Dwarf_ChildDetermination.self)
 
       // Fetch attributes
-      var attributes: [(Dwarf_Attribute, Dwarf_Form, Int64?)] = []
+      var attributes: [(SWIPR_Dwarf_Attribute, SWIPR_Dwarf_Form, Int64?)] = []
       while true {
         let rawAttr = try cursor.readULEB128()
         let rawForm = try cursor.readULEB128()
@@ -1102,10 +1100,10 @@ struct DwarfReader<S: DwarfSource> {
           break
         }
 
-        guard let attr = Dwarf_Attribute(rawValue: UInt32(rawAttr)) else {
+        guard let attr = SWIPR_Dwarf_Attribute(rawValue: UInt32(rawAttr)) else {
           throw DwarfError.badAttribute(rawAttr)
         }
-        guard let form = Dwarf_Form(rawValue: Dwarf_Byte(rawForm)) else {
+        guard let form = SWIPR_Dwarf_Form(rawValue: SWIPR_Dwarf_Byte(rawForm)) else {
           throw DwarfError.badForm(rawForm)
         }
 
@@ -1191,16 +1189,16 @@ struct DwarfReader<S: DwarfSource> {
     return offset
   }
 
-  private func read(form theForm: Dwarf_Form,
+  private func read(form theForm: SWIPR_Dwarf_Form,
                     at cursor: inout ImageSourceCursor,
                     addressSize: Int, isDwarf64: Bool,
                     unit: Unit?,
                     shouldFetchIndirect: Bool,
                     constantValue: Int64? = nil) throws -> DwarfValue {
-    let form: Dwarf_Form
+    let form: SWIPR_Dwarf_Form
     if theForm == .DW_FORM_indirect {
       let rawForm = try cursor.readULEB128()
-      guard let theForm = Dwarf_Form(rawValue: Dwarf_Byte(rawForm)) else {
+      guard let theForm = SWIPR_Dwarf_Form(rawValue: SWIPR_Dwarf_Byte(rawForm)) else {
         throw DwarfError.badForm(rawForm)
       }
       form = theForm
@@ -1506,8 +1504,8 @@ struct DwarfReader<S: DwarfSource> {
     unit: Unit,
     abbrevInfo: AbbrevInfo,
     shouldFetchIndirect: Bool
-  ) throws -> [Dwarf_Attribute:DwarfValue] {
-    var attributes: [Dwarf_Attribute:DwarfValue] = [:]
+  ) throws -> [SWIPR_Dwarf_Attribute:DwarfValue] {
+    var attributes: [SWIPR_Dwarf_Attribute:DwarfValue] = [:]
 
     for (attribute, form, constantValue) in abbrevInfo.attributes {
       attributes[attribute] = try read(form: form,
@@ -1536,7 +1534,7 @@ struct DwarfReader<S: DwarfSource> {
   private func buildCallSiteInfo(
     depth: Int,
     unit: Unit,
-    attributes: [Dwarf_Attribute:DwarfValue],
+    attributes: [SWIPR_Dwarf_Attribute:DwarfValue],
     _ fn: (CallSiteInfo) -> ()
   ) throws {
     guard let abstractOriginVal = attributes[.DW_AT_abstract_origin],
@@ -1588,7 +1586,7 @@ struct DwarfReader<S: DwarfSource> {
       if tag != .DW_TAG_subprogram {
         return
       }
-      
+
       refAttrs = try readDieAttributes(
         at: &cursor,
         unit: unit,
@@ -1746,11 +1744,11 @@ struct DwarfReader<S: DwarfSource> {
         } else {
           name = "<unknown at \(hex(unit.baseOffset))>"
         }
-        reportWarning(0,
-                      """
-                        swift-runtime: warning: unable to fetch inline \
-                        frame data for DWARF unit \(name): \(error)
-                        """)
+        swift_reportWarning(0,
+                            """
+                              swift-runtime: warning: unable to fetch inline \
+                              frame data for DWARF unit \(name): \(error)
+                              """)
       }
     }
 
@@ -1764,11 +1762,268 @@ struct DwarfReader<S: DwarfSource> {
 
 }
 
+struct DwarfFileInfo {
+  var path: String
+  var directoryIndex: Int?
+  var timestamp: Int?
+  var size: UInt64?
+  var md5sum: [UInt8]?
+}
+
+struct DwarfLineNumberState: CustomStringConvertible {
+  typealias Address = UInt64
+
+  var address: Address
+  var opIndex: UInt
+  var file: Int
+  var path: String
+  var line: Int
+  var column: Int
+  var isStmt: Bool
+  var basicBlock: Bool
+  var endSequence: Bool
+  var prologueEnd: Bool
+  var epilogueBegin: Bool
+  var isa: UInt
+  var discriminator: UInt
+
+  var description: String {
+    var flags: [String] = []
+    if isStmt {
+      flags.append("is_stmt")
+    }
+    if basicBlock {
+      flags.append("basic_block")
+    }
+    if endSequence {
+      flags.append("end_sequence")
+    }
+    if prologueEnd {
+      flags.append("prologue_end")
+    }
+    if epilogueBegin {
+      flags.append("epilogue_begin")
+    }
+
+    let flagsString = flags.joined(separator:" ")
+
+    return """
+      \(hex(address)) \(pad(line, 6)) \(pad(column, 6)) \(pad(file, 6)) \
+      \(pad(isa, 3)) \(pad(discriminator, 13)) \(flagsString)
+      """
+  }
+}
+
+struct DwarfLineNumberInfo {
+  typealias Address = UInt64
+
+  var baseOffset: Address
+  var version: Int
+  var addressSize: Int?
+  var selectorSize: Int?
+  var headerLength: UInt64
+  var minimumInstructionLength: UInt
+  var maximumOpsPerInstruction: UInt
+  var defaultIsStmt: Bool
+  var lineBase: Int8
+  var lineRange: UInt8
+  var opcodeBase: UInt8
+  var standardOpcodeLengths: [UInt64]
+  var directories: [String] = []
+  var files: [DwarfFileInfo] = []
+  var program: ImageSource
+  var shouldSwap: Bool
+
+  /// Compute the full path for a file, given its index in the file table.
+  func fullPathForFile(index: Int) -> String {
+    if index >= files.count {
+      return "<unknown>"
+    }
+
+    let info = files[index]
+    if info.path.hasPrefix("/") {
+      return info.path
+    }
+
+    let dirName: String
+    if let dirIndex = info.directoryIndex,
+       dirIndex < directories.count {
+      dirName = directories[dirIndex]
+    } else {
+      dirName = "<unknown>"
+    }
+
+    return "\(dirName)/\(info.path)"
+  }
+
+  /// Execute the line number program, calling a closure for every line
+  /// table entry.
+  mutating func executeProgram(
+    line: (DwarfLineNumberState, inout Bool) -> ()
+  ) throws {
+    let end = program.bytes.count
+    var cursor = ImageSourceCursor(source: program)
+
+    func maybeSwap<T: FixedWidthInteger>(_ x: T) -> T {
+      if shouldSwap {
+        return x.byteSwapped
+      }
+      return x
+    }
+
+    // Table 6.4: Line number program initial state
+    let initialState = DwarfLineNumberState(
+      address: 0,
+      opIndex: 0,
+      file: 1,
+      path: fullPathForFile(index: 1),
+      line: 1,
+      column: 0,
+      isStmt: defaultIsStmt,
+      basicBlock: false,
+      endSequence: false,
+      prologueEnd: false,
+      epilogueBegin: false,
+      isa: 0,
+      discriminator: 0
+    )
+
+    var state = initialState
+
+    // Flag to allow fast exit
+    var done = false
+
+    while !done && cursor.pos < end {
+      let opcode = try cursor.read(as: SWIPR_Dwarf_LNS_Opcode.self)
+
+      if opcode.rawValue >= opcodeBase {
+        // Special opcode
+        let adjustedOpcode = UInt(opcode.rawValue - opcodeBase)
+        let advance = adjustedOpcode / UInt(lineRange)
+        let lineAdvance = adjustedOpcode % UInt(lineRange)
+        let instrAdvance
+          = (state.opIndex + advance) / maximumOpsPerInstruction
+        let newOp = (state.opIndex + advance) % maximumOpsPerInstruction
+        state.address += Address(instrAdvance)
+        state.opIndex = newOp
+        state.line += Int(lineBase) + Int(lineAdvance)
+
+        line(state, &done)
+
+        state.discriminator = 0
+        state.basicBlock = false
+        state.prologueEnd = false
+        state.epilogueBegin = false
+      } else if opcode == .DW_LNS_extended {
+        // Extended opcode
+        let length = try cursor.readULEB128()
+        let opcode = try cursor.read(as: SWIPR_Dwarf_LNE_Opcode.self)
+
+        switch opcode {
+          case .DW_LNE_end_sequence:
+            state.endSequence = true
+            line(state, &done)
+            state = initialState
+          case .DW_LNE_set_address:
+            let address: UInt64
+            guard let addressSize = addressSize else {
+              throw DwarfError.unspecifiedAddressSize
+            }
+            switch addressSize {
+              case 4:
+                address = UInt64(maybeSwap(try cursor.read(as: UInt32.self)))
+              case 8:
+                address = maybeSwap(try cursor.read(as: UInt64.self))
+              default:
+                throw DwarfError.badAddressSize(addressSize)
+            }
+            state.address = Address(address)
+              case .DW_LNE_define_file:
+                guard let path = try cursor.readString() else {
+                  throw DwarfError.badString
+                }
+                let directoryIndex = try cursor.readULEB128()
+                let timestamp = try cursor.readULEB128()
+                let size = try cursor.readULEB128()
+                files.append(DwarfFileInfo(
+                               path: path,
+                               directoryIndex: Int(directoryIndex),
+                               timestamp: timestamp != 0 ? Int(timestamp) : nil,
+                               size: size != 0 ? size : nil,
+                               md5sum: nil
+                             ))
+              case .DW_LNE_set_discriminator:
+                let discriminator = try cursor.readULEB128()
+                state.discriminator = UInt(discriminator)
+              default:
+                cursor.pos += length - 1
+        }
+      } else {
+        // Standard opcode
+        switch opcode {
+          case .DW_LNS_copy:
+            line(state, &done)
+            state.discriminator = 0
+            state.basicBlock = false
+            state.prologueEnd = false
+            state.epilogueBegin = false
+          case .DW_LNS_advance_pc:
+            let advance = UInt(try cursor.readULEB128())
+            let instrAdvance
+              = (state.opIndex + advance) / maximumOpsPerInstruction
+            let newOp = (state.opIndex + advance) % maximumOpsPerInstruction
+            state.address += Address(instrAdvance)
+            state.opIndex = newOp
+          case .DW_LNS_advance_line:
+            let advance = try cursor.readSLEB128()
+            state.line += Int(advance)
+          case .DW_LNS_set_file:
+            let file = Int(try cursor.readULEB128())
+            state.file = file
+            state.path = fullPathForFile(index: state.file)
+          case .DW_LNS_set_column:
+            let column = Int(try cursor.readULEB128())
+            state.column = column
+          case .DW_LNS_negate_stmt:
+            state.isStmt = !state.isStmt
+          case .DW_LNS_set_basic_block:
+            state.basicBlock = true
+          case .DW_LNS_const_add_pc:
+            let adjustedOpcode = UInt(255 - opcodeBase)
+            let advance = adjustedOpcode / UInt(lineRange)
+            let instrAdvance
+              = (state.opIndex + advance) / maximumOpsPerInstruction
+            let newOp = (state.opIndex + advance) % maximumOpsPerInstruction
+            state.address += Address(instrAdvance)
+            state.opIndex = newOp
+          case .DW_LNS_fixed_advance_pc:
+            let advance = try cursor.read(as: SWIPR_Dwarf_Half.self)
+            state.address += Address(advance)
+            state.opIndex = 0
+          case .DW_LNS_set_prologue_end:
+            state.prologueEnd = true
+          case .DW_LNS_set_epilogue_begin:
+            state.epilogueBegin = true
+          case .DW_LNS_set_isa:
+            let isa = UInt(try cursor.readULEB128())
+            state.isa = isa
+          default:
+            // Skip this unknown opcode
+            let length = standardOpcodeLengths[Int(opcode.rawValue)]
+            for _ in 0..<length {
+              _ = try cursor.readULEB128()
+            }
+        }
+      }
+    }
+  }
+}
+
 // .. Testing ..................................................................
 
 @_spi(DwarfTest)
 public func testDwarfReaderFor(path: String) -> Bool {
-  guard let source = try? FileImageSource(path: path) else {
+  guard let source = try? ImageSource(path: path) else {
     print("\(path) was not accessible")
     return false
   }
@@ -1776,7 +2031,7 @@ public func testDwarfReaderFor(path: String) -> Bool {
   if let elfImage = try? Elf32Image(source: source) {
     print("\(path) is a 32-bit ELF image")
 
-    var reader: DwarfReader<Elf32Image<FileImageSource>>
+    var reader: DwarfReader<Elf32Image>
     do {
       reader = try DwarfReader(source: elfImage)
     } catch {
@@ -1793,7 +2048,7 @@ public func testDwarfReaderFor(path: String) -> Bool {
   } else if let elfImage = try? Elf64Image(source: source) {
     print("\(path) is a 64-bit ELF image")
 
-    var reader: DwarfReader<Elf64Image<FileImageSource>>
+    var reader: DwarfReader<Elf64Image>
     do {
       reader = try DwarfReader(source: elfImage)
     } catch {
@@ -1818,8 +2073,4 @@ public func testDwarfReaderFor(path: String) -> Bool {
     print("\(path) is not an ELF image")
     return false
   }
-}
-
-func reportWarning(_ dunno: Int, _ str: String) {
-    fputs("WARNING: \(str)\n", stderr)
 }

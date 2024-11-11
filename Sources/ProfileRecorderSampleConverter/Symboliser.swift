@@ -36,9 +36,33 @@ protocol Symbolizer {
     func shutdown() throws
 }
 
+enum AnyElfImage {
+
+    case elf32(Elf32Image)
+    case elf64(Elf64Image)
+
+    func lookupSymbol(address: UInt64) -> ImageSymbol? {
+        switch self {
+        case .elf32(let image):
+            return image.lookupSymbol(address: UInt32(truncatingIfNeeded: address))
+        case .elf64(let image):
+            return image.lookupSymbol(address: address)
+        }
+    }
+
+    func sourceLocation(for address: UInt64) throws -> SourceLocation? {
+        switch self {
+        case .elf32(let image):
+            return try image.sourceLocation(for: UInt32(truncatingIfNeeded: address))
+        case .elf64(let image):
+            return try image.sourceLocation(for: address)
+        }
+    }
+}
+
 public class NativeSymboliser: Symbolizer {
     private let dynamicLibraryMappings: [DynamicLibMapping]
-    private var elfSourceCache: [String: any ElfImageProtocol] = [:]
+    private var elfSourceCache: [String: AnyElfImage] = [:]
 
     public init(dynamicLibraryMappings: [DynamicLibMapping]) {
         self.dynamicLibraryMappings = dynamicLibraryMappings
@@ -67,13 +91,13 @@ public class NativeSymboliser: Symbolizer {
             return failed
         }
 
-        var elfImage: (any ElfImageProtocol)? = self.elfSourceCache[matched.path]
+        var elfImage: AnyElfImage? = self.elfSourceCache[matched.path]
         if elfImage == nil {
-            if let source = try? FileImageSource(path: matched.path) {
+            if let source = try? ImageSource(path: matched.path) {
                 if let image = try? Elf32Image(source: source) {
-                    elfImage = image
+                    elfImage = .elf32(image)
                 } else if let image = try? Elf64Image(source: source) {
-                    elfImage = image
+                    elfImage = .elf64(image)
                 } else {
                     elfImage = nil
                 }

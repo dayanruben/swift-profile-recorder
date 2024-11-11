@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Profile Recorder open source project
 //
-// Copyright (c) 2021-2024 Apple Inc. and the Swift Profile Recorder project authors
+// Copyright (c) 2024 Apple Inc. and the Swift Profile Recorder project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -37,6 +37,11 @@
 
 #include <inttypes.h>
 
+#ifdef __cplusplus
+namespace swift {
+namespace runtime {
+#endif
+
 #pragma pack(push, 1)
 
 /* .. Useful macros ......................................................... */
@@ -45,18 +50,18 @@
 #define DWARF_ENUM(t,n) \
   enum DWARF_EXTENSIBLE_ENUM n: t
 #define DWARF_BYTECODE \
-  DWARF_EXTENSIBLE_ENUM : Dwarf_Byte
+  DWARF_EXTENSIBLE_ENUM : SWIPR_Dwarf_Byte
 
 /* .. Data Representation ................................................... */
 
 // Common sizes (these don't change between 32-bit and 64-bit)
-typedef uint8_t  Dwarf_Byte;
-typedef uint16_t Dwarf_Half;
-typedef uint32_t Dwarf_Word;
-typedef uint64_t Dwarf_Xword;
-typedef int8_t   Dwarf_Sbyte;
-typedef int32_t  Dwarf_Sword;
-typedef int64_t  Dwarf_Sxword;
+typedef uint8_t  SWIPR_Dwarf_Byte;
+typedef uint16_t SWIPR_Dwarf_Half;
+typedef uint32_t SWIPR_Dwarf_Word;
+typedef uint64_t SWIPR_Dwarf_Xword;
+typedef int8_t   SWIPR_Dwarf_Sbyte;
+typedef int32_t  SWIPR_Dwarf_Sword;
+typedef int64_t  SWIPR_Dwarf_Sxword;
 
 // 32-bit sizes
 typedef uint32_t Dwarf32_Offset;
@@ -74,7 +79,7 @@ typedef struct {
 /* .. Unit Types ............................................................ */
 
 // Table 7.2
-typedef DWARF_ENUM(Dwarf_Byte, Dwarf_UnitType) {
+typedef DWARF_ENUM(SWIPR_Dwarf_Byte, SWIPR_Dwarf_UnitType) {
   DW_UT_unknown       = 0x00,
   DW_UT_compile       = 0x01,
   DW_UT_type          = 0x02,
@@ -84,12 +89,12 @@ typedef DWARF_ENUM(Dwarf_Byte, Dwarf_UnitType) {
   DW_UT_split_type    = 0x06,
   DW_UT_lo_user       = 0x80,
   DW_UT_hi_user       = 0xff
-} Dwarf_UnitType;
+} SWIPR_Dwarf_UnitType;
 
 /* .. Tags .................................................................. */
 
 // Table 7.3
-typedef DWARF_ENUM(Dwarf_Xword, Dwarf_Tag) {
+typedef DWARF_ENUM(SWIPR_Dwarf_Xword, SWIPR_Dwarf_Tag) {
   DW_TAG_array_type               = 0x01,
   DW_TAG_class_type               = 0x02,
   DW_TAG_entry_point              = 0x03,
@@ -167,19 +172,19 @@ typedef DWARF_ENUM(Dwarf_Xword, Dwarf_Tag) {
   DW_TAG_immutable_type           = 0x4b,
   DW_TAG_lo_user                  = 0x4080,
   DW_TAG_hi_user                  = 0xffff,
-} Dwarf_Tag;
+} SWIPR_Dwarf_Tag;
 
 /* .. Child Determination Encodings ......................................... */
 
-typedef DWARF_ENUM(Dwarf_Byte, Dwarf_ChildDetermination) {
+typedef DWARF_ENUM(SWIPR_Dwarf_Byte, SWIPR_Dwarf_ChildDetermination) {
   DW_CHILDREN_no = 0x00,
   DW_CHILDREN_yes = 0x01,
-} Dwarf_ChildDetermination;
+} SWIPR_Dwarf_ChildDetermination;
 
 /* .. Attribute Encodings ................................................... */
 
 // Table 7.5
-typedef enum DWARF_EXTENSIBLE_ENUM Dwarf_Attribute {
+typedef enum DWARF_EXTENSIBLE_ENUM SWIPR_Dwarf_Attribute {
   DW_AT_sibling                 = 0x01, // reference
   DW_AT_location                = 0x02, // exprloc, loclist
   DW_AT_name                    = 0x03, // string
@@ -322,12 +327,12 @@ typedef enum DWARF_EXTENSIBLE_ENUM Dwarf_Attribute {
   DW_AT_loclists_base           = 0x8c, // loclistsptr
   DW_AT_lo_user                 = 0x2000, // —
   DW_AT_hi_user                 = 0x3fff, // —
-} Dwarf_Attribute;
+} SWIPR_Dwarf_Attribute;
 
 /* .. Form Encodings ........................................................ */
 
 // Table 7.6
-typedef DWARF_ENUM(Dwarf_Byte, Dwarf_Form) {
+typedef DWARF_ENUM(SWIPR_Dwarf_Byte, SWIPR_Dwarf_Form) {
   DW_FORM_addr           = 0x01,
   // Reserved            = 0x02,
   DW_FORM_block2         = 0x03,
@@ -372,7 +377,7 @@ typedef DWARF_ENUM(Dwarf_Byte, Dwarf_Form) {
   DW_FORM_addrx2         = 0x2a,
   DW_FORM_addrx3         = 0x2b,
   DW_FORM_addrx4         = 0x2c,
-} Dwarf_Form;
+} SWIPR_Dwarf_Form;
 
 /* .. DWARF Expressions ..................................................... */
 
@@ -559,7 +564,7 @@ enum DWARF_BYTECODE {
 /* .. Line Number Information ............................................... */
 
 // Table 7.25
-typedef DWARF_ENUM(Dwarf_Byte, Dwarf_LNS_Opcode) {
+typedef DWARF_ENUM(SWIPR_Dwarf_Byte, SWIPR_Dwarf_LNS_Opcode) {
   DW_LNS_extended           = 0x00,
   DW_LNS_copy               = 0x01,
   DW_LNS_advance_pc         = 0x02,
@@ -573,20 +578,20 @@ typedef DWARF_ENUM(Dwarf_Byte, Dwarf_LNS_Opcode) {
   DW_LNS_set_prologue_end   = 0x0a,
   DW_LNS_set_epilogue_begin = 0x0b,
   DW_LNS_set_isa            = 0x0c,
-} Dwarf_LNS_Opcode;
+} SWIPR_Dwarf_LNS_Opcode;
 
 // Table 7.26
-typedef DWARF_ENUM(Dwarf_Byte, Dwarf_LNE_Opcode) {
+typedef DWARF_ENUM(SWIPR_Dwarf_Byte, SWIPR_Dwarf_LNE_Opcode) {
   DW_LNE_end_sequence      = 0x01,
   DW_LNE_set_address       = 0x02,
   DW_LNE_define_file       = 0x03,
   DW_LNE_set_discriminator = 0x04,
   DW_LNE_lo_user           = 0x80,
   DW_LNE_hi_user           = 0xff,
-} Dwarf_LNE_Opcode;
+} SWIPR_Dwarf_LNE_Opcode;
 
 // Table 7.27
-typedef DWARF_ENUM(Dwarf_Half, Dwarf_Lhdr_Format) {
+typedef DWARF_ENUM(SWIPR_Dwarf_Half, SWIPR_Dwarf_Lhdr_Format) {
   DW_LNCT_path            = 0x0001,
   DW_LNCT_directory_index = 0x0002,
   DW_LNCT_timestamp       = 0x0003,
@@ -594,56 +599,56 @@ typedef DWARF_ENUM(Dwarf_Half, Dwarf_Lhdr_Format) {
   DW_LNCT_MD5             = 0x0005,
   DW_LNCT_lo_user         = 0x2000,
   DW_LNCT_hi_user         = 0x3fff,
-} Dwarf_Lhdr_Format;
+} SWIPR_Dwarf_Lhdr_Format;
 
 // 6.2.4 The Line Number Program Header
 typedef struct {
   Dwarf32_Length length;
-  Dwarf_Half version;
-  Dwarf_Byte address_size;
-  Dwarf_Byte segment_selector_size;
+  SWIPR_Dwarf_Half version;
+  SWIPR_Dwarf_Byte address_size;
+  SWIPR_Dwarf_Byte segment_selector_size;
   Dwarf32_Size header_length;
-  Dwarf_Byte minimum_instruction_length;
-  Dwarf_Byte maximum_operations_per_instruction;
-  Dwarf_Byte default_is_stmt;
-  Dwarf_Sbyte line_base;
-  Dwarf_Byte line_range;
-  Dwarf_Byte opcode_base;
+  SWIPR_Dwarf_Byte minimum_instruction_length;
+  SWIPR_Dwarf_Byte maximum_operations_per_instruction;
+  SWIPR_Dwarf_Byte default_is_stmt;
+  SWIPR_Dwarf_Sbyte line_base;
+  SWIPR_Dwarf_Byte line_range;
+  SWIPR_Dwarf_Byte opcode_base;
 
   // Variable length fields:
-  // Dwarf_Byte standard_opcode_lengths[];
-  // Dwarf_Byte directory_entry_format_count;
-  // Dwarf_ULEB128 directory_entry_format[];
-  // Dwarf_ULEB128 directories_count;
+  // SWIPR_Dwarf_Byte standard_opcode_lengths[];
+  // SWIPR_Dwarf_Byte directory_entry_format_count;
+  // SWIPR_Dwarf_ULEB128 directory_entry_format[];
+  // SWIPR_Dwarf_ULEB128 directories_count;
   // encoded directories[];
-  // Dwarf_Byte file_name_entry_format_count;
-  // Dwarf_ULEB128 file_name_entry_format;
-  // Dwarf_ULEB128 file_names_count;
+  // SWIPR_Dwarf_Byte file_name_entry_format_count;
+  // SWIPR_Dwarf_ULEB128 file_name_entry_format;
+  // SWIPR_Dwarf_ULEB128 file_names_count;
   // encoded file_names[];
 } DWARF32_Lhdr;
 
 typedef struct {
   Dwarf64_Length length;
-  Dwarf_Half version;
-  Dwarf_Byte address_size;
-  Dwarf_Byte segment_selector_size;
+  SWIPR_Dwarf_Half version;
+  SWIPR_Dwarf_Byte address_size;
+  SWIPR_Dwarf_Byte segment_selector_size;
   Dwarf64_Size header_length;
-  Dwarf_Byte minimum_instruction_length;
-  Dwarf_Byte maximum_operations_per_instruction;
-  Dwarf_Byte default_is_stmt;
-  Dwarf_Sbyte line_base;
-  Dwarf_Byte line_range;
-  Dwarf_Byte opcode_base;
+  SWIPR_Dwarf_Byte minimum_instruction_length;
+  SWIPR_Dwarf_Byte maximum_operations_per_instruction;
+  SWIPR_Dwarf_Byte default_is_stmt;
+  SWIPR_Dwarf_Sbyte line_base;
+  SWIPR_Dwarf_Byte line_range;
+  SWIPR_Dwarf_Byte opcode_base;
 
   // Variable length fields:
-  // Dwarf_Byte standard_opcode_lengths[];
-  // Dwarf_Byte directory_entry_format_count;
-  // Dwarf_ULEB128 directory_entry_format[];
-  // Dwarf_ULEB128 directories_count;
+  // SWIPR_Dwarf_Byte standard_opcode_lengths[];
+  // SWIPR_Dwarf_Byte directory_entry_format_count;
+  // SWIPR_Dwarf_ULEB128 directory_entry_format[];
+  // SWIPR_Dwarf_ULEB128 directories_count;
   // encoded directories[];
-  // Dwarf_Byte file_name_entry_format_count;
-  // Dwarf_ULEB128 file_name_entry_format;
-  // Dwarf_ULEB128 file_names_count;
+  // SWIPR_Dwarf_Byte file_name_entry_format_count;
+  // SWIPR_Dwarf_ULEB128 file_name_entry_format;
+  // SWIPR_Dwarf_ULEB128 file_names_count;
   // encoded file_names[];
 } DWARF64_Lhdr;
 
@@ -684,7 +689,7 @@ enum DWARF_BYTECODE {
 /* .. Range list encodings .................................................. */
 
 // Table 7.30
-typedef DWARF_ENUM(Dwarf_Byte, Dwarf_RLE_Entry) {
+typedef DWARF_ENUM(SWIPR_Dwarf_Byte, SWIPR_Dwarf_RLE_Entry) {
   DW_RLE_end_of_list   = 0x00,
   DW_RLE_base_addressx = 0x01,
   DW_RLE_startx_endx   = 0x02,
@@ -693,7 +698,7 @@ typedef DWARF_ENUM(Dwarf_Byte, Dwarf_RLE_Entry) {
   DW_RLE_base_address  = 0x05,
   DW_RLE_start_end     = 0x06,
   DW_RLE_start_length  = 0x07
-} Dwarf_RLE_Entry;
+} SWIPR_Dwarf_RLE_Entry;
 
 /* .. Common Information Entry .............................................. */
 
@@ -701,35 +706,35 @@ typedef DWARF_ENUM(Dwarf_Byte, Dwarf_RLE_Entry) {
 typedef struct {
   Dwarf32_Length length;
   Dwarf32_Offset CIE_id;
-  Dwarf_Byte     version;
+  SWIPR_Dwarf_Byte     version;
 
   // Followed by variable length fields as follows:
   //
-  // Dwarf_Byte augmentation[]; // NUL terminated string
-  // Dwarf_Byte address_size;
-  // Dwarf_Byte segment_selector_size;
-  // Dwarf_ULEB128 code_alignment_factor;
-  // Dwarf_SLEB128 data_alignment_factor;
-  // Dwarf_ULEB128 return_address_register;
-  // Dwarf_Byte initial_instructions[];
-  // Dwarf_Byte padding[]
+  // SWIPR_Dwarf_Byte augmentation[]; // NUL terminated string
+  // SWIPR_Dwarf_Byte address_size;
+  // SWIPR_Dwarf_Byte segment_selector_size;
+  // SWIPR_Dwarf_ULEB128 code_alignment_factor;
+  // SWIPR_Dwarf_SLEB128 data_alignment_factor;
+  // SWIPR_Dwarf_ULEB128 return_address_register;
+  // SWIPR_Dwarf_Byte initial_instructions[];
+  // SWIPR_Dwarf_Byte padding[]
 } Dwarf32_CIEHdr;
 
 typedef struct {
   Dwarf64_Length length;
   Dwarf64_Offset CIE_id;
-  Dwarf_Byte     version;
+  SWIPR_Dwarf_Byte     version;
 
   // Followed by variable length fields as follows:
   //
-  // Dwarf_Byte augmentation[]; // NUL terminated string
-  // Dwarf_Byte address_size;
-  // Dwarf_Byte segment_selector_size;
-  // Dwarf_ULEB128 code_alignment_factor;
-  // Dwarf_SLEB128 data_alignment_factor;
-  // Dwarf_ULEB128 return_address_register;
-  // Dwarf_Byte initial_instructions[];
-  // Dwarf_Byte padding[]
+  // SWIPR_Dwarf_Byte augmentation[]; // NUL terminated string
+  // SWIPR_Dwarf_Byte address_size;
+  // SWIPR_Dwarf_Byte segment_selector_size;
+  // SWIPR_Dwarf_ULEB128 code_alignment_factor;
+  // SWIPR_Dwarf_SLEB128 data_alignment_factor;
+  // SWIPR_Dwarf_ULEB128 return_address_register;
+  // SWIPR_Dwarf_Byte initial_instructions[];
+  // SWIPR_Dwarf_Byte padding[]
 } Dwarf64_CIEHdr;
 
 /* .. Frame Descriptor Entry ................................................ */
@@ -741,12 +746,17 @@ typedef struct {
 
   // Followed by variable fields as follows:
   //
-  // Dwarf_FarAddr initial_location; // May include segment selector and address
-  // Dwarf_Addr    address_range;    // Number of bytes of instructions
-  // Dwarf_Byte    instructions[];
-  // Dwarf_Byte    padding[];
+  // SWIPR_Dwarf_FarAddr initial_location; // May include segment selector and address
+  // SWIPR_Dwarf_Addr    address_range;    // Number of bytes of instructions
+  // SWIPR_Dwarf_Byte    instructions[];
+  // SWIPR_Dwarf_Byte    padding[];
 } Dwarf32_FDEHdr;
 
 #pragma pack(pop)
+
+#ifdef __cplusplus
+} // namespace runtime
+} // namespace swift
+#endif
 
 #endif // SWIFT_DWARF_H

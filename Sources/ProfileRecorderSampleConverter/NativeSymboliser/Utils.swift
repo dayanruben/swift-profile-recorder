@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Profile Recorder open source project
 //
-// Copyright (c) 2021-2024 Apple Inc. and the Swift Profile Recorder project authors
+// Copyright (c) 2024 Apple Inc. and the Swift Profile Recorder project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -29,7 +29,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Foundation
+
+
+#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+import Darwin
+#elseif os(Windows)
+import ucrt
+#elseif canImport(Glibc)
+import Glibc
+#elseif canImport(Musl)
+import Musl
+#endif
 
 internal func hex<T: FixedWidthInteger>(_ value: T,
                                         prefix shouldPrefix: Bool = true,
@@ -66,7 +76,7 @@ func pad<T>(_ value: T, _ width: Int, align: PadAlignment = .left) -> String {
 
 @_spi(Utils)
 public func readString(from file: String) -> String? {
-  let fd = open(file, O_RDONLY)
+  let fd = open(file, O_RDONLY, 0)
   if fd < 0 {
     return nil
   }
@@ -99,4 +109,33 @@ public func stripWhitespace<S: StringProtocol>(_ s: S)
   }
   let lastNonWhitespace = s.lastIndex(where: { !$0.isWhitespace })!
   return s[firstNonWhitespace...lastNonWhitespace]
+}
+
+/// Strip any Optional from a value.
+///
+/// This is useful when interfacing with the system C library, because some
+/// C libraries have nullability annotations while others do not.
+func notOptional<T>(_ optional: T?) -> T {
+  return optional!
+}
+
+func notOptional<T>(_ value: T) -> T {
+  return value
+}
+
+/// Convert mutable pointers to non-mutable
+///
+/// This is useful when interfacing with the system C library, because some
+/// C libraries have const annotations in places others do not.
+func notMutable<T>(_ mutable: UnsafeMutablePointer<T>) -> UnsafePointer<T> {
+  return UnsafePointer<T>(mutable)
+}
+func notMutable<T>(_ immutable: UnsafePointer<T>) -> UnsafePointer<T> {
+  return immutable
+}
+func notMutable(_ mutable: UnsafeMutableRawPointer) -> UnsafeRawPointer {
+  return UnsafeRawPointer(mutable)
+}
+func notMutable(_ immutable: UnsafeRawPointer) -> UnsafeRawPointer {
+  return immutable
 }
