@@ -16,17 +16,22 @@ import ArgumentParser
 import ProfileRecorder
 import Dispatch
 import Foundation
+import ProfileRecorderServer
+import Logging
 
 @main
 struct ProfileRecorderMiniDemo: ParsableCommand {
-    @Option(help: "Should we run a blocking function?")
+    @Flag(inversion: .prefixedNo, help: "Should we run a blocking function?")
     var blocking: Bool = false
 
-    @Option(help: "Should we burn a bit of CPU?")
+    @Flag(inversion: .prefixedNo, help: "Should we burn a bit of CPU?")
     var burnCPU: Bool = true
 
-    @Option(help: "Should we burn do a bunch of Array.appends?")
+    @Flag(inversion: .prefixedNo, help: "Should we burn do a bunch of Array.appends?")
     var arrayAppends: Bool = false
+
+    @Flag(inversion: .prefixedNo, help: "Start sampling server?")
+    var samplingServer: Bool = false
 
     @Option(help: "How many samples?")
     var sampleCount: Int = 100
@@ -41,6 +46,22 @@ struct ProfileRecorderMiniDemo: ParsableCommand {
     var iterations: Int = 10
 
     func run() throws {
+        let logger = Logger(label: "swipr-mini-demo")
+        var samplingServerTask: Task<Void, any Error>? = nil
+        if self.samplingServer {
+            samplingServerTask = Task {
+                do {
+                    try await ProfileRecorderServer(
+                        configuration: try await .parseFromEnvironment()
+                    ).run(logger: logger)
+                } catch {
+                    logger.error("failed to start sampling server", metadata: ["error": "\(error)"])
+                }
+            }
+        }
+        defer {
+            samplingServerTask?.cancel()
+        }
         ProfileRecorderSampler.sharedInstance.requestSamples(
             outputFilePath: self.output,
             failIfFileExists: false,
@@ -73,10 +94,14 @@ struct ProfileRecorderMiniDemo: ParsableCommand {
                 doBurnCPU()
             }
             if self.blocking {
-                Thread.sleep(forTimeInterval: 0.2)
+                func hideBlocking() {
+                    Thread.sleep(forTimeInterval: 0.2)
+                }
+                hideBlocking()
             }
         }
         print("DONE")
+        fflush(stdout)
     }
 }
 

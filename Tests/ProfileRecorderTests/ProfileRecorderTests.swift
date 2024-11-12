@@ -16,11 +16,14 @@ import Atomics
 import XCTest
 import NIO
 import NIOConcurrencyHelpers
+import Logging
+import _NIOFileSystem
 @testable import ProfileRecorder
 
 final class ProfileRecorderTests: XCTestCase {
     var tempDirectory: String! = nil
     var group: EventLoopGroup! = nil
+    var logger: Logger! = nil
 
     func testBasicJustRequestOneSample() throws {
         XCTAssertNoThrow(try
@@ -68,6 +71,55 @@ final class ProfileRecorderTests: XCTestCase {
         XCTAssertNoThrow(try samples.wait())
     }
 
+    func testSymbolicatedSamplesWork() async throws {
+        guard ProfileRecorderSampler.isSupportedPlatform else {
+            return
+        }
+
+        let reachedQuuuxSem = DispatchSemaphore(value: 0)
+        let unblockSem = DispatchSemaphore(value: 0)
+        self.logger.info("spawning thread")
+        Thread {
+            RECGONISABLE_FUNCTION_FOO(reachedQuuuxSem: reachedQuuuxSem, unblockSem: unblockSem)
+        }.start()
+        self.logger.info("waiting for conds")
+        await withCheckedContinuation { cont in
+            DispatchQueue.global().async {
+                reachedQuuuxSem.wait()
+                cont.resume()
+            }
+        }
+        self.logger.info("done")
+
+        // okay, we should have a thread blocked in RECGONISABLE_FUNCTION_QUUUX() now
+
+        let sampleBytes = try await ProfileRecorderSampler.sharedInstance.withSymbolizedSamplesInPerfScriptFormat(
+            sampleCount: 1,
+            timeBetweenSamples: .nanoseconds(0),
+            logger: self.logger
+        ) { file in
+            try await ByteBuffer(contentsOf: FilePath(file), maximumSizeAllowed: .unlimited)
+        }
+        let samples = String(buffer: sampleBytes).split(separator: "\n")
+        for index in samples.indices {
+            let currentLine = samples[index]
+            guard currentLine.contains("RECGONISABLE_FUNCTION_QUUUX") else {
+                continue
+            }
+            let interestingLines = Array(samples.dropFirst(index).prefix(6))
+            guard interestingLines.count == 6 else {
+                XCTFail("Expected 6 lines, got \(interestingLines.count) in \(interestingLines)")
+                return
+            }
+            XCTAssert(interestingLines[0].contains("RECGONISABLE_FUNCTION_QUUUX"), "\(interestingLines[0])")
+            XCTAssert(interestingLines[1].contains("RECGONISABLE_FUNCTION_QUUX"), "\(interestingLines[1])")
+            XCTAssert(interestingLines[2].contains("RECGONISABLE_FUNCTION_QUX"), "\(interestingLines[2])")
+            XCTAssert(interestingLines[3].contains("RECGONISABLE_FUNCTION_BUZ"), "\(interestingLines[3])")
+            XCTAssert(interestingLines[4].contains("RECGONISABLE_FUNCTION_BAR"), "\(interestingLines[4])")
+            XCTAssert(interestingLines[5].contains("RECGONISABLE_FUNCTION_FOO"), "\(interestingLines[5])")
+        }
+    }
+
     // MARK: - Setup/teardown
     override func setUp() {
         self.group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
@@ -75,13 +127,40 @@ final class ProfileRecorderTests: XCTestCase {
         self.tempDirectory = NSTemporaryDirectory() + "/ProfileRecorderTests-\(UUID())"
         XCTAssertNoThrow(try FileManager.default.createDirectory(atPath: self.tempDirectory,
                                                                  withIntermediateDirectories: false))
+        self.logger = Logger(label: "ProfileRecorderTests")
     }
 
     override func tearDown() {
+        self.logger = nil
         XCTAssertNoThrow(try self.group.syncShutdownGracefully())
         self.group = nil
 
         XCTAssertNoThrow(try FileManager.default.removeItem(atPath: self.tempDirectory))
         self.tempDirectory = nil
     }
+}
+
+func RECGONISABLE_FUNCTION_FOO(reachedQuuuxSem: DispatchSemaphore, unblockSem: DispatchSemaphore) {
+    RECGONISABLE_FUNCTION_BAR(reachedQuuuxSem: reachedQuuuxSem, unblockSem: unblockSem)
+}
+
+func RECGONISABLE_FUNCTION_BAR(reachedQuuuxSem: DispatchSemaphore, unblockSem: DispatchSemaphore) {
+    RECGONISABLE_FUNCTION_BUZ(reachedQuuuxSem: reachedQuuuxSem, unblockSem: unblockSem)
+}
+
+func RECGONISABLE_FUNCTION_BUZ(reachedQuuuxSem: DispatchSemaphore, unblockSem: DispatchSemaphore) {
+    RECGONISABLE_FUNCTION_QUX(reachedQuuuxSem: reachedQuuuxSem, unblockSem: unblockSem)
+}
+
+func RECGONISABLE_FUNCTION_QUX(reachedQuuuxSem: DispatchSemaphore, unblockSem: DispatchSemaphore) {
+    RECGONISABLE_FUNCTION_QUUX(reachedQuuuxSem: reachedQuuuxSem, unblockSem: unblockSem)
+}
+
+func RECGONISABLE_FUNCTION_QUUX(reachedQuuuxSem: DispatchSemaphore, unblockSem: DispatchSemaphore) {
+    RECGONISABLE_FUNCTION_QUUUX(reachedQuuuxSem: reachedQuuuxSem, unblockSem: unblockSem)
+}
+
+func RECGONISABLE_FUNCTION_QUUUX(reachedQuuuxSem: DispatchSemaphore, unblockSem: DispatchSemaphore) {
+    reachedQuuuxSem.signal()
+    unblockSem.wait()
 }

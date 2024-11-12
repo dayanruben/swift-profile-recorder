@@ -31,4 +31,13 @@ int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
     *all_libs_count = 0;
     return 0;
 }
+
+int swipr_os_dep_set_current_thread_name(const char *name) {
+    return -1;
+}
+
+int swipr_os_dep_get_current_thread_name(char *name, size_t len) {
+    return -1;
+}
+
 #endif

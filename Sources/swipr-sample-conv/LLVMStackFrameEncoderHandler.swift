@@ -14,6 +14,7 @@
 
 import NIO
 import Foundation
+import ProfileRecorderSampleConversion
 
 final internal class LLVMStackFrameEncoderHandler: ChannelOutboundHandler {
     typealias OutboundIn = StackFrame

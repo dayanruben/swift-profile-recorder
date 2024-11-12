@@ -15,12 +15,12 @@
 import Foundation
 
 public struct Version: Decodable {
-    var version: Int
+    public var version: Int
 }
 
 public struct Message: Decodable {
-    var message: String
-    var exit: CInt?
+    public var message: String
+    public var exit: CInt?
 }
 
 public struct DynamicLibMapping: Decodable & Sendable & CustomStringConvertible {
@@ -85,7 +85,7 @@ public struct StackFrame: Codable & Sendable & CustomStringConvertible & Hashabl
     public var instructionPointer: UInt
     public var stackPointer: UInt
 
-    internal init(instructionPointer: UInt, stackPointer: UInt) {
+    public init(instructionPointer: UInt, stackPointer: UInt) {
         self.instructionPointer = instructionPointer
         self.stackPointer = stackPointer
     }

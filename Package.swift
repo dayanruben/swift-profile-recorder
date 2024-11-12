@@ -5,12 +5,13 @@ import PackageDescription
 
 let package = Package(
     name: "swift-profile-recorder",
-    platforms: [.macOS(.v10_13)],
+    platforms: [
+        .macOS(.v13), .iOS(.v16), .tvOS(.v16), .watchOS(.v9)
+    ],
     products: [
         .library(name: "ProfileRecorder", targets: ["ProfileRecorder"]),
-        .executable(
-            name: "swipr-sample-conv",
-            targets: ["ProfileRecorderSampleConverter"]),
+        .library(name: "ProfileRecorderServer", targets: ["ProfileRecorderServer"]),
+        .executable(name: "swipr-sample-conv", targets: ["swipr-sample-conv"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.0.0"),
@@ -33,18 +34,26 @@ let package = Package(
             name: "swipr-mini-demo",
             dependencies: [
                 "ProfileRecorder",
+                "ProfileRecorderServer",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "NIO", package: "swift-nio"),
+                .product(name: "Logging", package: "swift-log"),
             ]),
-        .executableTarget(
-            name: "ProfileRecorderSampleConverter",
+        .target(
+            name: "ProfileRecorderSampleConversion",
             dependencies: [
                 "CProfileRecorderSwiftELF",
-                .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOFoundationCompat", package: "swift-nio"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "NIOExtras", package: "swift-nio-extras"),
+            ]),
+        .executableTarget(
+            name: "swipr-sample-conv",
+            dependencies: [
+                "CProfileRecorderSwiftELF",
+                "ProfileRecorderSampleConversion",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 
             ]),
 
@@ -59,9 +68,23 @@ let package = Package(
                     // Let's be a little conservative and allow-list macOS & Linux.
                     condition: .when(platforms: [.macOS, .linux])
                 ),
+                "ProfileRecorderSampleConversion",
                 .product(name: "NIO", package: "swift-nio"),
+                .product(name: "_NIOFileSystem", package: "swift-nio"),
             ]
         ),
+        .target(
+            name: "ProfileRecorderServer",
+            dependencies: [
+                .product(name: "NIO", package: "swift-nio"),
+                .product(name: "NIOFoundationCompat", package: "swift-nio"),
+                .product(name: "NIOHTTP1", package: "swift-nio"),
+                .product(name: "_NIOFileSystem", package: "swift-nio"),
+                .product(name: "Logging", package: "swift-log"),
+                "ProfileRecorder",
+            ]
+        ),
+
         .target(
             name: "CProfileRecorderLibUnwind",
             dependencies: [],
@@ -90,6 +113,8 @@ let package = Package(
                         "ProfileRecorder",
                         .product(name: "Atomics", package: "swift-atomics"),
                         .product(name: "NIO", package: "swift-nio"),
+                        .product(name: "Logging", package: "swift-log"),
+                        .product(name: "_NIOFileSystem", package: "swift-nio"),
                     ]),
     ],
     cxxLanguageStandard: .cxx14

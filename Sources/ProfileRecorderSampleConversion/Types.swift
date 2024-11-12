@@ -11,27 +11,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
-struct Sample {
-    var sampleHeader: SampleHeader
-    var stack: [StackFrame]
+public struct Sample {
+    public var sampleHeader: SampleHeader
+    public var stack: [StackFrame]
 
-    var pid: Int {
+    public var pid: Int {
         return self.sampleHeader.pid
     }
 
-    var tid: Int {
+    public var tid: Int {
         return self.sampleHeader.tid
     }
 
-    var timeSec: Int {
+    public var timeSec: Int {
         return self.sampleHeader.timeSec
     }
 
-    var timeNSec: Int {
+    public var timeNSec: Int {
         return self.sampleHeader.timeNSec
     }
 
-    var threadName: String {
+    public var threadName: String {
         return self.sampleHeader.name
+    }
+
+    public init(sampleHeader: SampleHeader, stack: [StackFrame]) {
+        self.sampleHeader = sampleHeader
+        self.stack = stack
     }
 }

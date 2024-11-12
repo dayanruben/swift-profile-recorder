@@ -13,7 +13,10 @@
 //===----------------------------------------------------------------------===//
 
 import NIO
+import _NIOFileSystem
 import Dispatch
+import ProfileRecorderSampleConversion
+import Logging
 #if canImport(CProfileRecorderSampler) // only on macOS & Linux
 @_implementationOnly import CProfileRecorderSampler
 #endif
@@ -29,6 +32,10 @@ struct CouldNotOpenFileError: Error {
     var path: String
 }
 
+struct ProfileRecorderSamplerError: Error {
+    var code: CInt
+}
+
 public final class ProfileRecorderSampler: Sendable {
     private let threadPool: NIOThreadPool
 
@@ -36,6 +43,14 @@ public final class ProfileRecorderSampler: Sendable {
 
     public static var sharedInstance: ProfileRecorderSampler {
         return globalProfileRecorder
+    }
+
+    public static var isSupportedPlatform: Bool {
+        #if os(Linux) // Only Linux supported at the moment
+        return true
+        #else
+        return false
+        #endif
     }
 
     fileprivate init() {
@@ -49,11 +64,56 @@ public final class ProfileRecorderSampler: Sendable {
                                 eventLoop: EventLoop) -> EventLoopFuture<Void> {
 #if canImport(CProfileRecorderSampler) // only on macOS & Linux
         return self.threadPool.runIfActive(eventLoop: eventLoop) {
-            swipr_request_sample(output.handle, .init(count), .init(timeBetweenSamples.nanoseconds / 1000))
+            let ret = swipr_request_sample(output.handle, .init(count), .init(timeBetweenSamples.nanoseconds / 1000))
+            fflush(output.handle)
+            guard ret == 0 else {
+                throw ProfileRecorderSamplerError(code: ret)
+            }
         }
 #else
         return eventLoop.makeFailedFuture(UnsupportedOperation())
 #endif
+    }
+
+    public func withSymbolizedSamplesInPerfScriptFormat<R: Sendable>(
+        sampleCount: Int,
+        timeBetweenSamples: TimeAmount,
+        logger: Logger,
+        _ body: (String) async throws -> R
+    ) async throws -> R {
+        try await FileSystem.shared.withTemporaryDirectory {
+            tmpDirHandle,
+            tmpDirPath in
+            let rawSamplesPath = tmpDirPath.appending("samples.raw")
+            let symbolisedSamplesPath = tmpDirPath.appending("samples.perf")
+
+            var logger = logger
+            logger[metadataKey: "sample-count"] = "\(sampleCount)"
+            logger[metadataKey: "time-between-samples"] = "\(timeBetweenSamples.prettyPrint)"
+            logger[metadataKey: "raw-samples-path"] = "\(rawSamplesPath)"
+            logger[metadataKey: "symbolicated-samples-path"] = "\(symbolisedSamplesPath)"
+
+            logger.info("requesting raw samples")
+            try await self.requestSamples(
+                outputFilePath: rawSamplesPath.string,
+                failIfFileExists: true,
+                count: sampleCount,
+                timeBetweenSamples: timeBetweenSamples,
+                eventLoop: MultiThreadedEventLoopGroup.singleton.any()
+            ).get()
+            logger.info("raw samples complete")
+            let converter = ProfileRecorderToPerfScriptConverter(
+                config: .default,
+                makeSymbolizer: { NativeSymboliser(dynamicLibraryMappings: $0) }
+            )
+            try await converter.convert(
+                inputRawProfileRecorderFormat: rawSamplesPath.string,
+                outputPerfScriptFormat: symbolisedSamplesPath.string,
+                logger: logger
+            )
+            logger.info("samples symbolicated")
+            return try await body(symbolisedSamplesPath.string)
+        }
     }
 
     public func requestSamples(outputFilePath: String,
@@ -103,5 +163,59 @@ struct CFilePointer: @unchecked Sendable {
 
     init(_ handle: UnsafeMutablePointer<FILE>) {
         self.handle = handle
+    }
+}
+
+struct TimeAmountConversionError: Error {
+    var message: String
+}
+
+extension TimeAmount {
+    init(_ userProvidedString: String, defaultUnit: String) throws {
+        let string = String(userProvidedString.filter { !$0.isWhitespace }).lowercased()
+        let parsedNumbers = string.prefix(while: { $0.isWholeNumber || $0.isPunctuation })
+        let parsedUnit = string.dropFirst(parsedNumbers.count)
+
+        guard let numbers = Int64(parsedNumbers) else {
+            throw TimeAmountConversionError(message: "'\(userProvidedString)' cannot be parsed as number and unit")
+        }
+        let unit = parsedUnit.isEmpty ? defaultUnit : String(parsedUnit)
+
+        switch unit {
+        case "h", "hr":
+            self = .hours(numbers)
+        case "min":
+            self = .minutes(numbers)
+        case "s":
+            self = .seconds(numbers)
+        case "ms":
+            self = .milliseconds(numbers)
+        case "us":
+            self = .microseconds(numbers)
+        case "ns":
+            self = .nanoseconds(numbers)
+        default:
+            throw TimeAmountConversionError(message: "Unknown unit '\(unit)' in '\(userProvidedString)")
+        }
+    }
+
+    var prettyPrint: String {
+        let fullNS = self.nanoseconds
+        guard fullNS != 0 else {
+            return "0ns"
+        }
+        let (fullUS, remUS) = fullNS.quotientAndRemainder(dividingBy: 1_000)
+        let (fullMS, remMS) = fullNS.quotientAndRemainder(dividingBy: 1_000_000)
+        let (fullS, remS) = fullNS.quotientAndRemainder(dividingBy: 1_000_000_000)
+
+        if remS == 0 {
+            return "\(fullS)s"
+        } else if remMS == 0 {
+            return "\(fullMS)ms"
+        } else if remUS == 0 {
+            return "\(fullUS)us"
+        } else {
+            return "\(fullNS)ns"
+        }
     }
 }

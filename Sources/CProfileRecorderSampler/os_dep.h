@@ -48,4 +48,8 @@ int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
                                  size_t all_libs_capacity,
                                  size_t *all_libs_count);
 
+int swipr_os_dep_set_current_thread_name(const char *name);
+
+int swipr_os_dep_get_current_thread_name(char *name, size_t len);
+
 #endif /* swipr_os_dep_h */

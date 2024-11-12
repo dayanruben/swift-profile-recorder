@@ -136,4 +136,19 @@ int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
     return err;
 }
 
+int swipr_os_dep_set_current_thread_name(const char *name) {
+    return pthread_setname_np(pthread_self(), name);
+}
+
+int swipr_os_dep_get_current_thread_name(char *name, size_t len) {
+#ifdef __ANDROID__
+    if (len < 16) {
+        return -1;
+    }
+    return TEMP_FAILURE_RETRY(prctl(PR_GET_NAME, name)) == -1 ? -1 : 0;
+#else
+    return pthread_getname_np(pthread_self(), name, len);
+#endif
+}
+
 #endif

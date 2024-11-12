@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 import NIO
+import ProfileRecorderSampleConversion
 
 final internal class LLVMOutputParserHandler: ChannelInboundHandler {
     typealias InboundIn = ByteBuffer

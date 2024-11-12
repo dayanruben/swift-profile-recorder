@@ -209,7 +209,7 @@ swipr_make_sample(struct swipr_minidump *minidumps,
                                  i, (long)thread_id);
                     g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
                 } else {
-                    UNSAFE_DEBUG("OUTCH, timeout, thread still alive but no response %d/%d of %zu\n",
+                    UNSAFE_DEBUG("OUCH, timeout, thread still alive but no response %d/%d of %zu\n",
                                  i, thread_id, num_threads);
                     // FIXME: We can't just continue here...
                     g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
@@ -314,6 +314,9 @@ swipr_request_sample(FILE *output,
                      size_t sample_count,
                      useconds_t usecs_between_samples) {
     size_t num_minidumps = 0;
+    char old_thread_name[128] = {0};
+    swipr_os_dep_get_current_thread_name(old_thread_name, sizeof(old_thread_name));
+
     struct swipr_minidump *minidumps = calloc(SWIPR_MAX_MUTATOR_THREADS, sizeof(*minidumps));
     if (!minidumps) {
         fprintf(output,
@@ -335,6 +338,7 @@ swipr_request_sample(FILE *output,
         return err;
     }
 
+    swipr_os_dep_set_current_thread_name("ProfileRecorder-sampling");
     for (size_t sample_no=0; sample_no<sample_count; sample_no++) {
         err = swipr_make_sample(minidumps, SWIPR_MAX_MUTATOR_THREADS, &num_minidumps);
         if (err) {
@@ -378,6 +382,7 @@ swipr_request_sample(FILE *output,
         UNSAFE_DEBUG("done sample %lu\n", sample_no);
         usleep(usecs_between_samples);
     }
+    swipr_os_dep_set_current_thread_name(old_thread_name);
     return 0;
 }
 

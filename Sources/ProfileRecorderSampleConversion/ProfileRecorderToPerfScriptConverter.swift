@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Profile Recorder open source project
 //
-// Copyright (c) 2021-2024 Apple Inc. and the Swift Profile Recorder project authors
+// Copyright (c) 2024 Apple Inc. and the Swift Profile Recorder project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -12,72 +12,83 @@
 //
 //===----------------------------------------------------------------------===//
 
-import ArgumentParser
-
-import Foundation
 import NIO
 import Logging
+import Foundation
 
-@main
-struct ProfileRecorderSampleConverter: ParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "swipr-sample-conv",
-        version: EmbeddedAppVersion().description
-    )
+public struct ProfileRecorderToPerfScriptConverter: Sendable {
+    let symbolizerConfiguration: SymbolizerConfiguration
+    let threadPool: NIOThreadPool
+    let group: EventLoopGroup
+    let makeSymbolizer: @Sendable ([DynamicLibMapping]) throws -> any Symbolizer
 
-    @Option(help: "Use llvm-symbolizer's JSON format instead of the text format?")
-    var viaJSON: Bool = false
+    public struct Error: Swift.Error {
+        var message: String
+    }
 
-    @Option(help: "Use the native symboliser?")
-    var useNativeSymbolizer: Bool = false
+    public init(
+        config: SymbolizerConfiguration,
+        threadPool: NIOThreadPool = .singleton,
+        group: any EventLoopGroup = .singletonMultiThreadedEventLoopGroup,
+        makeSymbolizer: @Sendable @escaping ([DynamicLibMapping]) throws -> any Symbolizer
+    ) {
+        self.symbolizerConfiguration = config
+        self.makeSymbolizer = makeSymbolizer
+        self.threadPool = threadPool
+        self.group = group
+    }
 
-    @Option(help: "Enable the llvm-symbolizer getting stuck workaround?")
-    var unstuckerWorkaround: Bool = false
-
-    @Option(help: "Should we attempt to print file:line information?")
-    var enableFileLine: Bool = false
-
-    func run() {
-        var logger = Logger(label: "swipr-sample-conv")
-        logger.logLevel = .info
-        do {
-            try Self.go(
-                useNativeSymbolizer: self.useNativeSymbolizer,
-                llvmSymboliserConfig: LLVMSymboliserConfig(
-                    viaJSON: self.viaJSON,
-                    unstuckerWorkaround: self.unstuckerWorkaround
-                ),
-                printFileLine: self.enableFileLine,
-                logger: logger
-            )
-        } catch {
-            fputs("ERROR: \(error)\n", stderr)
-            Foundation.exit(EXIT_FAILURE)
+    public func convert(
+        inputRawProfileRecorderFormat fromPath: String,
+        outputPerfScriptFormat toPath: String,
+        logger: Logger
+    ) async throws {
+        return try await self.threadPool.runIfActive {
+            try self.convertSync(inputRawProfileRecorderFormat: fromPath, outputPerfScriptFormat: toPath, logger: logger)
         }
     }
 
-    static func go(
-        useNativeSymbolizer: Bool,
-        llvmSymboliserConfig: LLVMSymboliserConfig,
-        printFileLine: Bool,
+    @available(*, noasync, message: "blocks calling thread")
+    public func convertSync(
+        inputRawProfileRecorderFormat fromPath: String,
+        outputPerfScriptFormat toPath: String,
         logger: Logger
     ) throws {
-        let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
-        defer {
-            try! group.syncShutdownGracefully()
+        let input = fromPath == "-" ? stdin : fopen(fromPath, "r")
+        guard let input = input else {
+            throw Error(message: "Could not open \(fromPath), errno: \(errno)")
         }
-
+        defer {
+            if fromPath != "-" {
+                fclose(input)
+            }
+        }
+        let output = toPath == "-" ? stdout: fopen(toPath, "w")
+        guard let output = output else {
+            throw Error(message: "Could not open \(toPath), errno: \(errno)")
+        }
+        defer {
+            if toPath != "-" {
+                fclose(output)
+            }
+        }
         let decoder = JSONDecoder()
 
-        var symboliser: Symboliser? = nil
+        var symboliser: CachedSymbolizer? = nil
         defer {
             try! symboliser?.shutdown()
         }
         var vmaps: [DynamicLibMapping] = []
         var vmapsRead = true
         var currentSample: Sample? = nil
+        var bufferCapacity: ssize_t = 1024
+        var buffer: UnsafeMutablePointer<CChar>? = UnsafeMutablePointer<CChar>.allocate(capacity: Int(bufferCapacity))
+        defer {
+            buffer?.deallocate()
+        }
 
-        while let line = readLine() {
+        while getline(&buffer, &bufferCapacity, input) != -1 {
+            let line = String(cString: buffer!)
             guard line.starts(with: "[SWIPR] ") else {
                 continue
             }
@@ -87,20 +98,20 @@ struct ProfileRecorderSampleConverter: ParsableCommand {
                     continue
                 }
                 logger.info("\(message.message)")
-                if let exitCode = message.exit {
-                    Foundation.exit(exitCode)
+                if let _ = message.exit {
+                    throw Error(message: message.message)
                 }
             case "VERS":
                 guard let version = try? decoder.decode(Version.self, from: Data(line.dropFirst(13).utf8)) else {
                     logger.error("Could not decode Swift Profile Recorder version", metadata: ["line": "\(line)"])
-                    Foundation.exit(EXIT_FAILURE)
+                    throw Error(message: "Could not decode Swift Profile Recorder version in '\(line)'")
                 }
                 guard version.version == 1 else {
                     logger.error(
                         "This is a Swift Profile Recorder trace of the wrong version, but we're only compatible with version 1",
                         metadata: ["trace-version": "\(version.version)", "our-version": "1"]
                     )
-                    Foundation.exit(EXIT_FAILURE)
+                    throw Error(message: "Can only decode Swift Profile Recorder version 1 traces, this is \(version.version)")
                 }
             case "VMAP":
                 guard let mapping = try? decoder.decode(DynamicLibMapping.self, from: Data(line.dropFirst(13).utf8)) else {
@@ -117,9 +128,11 @@ struct ProfileRecorderSampleConverter: ParsableCommand {
             case "SMPL":
                 vmapsRead = true
                 if symboliser == nil {
-                    symboliser = try Symboliser(
-                        useNativeSymbolizer: useNativeSymbolizer,
-                        llvmSymboliserConfig: llvmSymboliserConfig,
+                    let underlyingSymboliser: any Symbolizer = try self.makeSymbolizer(vmaps)
+
+                    symboliser = try CachedSymbolizer(
+                        configuration: .default,
+                        symbolizer: underlyingSymboliser,
                         dynamicLibraryMappings: vmaps,
                         group: group,
                         logger: logger
@@ -138,7 +151,7 @@ struct ProfileRecorderSampleConverter: ParsableCommand {
                 currentSample?.stack.append(stackFrame)
             case "DONE":
                 if let sample = currentSample, let symboliser = symboliser {
-                    try processModern(sample, printFileLine: printFileLine, symboliser: symboliser)
+                    fputs(try symboliser.renderPerfScriptFormat(sample), output)
                 }
             default:
                 logger.warning("unknown line, ignoring", metadata: ["line": "\(line.dropFirst(8).prefix(4)))"])
