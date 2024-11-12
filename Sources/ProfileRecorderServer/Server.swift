@@ -83,7 +83,7 @@ public struct ProfileRecorderServer: Sendable {
                 logger.warning("could not start Swift Profile Recorder sampling server", metadata: ["error": "\(error)"])
                 throw error
             case .notAttemptedToStartSamplingServer:
-                logger.info(
+                logger.debug(
                     "ProfileRecorder sampling server start not requested via SWIPR_SAMPLING_SERVER_URL env var",
                     metadata: ["example": "SWIPR_SAMPLING_SERVER_URL=http://127.0.0.1:12345"]
                 )
