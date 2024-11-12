@@ -27,7 +27,15 @@ public struct ProfileRecorderServerConfiguration: Sendable {
 
     /// Check the environment variable `SWIPR_SAMPLING_SERVER_URL` for the URL.
     public static func parseFromEnvironment() async throws -> Self {
-        guard let serverURLString = ProcessInfo.processInfo.environment["SWIPR_SAMPLING_SERVER_URL"] else {
+        let serverURLString: String
+
+        if let string = ProcessInfo.processInfo.environment["SWIPR_SAMPLING_SERVER_URL"] {
+            serverURLString = string
+        } else if let string = ProcessInfo.processInfo.environment["SWIPR_SAMPLING_SERVER_URL_PATTERN"] {
+            serverURLString = string
+                .replacingOccurrences(of: "{PID}", with: "\(getpid())")
+                .replacingOccurrences(of: "{UUID}", with: "\(UUID().uuidString)")
+        } else {
             return Self(group: .singleton, bindTarget: nil, unixDomainSocketPath: nil)
         }
         let serverURL = URL(string: serverURLString)
