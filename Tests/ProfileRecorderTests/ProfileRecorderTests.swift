@@ -26,6 +26,10 @@ final class ProfileRecorderTests: XCTestCase {
     var logger: Logger! = nil
 
     func testBasicJustRequestOneSample() throws {
+        guard ProfileRecorderSampler.isSupportedPlatform else {
+            return
+        }
+
         XCTAssertNoThrow(try
                          ProfileRecorderSampler.sharedInstance.requestSamples(outputFilePath: "\(self.tempDirectory!)/samples.samples",
                                                                     count: 1,
@@ -34,6 +38,10 @@ final class ProfileRecorderTests: XCTestCase {
     }
 
     func testMultipleSamples() throws {
+        guard ProfileRecorderSampler.isSupportedPlatform else {
+            return
+        }
+
         XCTAssertNoThrow(try
                          ProfileRecorderSampler.sharedInstance.requestSamples(outputFilePath: "\(self.tempDirectory!)/samples.samples",
                                                                     count: 10,
@@ -42,6 +50,10 @@ final class ProfileRecorderTests: XCTestCase {
     }
 
     func testSamplingWithALargeNumberOfThreads() throws {
+        guard ProfileRecorderSampler.isSupportedPlatform else {
+            return
+        }
+
         let threads = NIOThreadPool(numberOfThreads: 128)
         threads.start()
         defer {
@@ -56,6 +68,10 @@ final class ProfileRecorderTests: XCTestCase {
     }
 
     func testSamplingWhilstThreadsAreCreatedAndDying() throws {
+        guard ProfileRecorderSampler.isSupportedPlatform else {
+            return
+        }
+
         let samples = ProfileRecorderSampler.sharedInstance.requestSamples(outputFilePath: "\(self.tempDirectory!)/samples.samples",
                                                                  count: 1000,
                                                                  timeBetweenSamples: .microseconds(100),
