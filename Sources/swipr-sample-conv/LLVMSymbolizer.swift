@@ -81,7 +81,7 @@ internal class LLVMSymboliser: Symbolizer {
                 return channel.pipeline.addHandlers([
                     ByteToMessageHandler(LineBasedFrameDecoder()),
                     viaJSON ? LLVMJSONOutputParserHandler() : LLVMOutputParserHandler(),
-                    LLVMStackFrameEncoderHandler(dynamicLibraryMappings: dynamicLibraryMappings),
+                    LLVMStackFrameEncoderHandler(dynamicLibraryMappings: dynamicLibraryMappings, logger: logger),
                     LogErrorHandler(logger: logger),
                     RequestResponseHandler<StackFrame, SymbolisedStackFrame>()
                 ])
@@ -105,7 +105,7 @@ internal class LLVMSymboliser: Symbolizer {
         }
     }
 
-    internal func symbolise(_ stackFrame: StackFrame) throws -> SymbolisedStackFrame {
+    internal func symbolise(_ stackFrame: StackFrame, logger: Logger) throws -> SymbolisedStackFrame {
         struct TimeoutError: Error {
             var stackFrame: StackFrame
             var allMappings: [DynamicLibMapping]

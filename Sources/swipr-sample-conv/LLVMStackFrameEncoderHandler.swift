@@ -15,6 +15,7 @@
 import NIO
 import Foundation
 import ProfileRecorderSampleConversion
+import Logging
 
 final internal class LLVMStackFrameEncoderHandler: ChannelOutboundHandler {
     typealias OutboundIn = StackFrame
@@ -22,10 +23,12 @@ final internal class LLVMStackFrameEncoderHandler: ChannelOutboundHandler {
 
     private let dynamicLibraryMappings: [DynamicLibMapping]
     private let fileManager: FileManager
+    private let logger: Logger
 
-    internal init(dynamicLibraryMappings: [DynamicLibMapping]) {
+    internal init(dynamicLibraryMappings: [DynamicLibMapping], logger: Logger) {
         self.dynamicLibraryMappings = dynamicLibraryMappings
         self.fileManager = FileManager.default
+        self.logger = logger
     }
 
     func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?) {
@@ -48,6 +51,7 @@ final internal class LLVMStackFrameEncoderHandler: ChannelOutboundHandler {
             buffer.writeString(String(stackFrame.instructionPointer, radix: 16))
         }
         buffer.writeString("\n")
+        logger.trace("emitting llvm-symbolizer requst", metadata: ["request": "\(String(buffer: buffer))"])
         context.write(Self.wrapOutboundOut(buffer), promise: promise)
     }
 }

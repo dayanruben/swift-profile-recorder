@@ -35,6 +35,13 @@ public struct DynamicLibMapping: Decodable & Sendable & CustomStringConvertible 
     public var segmentStartAddress: UInt
     public var segmentEndAddress: UInt
 
+    public init(path: String, fileMappedAddress: UInt, segmentStartAddress: UInt, segmentEndAddress: UInt) {
+        self.path = path
+        self.fileMappedAddress = fileMappedAddress
+        self.segmentStartAddress = segmentStartAddress
+        self.segmentEndAddress = segmentEndAddress
+    }
+
     public init(from decoder: Decoder) throws {
         struct FailedToDecodeAddressError: Error {}
 

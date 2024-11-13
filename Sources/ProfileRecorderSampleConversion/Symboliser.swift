@@ -55,7 +55,7 @@ public protocol Symbolizer {
     func start() throws
 
     @available(*, noasync, message: "blocks the calling thread")
-    func symbolise(_ stackFrame: StackFrame) throws -> SymbolisedStackFrame
+    func symbolise(_ stackFrame: StackFrame, logger: Logger) throws -> SymbolisedStackFrame
 
     @available(*, noasync, message: "blocks the calling thread")
     func shutdown() throws
@@ -65,10 +65,19 @@ enum AnyElfImage {
     case elf32(Elf32Image)
     case elf64(Elf64Image)
 
-    func lookupRealAndInlinedFrames(address: UInt64) -> [ImageSymbol]? {
+    func lookupRealAndInlinedFrames(address: UInt64, logger: Logger) -> [ImageSymbol]? {
         switch self {
         case .elf32(let image):
             guard let realFrame = image.lookupSymbol(address: UInt32(truncatingIfNeeded: address)) else {
+                logger.trace(
+                    "could not find symbol",
+                    metadata: [
+                        "address": "0x\(String(address, radix: 16))",
+                        "image": "\(image)",
+                        "image-name": "\(image.imageName)",
+                        "inline-frames": "\(image.inlineCallSites(at: UInt32(truncatingIfNeeded: address)))"
+                    ]
+                )
                 return nil
             }
             var symbols: [ImageSymbol] = []
@@ -84,6 +93,15 @@ enum AnyElfImage {
             return symbols
         case .elf64(let image):
             guard let realFrame = image.lookupSymbol(address: address) else {
+                logger.trace(
+                    "could not find symbol",
+                    metadata: [
+                        "address": "0x\(String(address, radix: 16))",
+                        "image": "\(image)",
+                        "image-name": "\(image.imageName)",
+                        "inline-frames": "\(image.inlineCallSites(at: address))"
+                    ]
+                )
                 return nil
             }
 
@@ -121,7 +139,7 @@ public class NativeSymboliser: Symbolizer {
 
     public func start() throws {}
 
-    public func symbolise(_ stackFrame: StackFrame) throws -> SymbolisedStackFrame {
+    public func symbolise(_ stackFrame: StackFrame, logger: Logger) throws -> SymbolisedStackFrame {
         let matched = self.dynamicLibraryMappings.filter { mapping in
             stackFrame.instructionPointer >= mapping.segmentStartAddress &&
             stackFrame.instructionPointer < mapping.segmentEndAddress
@@ -139,11 +157,20 @@ public class NativeSymboliser: Symbolizer {
                 )]
             )
         }
+        let relativeIP = stackFrame.instructionPointer - matched.fileMappedAddress
+        logger.debug(
+            "matched stackframe",
+            metadata: [
+                "matched": "\(matched)",
+                "stack-frame": "\(stackFrame)",
+                "relative-ip": "0x\(String(relativeIP, radix: 16))"
+            ]
+        )
 
         lazy var failed = SymbolisedStackFrame(
             allFrames: [SymbolisedStackFrame.SingleFrame(
-                address: stackFrame.instructionPointer - matched.segmentStartAddress,
-                functionName: "unknown @ 0x\(String(stackFrame.instructionPointer - matched.segmentStartAddress, radix: 16))",
+                address: relativeIP,
+                functionName: "unknown @ 0x\(String(relativeIP, radix: 16))",
                 functionOffset: 0,
                 library: matched.path,
                 file: nil,
@@ -168,16 +195,14 @@ public class NativeSymboliser: Symbolizer {
             return failed
         }
 
-        let results = elfImage.lookupRealAndInlinedFrames(
-            address: UInt64(stackFrame.instructionPointer - matched.segmentStartAddress)
-        )
+        let results = elfImage.lookupRealAndInlinedFrames(address: UInt64(relativeIP), logger: logger)
 
         guard let results = results else {
             return failed
         }
         return SymbolisedStackFrame(
             allFrames: results.map { result in SymbolisedStackFrame.SingleFrame(
-                address: stackFrame.instructionPointer - matched.segmentStartAddress,
+                address: relativeIP,
                 functionName: result.name,
                 functionOffset: UInt(exactly: result.offset) ?? 0,
                 library: matched.path,
@@ -206,6 +231,7 @@ public class CachedSymbolizer {
     private let dynamicLibraryMappings: [DynamicLibMapping]
     private let group: EventLoopGroup
     private let symbolizer: any Symbolizer
+    private let logger: Logger
     private var cache: [UInt: SymbolisedStackFrame] = [:]
     private var configuration: SymbolizerConfiguration
 
@@ -220,6 +246,7 @@ public class CachedSymbolizer {
         self.dynamicLibraryMappings = dynamicLibraryMappings
         self.group = group
         self.symbolizer = symbolizer
+        self.logger = logger
         try self.symbolizer.start()
     }
 
@@ -227,7 +254,7 @@ public class CachedSymbolizer {
         if let symd = self.cache[stackFrame.instructionPointer] {
             return symd
         } else {
-            let symd = try self.symbolizer.symbolise(stackFrame)
+            let symd = try self.symbolizer.symbolise(stackFrame, logger: self.logger)
             self.cache[stackFrame.instructionPointer] = symd
             return symd
         }

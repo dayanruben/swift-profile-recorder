@@ -41,6 +41,12 @@ public final class ProfileRecorderSampler: Sendable {
 
     internal struct UnsupportedOperation: Error {}
 
+    public enum _SampleFormat: String, Codable & Sendable {
+        case perfSymbolized
+        case raw
+    }
+    internal typealias SampleFormat = _SampleFormat
+
     public static var sharedInstance: ProfileRecorderSampler {
         return globalProfileRecorder
     }
@@ -75,9 +81,10 @@ public final class ProfileRecorderSampler: Sendable {
 #endif
     }
 
-    public func withSymbolizedSamplesInPerfScriptFormat<R: Sendable>(
+    public func _withSamples<R: Sendable>(
         sampleCount: Int,
         timeBetweenSamples: TimeAmount,
+        format: ProfileRecorderSampler._SampleFormat,
         logger: Logger,
         _ body: (String) async throws -> R
     ) async throws -> R {
@@ -91,7 +98,9 @@ public final class ProfileRecorderSampler: Sendable {
             logger[metadataKey: "sample-count"] = "\(sampleCount)"
             logger[metadataKey: "time-between-samples"] = "\(timeBetweenSamples.prettyPrint)"
             logger[metadataKey: "raw-samples-path"] = "\(rawSamplesPath)"
-            logger[metadataKey: "symbolicated-samples-path"] = "\(symbolisedSamplesPath)"
+            if format == .perfSymbolized {
+                logger[metadataKey: "symbolicated-samples-path"] = "\(symbolisedSamplesPath)"
+            }
 
             logger.info("requesting raw samples")
             try await self.requestSamples(
@@ -102,18 +111,37 @@ public final class ProfileRecorderSampler: Sendable {
                 eventLoop: MultiThreadedEventLoopGroup.singleton.any()
             ).get()
             logger.info("raw samples complete")
-            let converter = ProfileRecorderToPerfScriptConverter(
-                config: .default,
-                makeSymbolizer: { NativeSymboliser(dynamicLibraryMappings: $0) }
-            )
-            try await converter.convert(
-                inputRawProfileRecorderFormat: rawSamplesPath.string,
-                outputPerfScriptFormat: symbolisedSamplesPath.string,
-                logger: logger
-            )
-            logger.info("samples symbolicated")
-            return try await body(symbolisedSamplesPath.string)
+            if format == .perfSymbolized {
+                let converter = ProfileRecorderToPerfScriptConverter(
+                    config: .default,
+                    makeSymbolizer: { NativeSymboliser(dynamicLibraryMappings: $0) }
+                )
+                try await converter.convert(
+                    inputRawProfileRecorderFormat: rawSamplesPath.string,
+                    outputPerfScriptFormat: symbolisedSamplesPath.string,
+                    logger: logger
+                )
+                logger.info("samples symbolicated")
+                return try await body(symbolisedSamplesPath.string)
+            } else {
+                return try await body(rawSamplesPath.string)
+            }
         }
+    }
+
+    public func withSymbolizedSamplesInPerfScriptFormat<R: Sendable>(
+        sampleCount: Int,
+        timeBetweenSamples: TimeAmount,
+        logger: Logger,
+        _ body: (String) async throws -> R
+    ) async throws -> R {
+        return try await self._withSamples(
+            sampleCount: sampleCount,
+            timeBetweenSamples: timeBetweenSamples,
+            format: .perfSymbolized,
+            logger: logger,
+            body
+        )
     }
 
     public func requestSamples(outputFilePath: String,

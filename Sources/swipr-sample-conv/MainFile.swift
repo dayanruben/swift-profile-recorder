@@ -38,9 +38,25 @@ struct ProfileRecorderSampleConverter: AsyncParsableCommand {
     @Option(help: "Should we attempt to print file:line information?")
     var enableFileLine: Bool = false
 
+    @Option(help: "Log level to use", transform: { stringValue in
+        return try Logger.Level(rawValue: stringValue) ?? {
+            throw ValidationError("unknown log level \(stringValue)")
+        }()
+    })
+    var logLevel: Logger.Level = .info
+
+    @Option(name: [.customLong("debug-sym")], help: "Debugging, feed FILE:ADDRESS pairs into the symboliser")
+    var debugSymbolication: [String] = []
+
     func run() async throws {
         var logger = Logger(label: "swipr-sample-conv")
-        logger.logLevel = .info
+        logger.logLevel = self.logLevel
+
+        guard self.debugSymbolication.isEmpty else {
+            try self.runDebugSymbolication(self.debugSymbolication, logger: logger)
+            return
+        }
+
         do {
             try await Self.go(
                 useNativeSymbolizer: self.useNativeSymbolizer,
@@ -81,7 +97,46 @@ struct ProfileRecorderSampleConverter: AsyncParsableCommand {
             }
         )
 
-        let logger = Logger(label: "swipr-sample-conv")
         try await converter.convert(inputRawProfileRecorderFormat: "-", outputPerfScriptFormat: "-", logger: logger)
+    }
+
+    func runDebugSymbolication(_ syms: [String], logger: Logger) throws {
+        let fileAddresses: [(String, UInt?)] = syms.map { fileAddressString -> (String, UInt?) in
+            let split = fileAddressString.split(separator: ":")
+            guard split.count == 2 else {
+                return ("<could not parse: \(fileAddressString)>", nil)
+            }
+            guard let address = UInt(hexDigits: String(split[1])) else {
+                return ("<could not parse address: \(split[1])>", nil)
+            }
+            return (String(split[0]), address)
+        }
+
+        for fileAddress in fileAddresses {
+            guard let address = fileAddress.1 else {
+                print(fileAddress.0)
+                continue
+            }
+            let symboliser = NativeSymboliser(
+                dynamicLibraryMappings: [DynamicLibMapping(
+                    path: fileAddress.0,
+                    fileMappedAddress: 0,
+                    segmentStartAddress: 0,
+                    segmentEndAddress: .max
+                )]
+            )
+            try symboliser.start()
+            defer {
+                try! symboliser.shutdown()
+            }
+            let symd = try symboliser.symbolise(
+                StackFrame(
+                    instructionPointer: address,
+                    stackPointer: 0
+                ),
+                logger: logger
+            )
+            print(fileAddress.0, "0x\(String(address, radix: 16))", symd)
+        }
     }
 }

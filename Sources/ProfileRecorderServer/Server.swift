@@ -229,7 +229,11 @@ public struct ProfileRecorderServer: Sendable {
         logger: Logger
     ) async throws {
         guard request.head.method == .POST else {
-            let example = SampleRequest(numberOfSamples: 100, timeInterval: TimeAmount.milliseconds(100))
+            let example = SampleRequest(
+                numberOfSamples: 100,
+                timeInterval: TimeAmount.milliseconds(100),
+                format: .perfSymbolized
+            )
             let exampleEncoded = try! JSONEncoder().encode(example)
             try await self.respondWithFailure(
                 string: "only POST allowed, sample: \(String(decoding: exampleEncoded, as: UTF8.self))",
@@ -241,9 +245,10 @@ public struct ProfileRecorderServer: Sendable {
         let sampleRequest: SampleRequest
         do {
             sampleRequest = try JSONDecoder().decode(SampleRequest.self, from: request.body ?? ByteBuffer())
-            try await ProfileRecorderSampler.sharedInstance.withSymbolizedSamplesInPerfScriptFormat(
+            try await ProfileRecorderSampler.sharedInstance._withSamples(
                 sampleCount: sampleRequest.numberOfSamples,
                 timeBetweenSamples: sampleRequest.timeInterval,
+                format: sampleRequest.format,
                 logger: logger
             ) { samples in
                 try await outbound.write(
@@ -278,15 +283,20 @@ public struct ProfileRecorderServer: Sendable {
 struct SampleRequest: Sendable & Codable {
     var numberOfSamples: Int
     var timeInterval: TimeAmount
+    var format: ProfileRecorderSampler._SampleFormat
+
+    typealias SampleFormat = ProfileRecorderSampler._SampleFormat
 
     private enum CodingKeys: CodingKey {
         case numberOfSamples
         case timeInterval
+        case format
     }
 
-    internal init(numberOfSamples: Int, timeInterval: TimeAmount) {
+    internal init(numberOfSamples: Int, timeInterval: TimeAmount, format: SampleFormat) {
         self.numberOfSamples = numberOfSamples
         self.timeInterval = timeInterval
+        self.format = format
     }
 
     init(from decoder: any Decoder) throws {
@@ -295,7 +305,7 @@ struct SampleRequest: Sendable & Codable {
         self.numberOfSamples = try container.decode(Int.self, forKey: SampleRequest.CodingKeys.numberOfSamples)
         let timeIntervalString = try container.decode(String.self, forKey: SampleRequest.CodingKeys.timeInterval)
         self.timeInterval = try TimeAmount(timeIntervalString, defaultUnit: "ms")
-
+        self.format = try container.decodeIfPresent(SampleFormat.self, forKey: .format) ?? .perfSymbolized
     }
     
     func encode(to encoder: any Encoder) throws {
@@ -303,6 +313,9 @@ struct SampleRequest: Sendable & Codable {
         
         try container.encode(self.numberOfSamples, forKey: SampleRequest.CodingKeys.numberOfSamples)
         try container.encode(self.timeInterval.prettyPrint, forKey: SampleRequest.CodingKeys.timeInterval)
+        if self.format != .perfSymbolized {
+            try container.encode(self.format, forKey: .format)
+        }
     }
 }
 
