@@ -127,20 +127,29 @@ public class NativeSymboliser: Symbolizer {
             stackFrame.instructionPointer < mapping.segmentEndAddress
         }.first
 
+        guard let matched = matched else {
+            return SymbolisedStackFrame(
+                allFrames: [SymbolisedStackFrame.SingleFrame(
+                    address: stackFrame.instructionPointer,
+                    functionName: "unknown @ 0x\(String(stackFrame.instructionPointer, radix: 16))",
+                    functionOffset: 0,
+                    library: "unknown-lib",
+                    file: nil,
+                    line: nil
+                )]
+            )
+        }
+
         lazy var failed = SymbolisedStackFrame(
             allFrames: [SymbolisedStackFrame.SingleFrame(
-                address: stackFrame.instructionPointer - (matched?.segmentStartAddress ?? 0),
-                functionName: "unknown @ 0x\(String(stackFrame.instructionPointer, radix: 16))",
+                address: stackFrame.instructionPointer - matched.segmentStartAddress,
+                functionName: "unknown @ 0x\(String(stackFrame.instructionPointer - matched.segmentStartAddress, radix: 16))",
                 functionOffset: 0,
-                library: "unknown-lib",
+                library: matched.path,
                 file: nil,
                 line: nil
             )]
         )
-
-        guard let matched = matched else {
-            return failed
-        }
 
         var elfImage: AnyElfImage? = self.elfSourceCache[matched.path]
         if elfImage == nil {
