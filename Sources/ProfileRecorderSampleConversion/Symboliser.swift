@@ -213,9 +213,19 @@ public class CachedSymbolizer {
         logger: Logger
     ) throws {
         self.configuration = configuration
-        self.dynamicLibraryMappings = dynamicLibraryMappings.sorted(by: { l, r in
-            return l.segmentStartAddress < r.segmentStartAddress
-        })
+        self.dynamicLibraryMappings = dynamicLibraryMappings
+            .compactMap { mapping in
+                guard mapping.segmentStartAddress <= mapping.segmentEndAddress else {
+                    logger.error(
+                        "illegal dynamic library mapping (segment start > end), ignoring",
+                        metadata: ["mapping": "\(mapping)"]
+                    )
+                    return nil
+                }
+                return mapping
+            }.sorted(by: { l, r in
+                return l.segmentStartAddress < r.segmentStartAddress
+            })
         self.group = group
         self.symbolizer = symbolizer
         self.logger = logger
@@ -224,11 +234,20 @@ public class CachedSymbolizer {
     }
 
     private func symboliseSlow(_ stackFrame: StackFrame) throws -> SymbolisedStackFrame {
-        // TODO: Just binary search this, it's already sorted
-        let matched = self.dynamicLibraryMappings.filter { mapping in
-            stackFrame.instructionPointer >= mapping.segmentStartAddress &&
-            stackFrame.instructionPointer < mapping.segmentEndAddress
-        }.first
+        let matchedIndex = self.dynamicLibraryMappings.binarySearch { candidate in
+            if stackFrame.instructionPointer < candidate.segmentStartAddress {
+                return .candidateIsTooHigh
+            } else if stackFrame.instructionPointer > candidate.segmentEndAddress {
+                return .candidateIsTooLow
+            } else {
+                assert(
+                    stackFrame.instructionPointer >= candidate.segmentStartAddress &&
+                    stackFrame.instructionPointer <= candidate.segmentEndAddress
+                )
+                return .found
+            }
+        }
+        let matched = matchedIndex.map { self.dynamicLibraryMappings[$0] }
 
         if _isDebugAssertConfiguration() {
             let allMatched = self.dynamicLibraryMappings.filter { mapping in
@@ -243,6 +262,8 @@ public class CachedSymbolizer {
                         "mappings": "\(allMatched)"
                     ]
                 )
+            } else {
+                assert(allMatched.first == matched, "\(allMatched.debugDescription) != \(matched.debugDescription)")
             }
         }
 
@@ -346,3 +367,43 @@ public class CachedSymbolizer {
 
 @available(*, unavailable, message: "not thread safe")
 extension CachedSymbolizer: Sendable {}
+
+internal enum BinarySearchOrder {
+    case candidateIsTooLow
+    case found
+    case candidateIsTooHigh
+}
+
+extension RandomAccessCollection {
+    internal func binarySearch(_ compare: (Element) -> BinarySearchOrder) -> Self.Index? {
+        var lo: Index = self.startIndex
+        var hi: Index = self.index(before: self.endIndex)
+
+        while true {
+            let distance = self.distance(from: lo, to: hi)
+            guard distance >= 0 else { break }
+
+            // Compute the middle index of this iteration's search range.
+            let mid = self.index(lo, offsetBy: distance / 2)
+            assert(self.distance(from: self.startIndex, to: mid) >= 0)
+            assert(self.distance(from: mid, to: self.endIndex) > 0)
+
+            // If there is a match, return the result.
+            let cmp = compare(self[mid])
+            switch cmp {
+            case .found:
+                return mid
+            case .candidateIsTooHigh:
+                hi = self.index(before: mid)
+            case .candidateIsTooLow:
+                lo = self.index(after: mid)
+            }
+        }
+
+        // Check exit conditions of the binary search.
+        assert(self.distance(from: self.startIndex, to: lo) >= 0)
+        assert(self.distance(from: lo, to: self.endIndex) >= 0)
+
+        return nil
+    }
+}

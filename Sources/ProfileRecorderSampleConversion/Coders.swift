@@ -23,7 +23,7 @@ public struct Message: Decodable {
     public var exit: CInt?
 }
 
-public struct DynamicLibMapping: Decodable & Sendable & CustomStringConvertible {
+public struct DynamicLibMapping: Decodable & Sendable & CustomStringConvertible & Equatable {
     enum CodingKeys: CodingKey {
         case path
         case fileMappedAddress
