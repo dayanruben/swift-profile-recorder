@@ -55,7 +55,7 @@ public protocol Symbolizer {
     func start() throws
 
     @available(*, noasync, message: "blocks the calling thread")
-    func symbolise(_ stackFrame: StackFrame, logger: Logger) throws -> SymbolisedStackFrame
+    func symbolise(relativeIP: UInt, library: DynamicLibMapping, logger: Logger) throws -> SymbolisedStackFrame
 
     @available(*, noasync, message: "blocks the calling thread")
     func shutdown() throws
@@ -130,57 +130,27 @@ enum AnyElfImage {
 }
 
 public class NativeSymboliser: Symbolizer {
-    private let dynamicLibraryMappings: [DynamicLibMapping]
     private var elfSourceCache: [String: AnyElfImage] = [:]
 
-    public init(dynamicLibraryMappings: [DynamicLibMapping]) {
-        self.dynamicLibraryMappings = dynamicLibraryMappings
-    }
+    public init() {}
 
     public func start() throws {}
 
-    public func symbolise(_ stackFrame: StackFrame, logger: Logger) throws -> SymbolisedStackFrame {
-        let matched = self.dynamicLibraryMappings.filter { mapping in
-            stackFrame.instructionPointer >= mapping.segmentStartAddress &&
-            stackFrame.instructionPointer < mapping.segmentEndAddress
-        }.first
-
-        guard let matched = matched else {
-            return SymbolisedStackFrame(
-                allFrames: [SymbolisedStackFrame.SingleFrame(
-                    address: stackFrame.instructionPointer,
-                    functionName: "unknown @ 0x\(String(stackFrame.instructionPointer, radix: 16))",
-                    functionOffset: 0,
-                    library: "unknown-lib",
-                    file: nil,
-                    line: nil
-                )]
-            )
-        }
-        let relativeIP = stackFrame.instructionPointer - matched.fileMappedAddress
-        logger.debug(
-            "matched stackframe",
-            metadata: [
-                "matched": "\(matched)",
-                "stack-frame": "\(stackFrame)",
-                "relative-ip": "0x\(String(relativeIP, radix: 16))"
-            ]
-        )
-
+    public func symbolise(relativeIP: UInt, library: DynamicLibMapping, logger: Logger) throws -> SymbolisedStackFrame {
         lazy var failed = SymbolisedStackFrame(
             allFrames: [SymbolisedStackFrame.SingleFrame(
                 address: relativeIP,
                 functionName: "unknown @ 0x\(String(relativeIP, radix: 16))",
                 functionOffset: 0,
-                library: matched.path,
+                library: library.path,
                 file: nil,
                 line: nil
             )]
         )
 
-        var elfImage: AnyElfImage? = self.elfSourceCache[matched.path]
+        var elfImage: AnyElfImage? = self.elfSourceCache[library.path]
         if elfImage == nil {
-            if let source = try? ImageSource(path: matched.path) {
+            if let source = try? ImageSource(path: library.path) {
                 if let image = try? Elf32Image(source: source) {
                     elfImage = .elf32(image)
                 } else if let image = try? Elf64Image(source: source) {
@@ -189,7 +159,7 @@ public class NativeSymboliser: Symbolizer {
                     elfImage = nil
                 }
             }
-            self.elfSourceCache[matched.path] = elfImage
+            self.elfSourceCache[library.path] = elfImage
         }
         guard let elfImage = elfImage else {
             return failed
@@ -205,7 +175,7 @@ public class NativeSymboliser: Symbolizer {
                 address: relativeIP,
                 functionName: result.name,
                 functionOffset: UInt(exactly: result.offset) ?? 0,
-                library: matched.path,
+                library: library.path,
                 file: nil,
                 line: nil
             )
@@ -243,18 +213,76 @@ public class CachedSymbolizer {
         logger: Logger
     ) throws {
         self.configuration = configuration
-        self.dynamicLibraryMappings = dynamicLibraryMappings
+        self.dynamicLibraryMappings = dynamicLibraryMappings.sorted(by: { l, r in
+            return l.segmentStartAddress < r.segmentStartAddress
+        })
         self.group = group
         self.symbolizer = symbolizer
         self.logger = logger
+        logger.trace("starting CachedSymbolizer", metadata: ["mappings": "\(self.dynamicLibraryMappings)"])
         try self.symbolizer.start()
+    }
+
+    private func symboliseSlow(_ stackFrame: StackFrame) throws -> SymbolisedStackFrame {
+        // TODO: Just binary search this, it's already sorted
+        let matched = self.dynamicLibraryMappings.filter { mapping in
+            stackFrame.instructionPointer >= mapping.segmentStartAddress &&
+            stackFrame.instructionPointer < mapping.segmentEndAddress
+        }.first
+
+        if _isDebugAssertConfiguration() {
+            let allMatched = self.dynamicLibraryMappings.filter { mapping in
+                stackFrame.instructionPointer >= mapping.segmentStartAddress &&
+                stackFrame.instructionPointer < mapping.segmentEndAddress
+            }
+            if allMatched.count > 1 {
+                self.logger.error(
+                    "found multiple matches for instruction pointer",
+                    metadata: [
+                        "ip": "0x\(String(stackFrame.instructionPointer, radix: 16))",
+                        "mappings": "\(allMatched)"
+                    ]
+                )
+            }
+        }
+
+        guard let matched = matched else {
+            self.logger.debug(
+                "could not match instruction pointer",
+                metadata: [
+                    "ip": "0x\(String(stackFrame.instructionPointer, radix: 16))"
+                ]
+            )
+            return SymbolisedStackFrame(
+                allFrames: [SymbolisedStackFrame.SingleFrame(
+                    address: stackFrame.instructionPointer,
+                    functionName: "unknown @ 0x\(String(stackFrame.instructionPointer, radix: 16))",
+                    functionOffset: 0,
+                    library: "unknown-lib",
+                    file: nil,
+                    line: nil
+                )]
+            )
+        }
+
+        let relativeIP = stackFrame.instructionPointer - matched.fileMappedAddress
+        self.logger.debug(
+            "matched stackframe",
+            metadata: [
+                "matched": "\(matched)",
+                "stack-frame": "\(stackFrame)",
+                "relative-ip": "0x\(String(relativeIP, radix: 16))"
+            ]
+        )
+
+        return try self.symbolizer.symbolise(relativeIP: relativeIP, library: matched, logger: self.logger)
     }
 
     public func symbolise(_ stackFrame: StackFrame) throws -> SymbolisedStackFrame {
         if let symd = self.cache[stackFrame.instructionPointer] {
             return symd
         } else {
-            let symd = try self.symbolizer.symbolise(stackFrame, logger: self.logger)
+            let symd = try self.symboliseSlow(stackFrame)
             self.cache[stackFrame.instructionPointer] = symd
             return symd
         }
@@ -315,3 +343,6 @@ public class CachedSymbolizer {
         try self.symbolizer.shutdown()
     }
 }
+
+@available(*, unavailable, message: "not thread safe")
+extension CachedSymbolizer: Sendable {}

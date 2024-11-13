@@ -68,8 +68,9 @@ public struct DynamicLibMapping: Decodable & Sendable & CustomStringConvertible 
         return """
                DynamicLibMapping {\
                 path: '\(self.path)',\
-                start: 0x\(String(self.segmentStartAddress, radix: 16)),\
-                end: 0x\(String(self.segmentEndAddress, radix: 16))\
+                fileMapped: 0x\(String(self.fileMappedAddress, radix: 16)),\
+                segmentStart: 0x\(String(self.segmentStartAddress, radix: 16)),\
+                segmentEnd: 0x\(String(self.segmentEndAddress, radix: 16))\
                }
                """
     }

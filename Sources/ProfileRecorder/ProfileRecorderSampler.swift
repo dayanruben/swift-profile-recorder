@@ -114,7 +114,7 @@ public final class ProfileRecorderSampler: Sendable {
             if format == .perfSymbolized {
                 let converter = ProfileRecorderToPerfScriptConverter(
                     config: .default,
-                    makeSymbolizer: { NativeSymboliser(dynamicLibraryMappings: $0) }
+                    makeSymbolizer: { NativeSymboliser() }
                 )
                 try await converter.convert(
                     inputRawProfileRecorderFormat: rawSamplesPath.string,

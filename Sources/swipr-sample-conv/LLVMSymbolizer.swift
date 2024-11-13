@@ -27,7 +27,6 @@ public struct LLVMSymboliserConfig: Sendable {
 ///
 /// Not thread-safe.
 internal class LLVMSymboliser: Symbolizer {
-    private let dynamicLibraryMappings: [DynamicLibMapping]
     private let group: EventLoopGroup
     private var process: Process? = nil
     private var channel: Channel? = nil
@@ -37,12 +36,10 @@ internal class LLVMSymboliser: Symbolizer {
 
     internal init(
         config: LLVMSymboliserConfig,
-        dynamicLibraryMappings: [DynamicLibMapping],
         group: EventLoopGroup,
         logger: Logger
     ) {
         self.config = config
-        self.dynamicLibraryMappings = dynamicLibraryMappings
         self.group = group
         self.logger = logger
     }
@@ -74,16 +71,15 @@ internal class LLVMSymboliser: Symbolizer {
 
         let channel: Channel = try NIOPipeBootstrap(group: self.group)
             .channelInitializer { [
-                dynamicLibraryMappings = self.dynamicLibraryMappings,
                 logger = self.logger,
                 viaJSON = self.config.viaJSON
             ] channel in
                 return channel.pipeline.addHandlers([
                     ByteToMessageHandler(LineBasedFrameDecoder()),
                     viaJSON ? LLVMJSONOutputParserHandler() : LLVMOutputParserHandler(),
-                    LLVMStackFrameEncoderHandler(dynamicLibraryMappings: dynamicLibraryMappings, logger: logger),
+                    LLVMSymbolizerEncoderHandler(logger: logger),
                     LogErrorHandler(logger: logger),
-                    RequestResponseHandler<StackFrame, SymbolisedStackFrame>()
+                    RequestResponseHandler<LLVMSymbolizerQuery, SymbolisedStackFrame>()
                 ])
             }
             .takingOwnershipOfDescriptors(
@@ -105,24 +101,22 @@ internal class LLVMSymboliser: Symbolizer {
         }
     }
 
-    internal func symbolise(_ stackFrame: StackFrame, logger: Logger) throws -> SymbolisedStackFrame {
+    internal func symbolise(
+        relativeIP: UInt,
+        library: DynamicLibMapping,
+        logger: Logger
+    ) throws -> SymbolisedStackFrame {
         struct TimeoutError: Error {
-            var stackFrame: StackFrame
-            var allMappings: [DynamicLibMapping]
-            var matchingMappings: [DynamicLibMapping]
+            var relativeIP: UInt
+            var library: DynamicLibMapping
         }
         let promise = self.channel!.eventLoop.makePromise(of: SymbolisedStackFrame.self)
-        let sched = promise.futureResult.eventLoop.scheduleTask(
-            in: .seconds(10)
-        ) { [dynamicLibraryMappings = self.dynamicLibraryMappings] in
-            promise.fail(TimeoutError(stackFrame: stackFrame,
-                                      allMappings: dynamicLibraryMappings,
-                                      matchingMappings: dynamicLibraryMappings.filter { mapping in
-                stackFrame.instructionPointer >= mapping.segmentStartAddress && stackFrame.instructionPointer < mapping.segmentEndAddress
-            }))
+        let sched = promise.futureResult.eventLoop.scheduleTask(in: .seconds(10)) {
+            promise.fail(TimeoutError(relativeIP: relativeIP, library: library))
         }
         do {
-            try self.channel!.writeAndFlush((stackFrame, promise)).wait()
+            let query = LLVMSymbolizerQuery(address: relativeIP, library: library)
+            try self.channel!.writeAndFlush((query, promise)).wait()
         } catch {
             self.logger.error("write to llvm-symbolizer pipe failed", metadata: ["error": "\(error)"])
             promise.fail(error)

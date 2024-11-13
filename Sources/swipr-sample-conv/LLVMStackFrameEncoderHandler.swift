@@ -17,38 +17,36 @@ import Foundation
 import ProfileRecorderSampleConversion
 import Logging
 
-final internal class LLVMStackFrameEncoderHandler: ChannelOutboundHandler {
-    typealias OutboundIn = StackFrame
+struct LLVMSymbolizerQuery: Sendable {
+    var address: UInt
+    var library: DynamicLibMapping
+}
+
+final internal class LLVMSymbolizerEncoderHandler: ChannelOutboundHandler {
+    typealias OutboundIn = LLVMSymbolizerQuery
     typealias OutboundOut = ByteBuffer
 
-    private let dynamicLibraryMappings: [DynamicLibMapping]
     private let fileManager: FileManager
     private let logger: Logger
 
-    internal init(dynamicLibraryMappings: [DynamicLibMapping], logger: Logger) {
-        self.dynamicLibraryMappings = dynamicLibraryMappings
+    internal init(logger: Logger) {
         self.fileManager = FileManager.default
         self.logger = logger
     }
 
     func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?) {
-        let stackFrame = Self.unwrapOutboundIn(data)
+        let query = Self.unwrapOutboundIn(data)
 
         var buffer = context.channel.allocator.buffer(capacity: 256)
 
-        let matched = self.dynamicLibraryMappings.filter { mapping in
-            stackFrame.instructionPointer >= mapping.segmentStartAddress &&
-            stackFrame.instructionPointer < mapping.segmentEndAddress
-        }.first
-
-        if let matched = matched, self.fileManager.fileExists(atPath: matched.path) {
+        if self.fileManager.fileExists(atPath: query.library.path) {
             buffer.writeString("\"")
-            buffer.writeString(matched.path)
+            buffer.writeString(query.library.path)
             buffer.writeString("\" 0x")
-            buffer.writeString(String(stackFrame.instructionPointer - matched.fileMappedAddress, radix: 16))
+            buffer.writeString(String(query.address, radix: 16))
         } else {
             buffer.writeString("/ignore/errors/about/this 0x")
-            buffer.writeString(String(stackFrame.instructionPointer, radix: 16))
+            buffer.writeString(String(query.address, radix: 16))
         }
         buffer.writeString("\n")
         logger.trace("emitting llvm-symbolizer requst", metadata: ["request": "\(String(buffer: buffer))"])

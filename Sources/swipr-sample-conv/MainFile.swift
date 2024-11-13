@@ -52,18 +52,24 @@ struct ProfileRecorderSampleConverter: AsyncParsableCommand {
         var logger = Logger(label: "swipr-sample-conv")
         logger.logLevel = self.logLevel
 
+        let llvmSymbolizerConfig = LLVMSymboliserConfig(
+            viaJSON: self.viaJSON,
+            unstuckerWorkaround: self.unstuckerWorkaround
+        )
         guard self.debugSymbolication.isEmpty else {
-            try self.runDebugSymbolication(self.debugSymbolication, logger: logger)
+            try self.runDebugSymbolication(
+                self.debugSymbolication,
+                logger: logger,
+                llvmSymbolizerConfig: llvmSymbolizerConfig,
+                useNativeSymbolizer: self.useNativeSymbolizer
+            )
             return
         }
 
         do {
             try await Self.go(
                 useNativeSymbolizer: self.useNativeSymbolizer,
-                llvmSymboliserConfig: LLVMSymboliserConfig(
-                    viaJSON: self.viaJSON,
-                    unstuckerWorkaround: self.unstuckerWorkaround
-                ),
+                llvmSymboliserConfig: llvmSymbolizerConfig,
                 printFileLine: self.enableFileLine,
                 logger: logger
             )
@@ -83,13 +89,12 @@ struct ProfileRecorderSampleConverter: AsyncParsableCommand {
         config.perfScriptOutputWithFileLineInformation = printFileLine
         let converter = ProfileRecorderToPerfScriptConverter(
             config: config,
-            makeSymbolizer: { vmaps in
+            makeSymbolizer: {
                 if useNativeSymbolizer {
-                    return NativeSymboliser(dynamicLibraryMappings: vmaps)
+                    return NativeSymboliser()
                 } else {
                     return LLVMSymboliser(
                         config: llvmSymboliserConfig,
-                        dynamicLibraryMappings: vmaps,
                         group: .singletonMultiThreadedEventLoopGroup,
                         logger: logger
                     )
@@ -100,7 +105,12 @@ struct ProfileRecorderSampleConverter: AsyncParsableCommand {
         try await converter.convert(inputRawProfileRecorderFormat: "-", outputPerfScriptFormat: "-", logger: logger)
     }
 
-    func runDebugSymbolication(_ syms: [String], logger: Logger) throws {
+    func runDebugSymbolication(
+        _ syms: [String],
+        logger: Logger,
+        llvmSymbolizerConfig: LLVMSymboliserConfig,
+        useNativeSymbolizer: Bool
+    ) throws {
         let fileAddresses: [(String, UInt?)] = syms.map { fileAddressString -> (String, UInt?) in
             let split = fileAddressString.split(separator: ":")
             guard split.count == 2 else {
@@ -112,27 +122,28 @@ struct ProfileRecorderSampleConverter: AsyncParsableCommand {
             return (String(split[0]), address)
         }
 
+        let symboliser: any Symbolizer = useNativeSymbolizer ? NativeSymboliser() : LLVMSymboliser(
+            config: llvmSymbolizerConfig,
+            group: .singletonMultiThreadedEventLoopGroup,
+            logger: logger
+        )
+        try symboliser.start()
+        defer {
+            try! symboliser.shutdown()
+        }
+
         for fileAddress in fileAddresses {
             guard let address = fileAddress.1 else {
                 print(fileAddress.0)
                 continue
             }
-            let symboliser = NativeSymboliser(
-                dynamicLibraryMappings: [DynamicLibMapping(
+            let symd = try symboliser.symbolise(
+                relativeIP: address,
+                library: DynamicLibMapping(
                     path: fileAddress.0,
                     fileMappedAddress: 0,
                     segmentStartAddress: 0,
                     segmentEndAddress: .max
-                )]
-            )
-            try symboliser.start()
-            defer {
-                try! symboliser.shutdown()
-            }
-            let symd = try symboliser.symbolise(
-                StackFrame(
-                    instructionPointer: address,
-                    stackPointer: 0
                 ),
                 logger: logger
             )

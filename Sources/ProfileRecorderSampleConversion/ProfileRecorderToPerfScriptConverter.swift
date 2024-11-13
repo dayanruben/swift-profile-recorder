@@ -20,7 +20,7 @@ public struct ProfileRecorderToPerfScriptConverter: Sendable {
     let symbolizerConfiguration: SymbolizerConfiguration
     let threadPool: NIOThreadPool
     let group: EventLoopGroup
-    let makeSymbolizer: @Sendable ([DynamicLibMapping]) throws -> any Symbolizer
+    let makeSymbolizer: @Sendable () throws -> any Symbolizer
 
     public struct Error: Swift.Error {
         var message: String
@@ -30,7 +30,7 @@ public struct ProfileRecorderToPerfScriptConverter: Sendable {
         config: SymbolizerConfiguration,
         threadPool: NIOThreadPool = .singleton,
         group: any EventLoopGroup = .singletonMultiThreadedEventLoopGroup,
-        makeSymbolizer: @Sendable @escaping ([DynamicLibMapping]) throws -> any Symbolizer
+        makeSymbolizer: @Sendable @escaping () throws -> any Symbolizer
     ) {
         self.symbolizerConfiguration = config
         self.makeSymbolizer = makeSymbolizer
@@ -128,11 +128,9 @@ public struct ProfileRecorderToPerfScriptConverter: Sendable {
             case "SMPL":
                 vmapsRead = true
                 if symboliser == nil {
-                    let underlyingSymboliser: any Symbolizer = try self.makeSymbolizer(vmaps)
-
                     symboliser = try CachedSymbolizer(
                         configuration: .default,
-                        symbolizer: underlyingSymboliser,
+                        symbolizer: try self.makeSymbolizer(),
                         dynamicLibraryMappings: vmaps,
                         group: group,
                         logger: logger
