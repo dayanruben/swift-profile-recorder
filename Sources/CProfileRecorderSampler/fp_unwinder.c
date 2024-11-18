@@ -81,9 +81,9 @@ int swipr_fp_unwinder_getcontext(struct swipr_fp_unwinder_context *context, ucon
     intptr_t reg_fp = uc->uc_mcontext->__ss.__rbp;
     intptr_t reg_sp = uc->uc_mcontext->__ss.__rsp;
 #elif defined(__APPLE__) && defined(__aarch64__)
-    intptr_t reg_ip = uc->uc_mcontext->__ss.__pc;
-    intptr_t reg_fp = uc->uc_mcontext->__ss.__fp;
-    intptr_t reg_sp = uc->uc_mcontext->__ss.__sp;
+    intptr_t reg_ip = __darwin_arm_thread_state64_get_pc(uc->uc_mcontext->__ss);
+    intptr_t reg_fp = __darwin_arm_thread_state64_get_fp(uc->uc_mcontext->__ss);
+    intptr_t reg_sp = __darwin_arm_thread_state64_get_sp(uc->uc_mcontext->__ss);
 #else
 #warning unknown OS/arch combination
     intptr_t reg_ip = 0;
