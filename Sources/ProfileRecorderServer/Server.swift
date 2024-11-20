@@ -265,19 +265,58 @@ public struct ProfileRecorderServer: Sendable {
             exampleCURLArgs.insert(contentsOf: ["-s", "-d", "'"+exampleEncoded+"'"], at: 0)
             try await self.respondWithFailure(
                 string: """
-                        Welcome to the Swift Profile Recorder Server!
+                        # Welcome to the Swift Profile Recorder Server!
 
                         To request samples, please send POST request to \(exampleURL)
+
+                        ## Details
+
+                        URL: \(exampleURL)
+                        Is this a supported platform? \(ProfileRecorderSampler.isSupportedPlatform ? "yes" : "no")
+
+                        ## Examples
 
                         Example body: \(exampleEncoded)
 
                         If you're using curl, you could run
 
-                          curl \(exampleCURLArgs.joined(separator: " ")) > /tmp/samples
+                        ```
+                        curl \(exampleCURLArgs.joined(separator: " ")) > /tmp/samples.perf
+                        ```
 
                         To also immediately demangle the symbols, run
 
-                          curl \(exampleCURLArgs.joined(separator: " ")) | swift demangle --simplified > /tmp/samples
+                        ```
+                        curl \(exampleCURLArgs.joined(separator: " ")) | swift demangle --simplified > /tmp/samples.perf
+                        ```
+
+                        Once you have `/tmp/samples.perf`, you can then visualise it.
+
+
+                        ## Visualisation
+
+                        ### FlameGraphs
+
+                        Repository: https://github.com/brendangregg/Flamegraph
+
+                        ```
+                        FlameGraph/stackcollapse-perf.pl < /tmp/samples.perf | FlameGraph/flamegraph.pl > /tmp/samples.svg
+                        open /tmp/samples.svg
+                        ```
+
+                        ### Firefox Profiler (https://profiler.firefox.com):
+
+                        How to use it?
+
+                        1. Open https://profiler.firefox.com and drag /tmp/samples.svg onto it.
+                        2. Click "Show all tracks" in "tracks" menu on the top left
+                        3. Slightly further down, select the first thread (track), hold Shift and select the last thread.
+                        4. Open the "Flame Graph" tab
+
+                        ### Other options
+
+                        Check https://profilerpedia.markhansen.co.nz/formats/linux-perf-script/#converts-to-transitive for
+                        a list of visualisation options for the "Linux perf script" format that Swift Profile Recorder produces.
 
                         """,
                 code: .badRequest,
