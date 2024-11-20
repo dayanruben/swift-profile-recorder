@@ -234,9 +234,52 @@ public struct ProfileRecorderServer: Sendable {
                 timeInterval: TimeAmount.milliseconds(100),
                 format: .perfSymbolized
             )
-            let exampleEncoded = try! JSONEncoder().encode(example)
+            let exampleEncoded = String(decoding: try! JSONEncoder().encode(example), as: UTF8.self)
+            let exampleURL: String
+            var exampleCURLArgs: [String] = []
+            let bindTarget = self.configuration.bindTarget!  // will work, we received a request on it!
+            switch bindTarget {
+            case .v4:
+                let ipAddress = bindTarget.ipAddress!  // IPv4 has IP addresses
+                guard ipAddress != "0.0.0.0" else {
+                    exampleURL = "http://127.0.0.1:\(bindTarget.port!)/sample"
+                    break
+                }
+                exampleURL = "http://\(ipAddress):\(bindTarget.port!)/sample"
+            case .v6:
+                let ipAddress = bindTarget.ipAddress!  // IPv6 has IP addresses
+                guard ipAddress != "::" else {
+                    exampleURL = "http://[::1]:\(bindTarget.port!)/sample"
+                    break
+                }
+                exampleURL = "http://\(ipAddress):\(bindTarget.port!)/sample"
+            case .unixDomainSocket:
+                let udsPath = bindTarget.pathname!
+                exampleURL = "http+unix://\(udsPath.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!)/sample"
+                exampleCURLArgs.append(contentsOf: ["--unix-socket", udsPath, "http://127.0.0.1/sample"])
+            }
+
+            if exampleCURLArgs.isEmpty {
+                exampleCURLArgs.append(contentsOf: [exampleURL])
+            }
+            exampleCURLArgs.insert(contentsOf: ["-s", "-d", "'"+exampleEncoded+"'"], at: 0)
             try await self.respondWithFailure(
-                string: "only POST allowed, sample: \(String(decoding: exampleEncoded, as: UTF8.self))",
+                string: """
+                        Welcome to the Swift Profile Recorder Server!
+
+                        To request samples, please send POST request to \(exampleURL)
+
+                        Example body: \(exampleEncoded)
+
+                        If you're using curl, you could run
+
+                          curl \(exampleCURLArgs.joined(separator: " ")) > /tmp/samples
+
+                        To also immediately demangle the symbols, run
+
+                          curl \(exampleCURLArgs.joined(separator: " ")) | swift demangle --simplified > /tmp/samples
+
+                        """,
                 code: .badRequest,
                 outbound
             )

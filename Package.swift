@@ -27,6 +27,7 @@ let package = Package(
             name: "swipr-demo",
             dependencies: [
                 "ProfileRecorder",
+                "ProfileRecorderServer",
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
             ]),

@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 import ProfileRecorder
+import ProfileRecorderServer
 import NIO
 import Foundation
 import Dispatch
@@ -35,7 +36,10 @@ signalSource.setEventHandler {
 }
 signal(SIGUSR1, SIG_IGN)
 signalSource.resume()
-
+let samplingServerTask = Task {
+    try await ProfileRecorderServer(configuration: try await .parseFromEnvironment())
+        .run(logger: .init(label: "swipr-demo"))
+}
 runWebServer()
-
+samplingServerTask.cancel()
 signalSource.cancel()
