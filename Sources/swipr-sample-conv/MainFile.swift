@@ -30,7 +30,7 @@ struct ProfileRecorderSampleConverter: AsyncParsableCommand {
     var viaJSON: Bool = false
 
     @Option(help: "Use the native symboliser?")
-    var useNativeSymbolizer: Bool = false
+    var useNativeSymbolizer: Bool = true
 
     @Option(help: "Enable the llvm-symbolizer getting stuck workaround?")
     var unstuckerWorkaround: Bool = false

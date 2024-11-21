@@ -25,6 +25,14 @@ public struct ProfileRecorderServerConfiguration: Sendable {
     public var bindTarget: Optional<SocketAddress>
     internal var unixDomainSocketPath: Optional<String>
 
+    public static var `default`: Self {
+        return ProfileRecorderServerConfiguration(
+            group: .singletonMultiThreadedEventLoopGroup,
+            bindTarget: nil,
+            unixDomainSocketPath: nil
+        )
+    }
+
     /// Check the environment variable `SWIPR_SAMPLING_SERVER_URL` for the URL.
     public static func parseFromEnvironment() async throws -> Self {
         let serverURLString: String
