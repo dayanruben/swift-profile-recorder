@@ -137,16 +137,18 @@ public class NativeSymboliser: Symbolizer {
     public func start() throws {}
 
     public func symbolise(relativeIP: UInt, library: DynamicLibMapping, logger: Logger) throws -> SymbolisedStackFrame {
-        lazy var failed = SymbolisedStackFrame(
-            allFrames: [SymbolisedStackFrame.SingleFrame(
-                address: relativeIP,
-                functionName: "unknown @ 0x\(String(relativeIP, radix: 16))",
-                functionOffset: 0,
-                library: library.path,
-                file: nil,
-                line: nil
-            )]
-        )
+        func makeFailed(_ why: String = "") -> SymbolisedStackFrame {
+            return SymbolisedStackFrame(
+                allFrames: [SymbolisedStackFrame.SingleFrame(
+                    address: relativeIP,
+                    functionName: "unknown\(why) @ 0x\(String(relativeIP, radix: 16))",
+                    functionOffset: 0,
+                    library: library.path,
+                    file: nil,
+                    line: nil
+                )]
+            )
+        }
 
         var elfImage: AnyElfImage? = self.elfSourceCache[library.path]
         if elfImage == nil {
@@ -162,13 +164,13 @@ public class NativeSymboliser: Symbolizer {
             self.elfSourceCache[library.path] = elfImage
         }
         guard let elfImage = elfImage else {
-            return failed
+            return makeFailed("-load-failed")
         }
 
         let results = elfImage.lookupRealAndInlinedFrames(address: UInt64(relativeIP), logger: logger)
 
         guard let results = results else {
-            return failed
+            return makeFailed()
         }
         return SymbolisedStackFrame(
             allFrames: results.map { result in SymbolisedStackFrame.SingleFrame(
