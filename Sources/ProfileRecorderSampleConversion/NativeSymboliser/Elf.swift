@@ -209,6 +209,7 @@ typealias SWIPR_Elf64_Chdr = CProfileRecorderSwiftELF.SWIPR_Elf64_Chdr
 typealias SWIPR_Elf32_Sym = CProfileRecorderSwiftELF.SWIPR_Elf32_Sym
 typealias SWIPR_Elf64_Sym = CProfileRecorderSwiftELF.SWIPR_Elf64_Sym
 
+#if compiler(>=5.10)
 nonisolated(unsafe) let ELF32_ST_BIND       = CProfileRecorderSwiftELF.ELF32_ST_BIND
 nonisolated(unsafe) let ELF32_ST_TYPE       = CProfileRecorderSwiftELF.ELF32_ST_TYPE
 nonisolated(unsafe) let ELF32_ST_INFO       = CProfileRecorderSwiftELF.ELF32_ST_INFO
@@ -218,12 +219,24 @@ nonisolated(unsafe) let ELF64_ST_BIND       = CProfileRecorderSwiftELF.ELF64_ST_
 nonisolated(unsafe) let ELF64_ST_TYPE       = CProfileRecorderSwiftELF.ELF64_ST_TYPE
 nonisolated(unsafe) let ELF64_ST_INFO       = CProfileRecorderSwiftELF.ELF64_ST_INFO
 nonisolated(unsafe) let ELF64_ST_VISIBILITY = CProfileRecorderSwiftELF.ELF64_ST_VISIBILITY
+#else
+let ELF32_ST_BIND       = CProfileRecorderSwiftELF.ELF32_ST_BIND
+let ELF32_ST_TYPE       = CProfileRecorderSwiftELF.ELF32_ST_TYPE
+let ELF32_ST_INFO       = CProfileRecorderSwiftELF.ELF32_ST_INFO
+let ELF32_ST_VISIBILITY = CProfileRecorderSwiftELF.ELF32_ST_VISIBILITY
+
+let ELF64_ST_BIND       = CProfileRecorderSwiftELF.ELF64_ST_BIND
+let ELF64_ST_TYPE       = CProfileRecorderSwiftELF.ELF64_ST_TYPE
+let ELF64_ST_INFO       = CProfileRecorderSwiftELF.ELF64_ST_INFO
+let ELF64_ST_VISIBILITY = CProfileRecorderSwiftELF.ELF64_ST_VISIBILITY
+#endif
 
 typealias SWIPR_Elf32_Rel  = CProfileRecorderSwiftELF.SWIPR_Elf32_Rel
 typealias SWIPR_Elf32_Rela = CProfileRecorderSwiftELF.SWIPR_Elf32_Rela
 typealias SWIPR_Elf64_Rel  = CProfileRecorderSwiftELF.SWIPR_Elf64_Rel
 typealias SWIPR_Elf64_Rela = CProfileRecorderSwiftELF.SWIPR_Elf64_Rela
 
+#if compiler(>=5.10)
 nonisolated(unsafe) let ELF32_R_SYM  = CProfileRecorderSwiftELF.ELF32_R_SYM
 nonisolated(unsafe) let ELF32_R_TYPE = CProfileRecorderSwiftELF.ELF32_R_TYPE
 nonisolated(unsafe) let ELF32_R_INFO = CProfileRecorderSwiftELF.ELF32_R_INFO
@@ -231,6 +244,15 @@ nonisolated(unsafe) let ELF32_R_INFO = CProfileRecorderSwiftELF.ELF32_R_INFO
 nonisolated(unsafe) let ELF64_R_SYM  = CProfileRecorderSwiftELF.ELF64_R_SYM
 nonisolated(unsafe) let ELF64_R_TYPE = CProfileRecorderSwiftELF.ELF64_R_TYPE
 nonisolated(unsafe) let ELF64_R_INFO = CProfileRecorderSwiftELF.ELF64_R_INFO
+#else
+let ELF32_R_SYM  = CProfileRecorderSwiftELF.ELF32_R_SYM
+let ELF32_R_TYPE = CProfileRecorderSwiftELF.ELF32_R_TYPE
+let ELF32_R_INFO = CProfileRecorderSwiftELF.ELF32_R_INFO
+
+let ELF64_R_SYM  = CProfileRecorderSwiftELF.ELF64_R_SYM
+let ELF64_R_TYPE = CProfileRecorderSwiftELF.ELF64_R_TYPE
+let ELF64_R_INFO = CProfileRecorderSwiftELF.ELF64_R_INFO
+#endif
 
 typealias SWIPR_Elf32_Phdr = CProfileRecorderSwiftELF.SWIPR_Elf32_Phdr
 typealias SWIPR_Elf64_Phdr = CProfileRecorderSwiftELF.SWIPR_Elf64_Phdr
@@ -244,7 +266,11 @@ typealias SWIPR_Elf64_Dyn = CProfileRecorderSwiftELF.SWIPR_Elf64_Dyn
 typealias SWIPR_Elf32_Hash = CProfileRecorderSwiftELF.SWIPR_Elf32_Hash
 typealias SWIPR_Elf64_Hash = CProfileRecorderSwiftELF.SWIPR_Elf64_Hash
 
+#if compiler(>=5.10)
 nonisolated(unsafe) let elf_hash = CProfileRecorderSwiftELF.elf_hash
+#else
+let elf_hash = CProfileRecorderSwiftELF.elf_hash
+#endif
 
 // .. Utilities ................................................................
 
