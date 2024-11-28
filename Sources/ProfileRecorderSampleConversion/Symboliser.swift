@@ -17,8 +17,8 @@ import Foundation
 import NIOExtras
 import Logging
 
-public struct SymbolisedStackFrame: Sendable {
-    public struct SingleFrame: Sendable {
+public struct SymbolisedStackFrame: Sendable & Hashable {
+    public struct SingleFrame: Sendable & Hashable {
         public var address: UInt
         public var functionName: String
         public var functionOffset: UInt
@@ -239,7 +239,7 @@ public class CachedSymbolizer {
         let matchedIndex = self.dynamicLibraryMappings.binarySearch { candidate in
             if stackFrame.instructionPointer < candidate.segmentStartAddress {
                 return .candidateIsTooHigh
-            } else if stackFrame.instructionPointer > candidate.segmentEndAddress {
+            } else if stackFrame.instructionPointer >= candidate.segmentEndAddress {
                 return .candidateIsTooLow
             } else {
                 assert(
@@ -311,6 +311,15 @@ public class CachedSymbolizer {
         }
     }
 
+    func formatSecAndNSec(sec: Int, nsec: Int) -> String {
+        var nSecString = "\(nsec)"
+        let missingDigits = 9 - nSecString.count
+        if missingDigits > 0 {
+            nSecString.insert(contentsOf: String(repeating: "0", count: missingDigits), at: nSecString.startIndex)
+        }
+        return "\(sec).\(nSecString)"
+    }
+
     @available(*, noasync, message: "blocks calling thread")
     public func renderPerfScriptFormat(_ sample: Sample) throws -> String {
         var output = ""
@@ -319,7 +328,7 @@ public class CachedSymbolizer {
         output += """
                   \(sample.threadName)-T\(sample.tid)     \
                   \(sample.pid)/\(sample.tid)     \
-                  \(sample.timeSec).\(sample.timeNSec):    \
+                  \(formatSecAndNSec(sec: sample.timeSec, nsec: sample.timeNSec)):    \
                   swipr
 
                   """

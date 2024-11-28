@@ -118,6 +118,15 @@ let package = Package(
                         .product(name: "Logging", package: "swift-log"),
                         .product(name: "_NIOFileSystem", package: "swift-nio"),
                     ]),
+        .testTarget(name: "ProfileRecorderSampleConversionTests",
+                    dependencies: [
+                        "ProfileRecorder",
+                        "ProfileRecorderSampleConversion",
+                        .product(name: "Atomics", package: "swift-atomics"),
+                        .product(name: "NIO", package: "swift-nio"),
+                        .product(name: "Logging", package: "swift-log"),
+                        .product(name: "_NIOFileSystem", package: "swift-nio"),
+                    ]),
     ],
     cxxLanguageStandard: .cxx14
 )
