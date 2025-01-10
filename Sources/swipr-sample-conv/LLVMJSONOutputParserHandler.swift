@@ -104,7 +104,8 @@ final internal class LLVMJSONOutputParserHandler: ChannelInboundHandler {
                             address: address,
                             functionName: "<unknown-unset>",
                             functionOffset: 0,
-                            library: decoded.ModuleName ?? "unknown-library",
+                            library: decoded.ModuleName,
+                            vmap: nil,
                             file: nil,
                             line: nil
                         )]
@@ -120,6 +121,7 @@ final internal class LLVMJSONOutputParserHandler: ChannelInboundHandler {
                 functionName: "<unknown-unset>",
                 functionOffset: 0,
                 library: decoded.ModuleName ?? "unknown-unset",
+                vmap: nil,
                 file: nil,
                 line: nil
             )

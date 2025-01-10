@@ -18,43 +18,37 @@ import NIO
 
 @testable import ProfileRecorderSampleConversion
 
-final class CachedSymbolizerTests: XCTestCase {
+final class PprofTests: XCTestCase {
     private var symbolizer: CachedSymbolizer! = nil
     private var logger: Logger! = nil
 
-    func testSymbolisingFrameThatIsFound() throws {
-        let actual = try self.symbolizer.symbolise(StackFrame(instructionPointer: 0x2345, stackPointer: .max))
-        let expected = SymbolisedStackFrame(
-            allFrames: [
-                SymbolisedStackFrame.SingleFrame(
-                    address: 0x1345,
-                    functionName: "fake",
-                    functionOffset: 5,
-                    library: "libfoo",
-                    vmap: DynamicLibMapping(
-                        path: "/lib/libfoo.so",
-                        fileMappedAddress: 0x1000,
-                        segmentStartAddress: 0x2000,
-                        segmentEndAddress: 0x3000
-                    )
-                )
-            ]
+    func testPprofBasic() throws {
+        var renderer = PprofOutputRenderer()
+        defer {
+            var remainder: ByteBuffer?
+            XCTAssertNoThrow(remainder = try renderer.finalise(configuration: .default, symbolizer: self.symbolizer))
+            XCTAssertNotEqual(ByteBuffer(string: ""), remainder)
+        }
+        let actual = try renderer.consumeSingleSample(
+            Sample(
+                sampleHeader: SampleHeader(
+                    pid: 1,
+                    tid: 2,
+                    name: "thread",
+                    timeSec: 4,
+                    timeNSec: 5 // important, this is a small number, so it'll get 0 prefixed
+                ),
+                stack: [
+                    StackFrame(instructionPointer: 0, stackPointer: .max), // this frame will be chopped
+                    StackFrame(instructionPointer: 0x2345, stackPointer: .max),
+                    StackFrame(instructionPointer: 0x2999, stackPointer: .max),
+                ]
+            ),
+            configuration: .default,
+            symbolizer: self.symbolizer
         )
-        XCTAssertEqual(expected, actual)
-    }
 
-    func testSymbolisingFrameThatIsNotFound() throws {
-        let actual = try self.symbolizer.symbolise(StackFrame(instructionPointer: 0x3000, stackPointer: .max))
-        let expected = SymbolisedStackFrame(allFrames: [
-            SymbolisedStackFrame.SingleFrame(
-                address: 0x3000,
-                functionName: "unknown @ 0x3000",
-                functionOffset: 0,
-                library: nil,
-                vmap: nil
-            )
-        ])
-        XCTAssertEqual(expected, actual)
+        XCTAssertEqual(ByteBuffer(), actual)
     }
 
     // MARK: - Setup/teardown

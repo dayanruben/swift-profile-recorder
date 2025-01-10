@@ -1,0 +1,108 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the Swift Profile Recorder open source project
+//
+// Copyright (c) 2024 Apple Inc. and the Swift Profile Recorder project authors
+// Licensed under Apache License v2.0
+//
+// See LICENSE.txt for license information
+// See CONTRIBUTORS.txt for the list of Swift Profile Recorder project authors
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+//===----------------------------------------------------------------------===//
+
+import ProfileRecorder
+import Logging
+import NIO
+import _NIOFileSystem
+
+public enum ProfileRecorderOutputFormat: String, Codable & Sendable {
+    case perfSymbolized
+    case pprofSymbolized
+    case raw
+}
+
+extension ProfileRecorderSampler {
+    public func _withSamples<R: Sendable>(
+        sampleCount: Int,
+        timeBetweenSamples: TimeAmount,
+        format: ProfileRecorderOutputFormat,
+        logger: Logger,
+        _ body: (String) async throws -> R
+    ) async throws -> R {
+        try await FileSystem.shared.withTemporaryDirectory {
+            tmpDirHandle,
+            tmpDirPath in
+            let rawSamplesPath = tmpDirPath.appending("samples.raw")
+            let symbolisedSamplesPath: FilePath
+
+            var logger = logger
+            logger[metadataKey: "sample-count"] = "\(sampleCount)"
+            logger[metadataKey: "time-between-samples"] = "\(timeBetweenSamples.prettyPrint)"
+            logger[metadataKey: "raw-samples-path"] = "\(rawSamplesPath)"
+            switch format {
+            case .perfSymbolized:
+                symbolisedSamplesPath = tmpDirPath.appending("samples.perf")
+                logger[metadataKey: "symbolicated-samples-path"] = "\(symbolisedSamplesPath.string)"
+            case .pprofSymbolized:
+                symbolisedSamplesPath = tmpDirPath.appending("samples.pprof")
+                logger[metadataKey: "symbolicated-samples-path"] = "\(symbolisedSamplesPath.string)"
+            case .raw:
+                symbolisedSamplesPath = tmpDirPath.appending("samples.raw")
+            }
+
+            logger.info("requesting raw samples")
+            try await self.requestSamples(
+                outputFilePath: rawSamplesPath.string,
+                failIfFileExists: true,
+                count: sampleCount,
+                timeBetweenSamples: timeBetweenSamples,
+                eventLoop: MultiThreadedEventLoopGroup.singleton.any()
+            ).get()
+            logger.info("raw samples complete")
+            switch format {
+            case .perfSymbolized, .pprofSymbolized:
+                let renderer: any ProfileRecorderSampleConversionOutputRenderer
+                switch format {
+                    case .perfSymbolized:
+                    renderer = PerfScriptOutputRenderer()
+                case .pprofSymbolized:
+                    renderer = PprofOutputRenderer()
+                case .raw:
+                    fatalError("we shouldn't be here")
+                }
+                let converter = ProfileRecorderSampleConverter(
+                    config: .default,
+                    renderer: renderer,
+                    makeSymbolizer: { NativeSymboliser() }
+                )
+                try await converter.convert(
+                    inputRawProfileRecorderFormatPath: rawSamplesPath.string,
+                    outputPath: symbolisedSamplesPath.string,
+                    format: .perfSymbolized,
+                    logger: logger
+                )
+                logger.info("samples symbolicated")
+                return try await body(symbolisedSamplesPath.string)
+            case .raw:
+                return try await body(rawSamplesPath.string)
+            }
+        }
+    }
+
+    public func withSymbolizedSamplesInPerfScriptFormat<R: Sendable>(
+        sampleCount: Int,
+        timeBetweenSamples: TimeAmount,
+        logger: Logger,
+        _ body: (String) async throws -> R
+    ) async throws -> R {
+        return try await self._withSamples(
+            sampleCount: sampleCount,
+            timeBetweenSamples: timeBetweenSamples,
+            format: .perfSymbolized,
+            logger: logger,
+            body
+        )
+    }
+}

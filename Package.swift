@@ -20,6 +20,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.75.0"),
         .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.24.1"),
     
+        .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.28.2"),
     ],
     targets: [
         // MARK: - Executables
@@ -43,7 +44,9 @@ let package = Package(
         .target(
             name: "ProfileRecorderSampleConversion",
             dependencies: [
+                "ProfileRecorder",
                 "CProfileRecorderSwiftELF",
+                "PprofFormat",
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOFoundationCompat", package: "swift-nio"),
                 .product(name: "Logging", package: "swift-log"),
@@ -70,9 +73,14 @@ let package = Package(
                     // Let's be a little conservative and allow-list macOS & Linux.
                     condition: .when(platforms: [.macOS, .linux])
                 ),
-                "ProfileRecorderSampleConversion",
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "_NIOFileSystem", package: "swift-nio"),
+            ]
+        ),
+        .target(
+            name: "PprofFormat",
+            dependencies: [
+                .product(name: "SwiftProtobuf", package: "swift-protobuf"),
             ]
         ),
         .target(
@@ -84,6 +92,8 @@ let package = Package(
                 .product(name: "_NIOFileSystem", package: "swift-nio"),
                 .product(name: "Logging", package: "swift-log"),
                 "ProfileRecorder",
+                "ProfileRecorderSampleConversion",
+                "PprofFormat",
             ]
         ),
 
@@ -113,6 +123,7 @@ let package = Package(
         .testTarget(name: "ProfileRecorderTests",
                     dependencies: [
                         "ProfileRecorder",
+                        "ProfileRecorderSampleConversion",
                         .product(name: "Atomics", package: "swift-atomics"),
                         .product(name: "NIO", package: "swift-nio"),
                         .product(name: "Logging", package: "swift-log"),

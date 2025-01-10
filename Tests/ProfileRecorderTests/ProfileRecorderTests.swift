@@ -19,6 +19,7 @@ import NIOConcurrencyHelpers
 import Logging
 import _NIOFileSystem
 @testable import ProfileRecorder
+import ProfileRecorderSampleConversion
 
 final class ProfileRecorderTests: XCTestCase {
     var tempDirectory: String! = nil

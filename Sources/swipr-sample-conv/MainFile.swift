@@ -20,7 +20,7 @@ import Logging
 import ProfileRecorderSampleConversion
 
 @main
-struct ProfileRecorderSampleConverter: AsyncParsableCommand {
+struct ProfileRecorderSampleConverterCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "swipr-sample-conv",
         version: EmbeddedAppVersion().description
@@ -28,6 +28,9 @@ struct ProfileRecorderSampleConverter: AsyncParsableCommand {
 
     @Option(help: "Use llvm-symbolizer's JSON format instead of the text format?")
     var viaJSON: Bool = false
+
+    @Option(help: "Use the fake symboliser?")
+    var useFakeSymbolizer: Bool = false
 
     @Option(help: "Use the native symboliser?")
     var useNativeSymbolizer: Bool = true
@@ -38,6 +41,20 @@ struct ProfileRecorderSampleConverter: AsyncParsableCommand {
     @Option(help: "Should we attempt to print file:line information?")
     var enableFileLine: Bool = false
 
+    @Option(help: "Which output format", transform: { stringValue in
+        switch stringValue {
+        case "perf-script":
+            return .perfSymbolized
+        case "pprof":
+            return .pprofSymbolized
+        case "raw":
+            return .raw
+        default:
+            throw ValidationError("unknown format '\(stringValue)', try 'perf-script' or 'pprof'")
+        }
+    })
+    var format: ProfileRecorderOutputFormat = .perfSymbolized
+
     @Option(help: "Log level to use", transform: { stringValue in
         return try Logger.Level(rawValue: stringValue) ?? {
             throw ValidationError("unknown log level \(stringValue)")
@@ -47,6 +64,12 @@ struct ProfileRecorderSampleConverter: AsyncParsableCommand {
 
     @Option(name: [.customLong("debug-sym")], help: "Debugging, feed FILE:ADDRESS pairs into the symboliser")
     var debugSymbolication: [String] = []
+
+    @Option(name: [.customLong("output"), .customShort("o")], help: "Where to write to?")
+    var outputPath: String = "-"
+
+    @Argument(help: "Input file path (in raw Swift Profile Recorder format)")
+    var inputPath: String = "-"
 
     func run() async throws {
         var logger = Logger(label: "swipr-sample-conv")
@@ -67,10 +90,23 @@ struct ProfileRecorderSampleConverter: AsyncParsableCommand {
         }
 
         do {
+            let renderer: any ProfileRecorderSampleConversionOutputRenderer
+            switch self.format {
+            case .perfSymbolized:
+                renderer = PerfScriptOutputRenderer()
+            case .pprofSymbolized:
+                renderer = PprofOutputRenderer()
+            case .raw:
+                throw ValidationError("the input file is already in raw format")
+            }
             try await Self.go(
+                inputPath: self.inputPath,
+                outputPath: self.outputPath,
                 useNativeSymbolizer: self.useNativeSymbolizer,
+                useFakeSymbolizer: self.useFakeSymbolizer,
                 llvmSymboliserConfig: llvmSymbolizerConfig,
                 printFileLine: self.enableFileLine,
+                renderer: renderer,
                 logger: logger
             )
         } catch {
@@ -80,16 +116,24 @@ struct ProfileRecorderSampleConverter: AsyncParsableCommand {
     }
 
     static func go(
+        inputPath: String,
+        outputPath: String,
         useNativeSymbolizer: Bool,
+        useFakeSymbolizer: Bool,
         llvmSymboliserConfig: LLVMSymboliserConfig,
         printFileLine: Bool,
+        renderer: any ProfileRecorderSampleConversionOutputRenderer,
         logger: Logger
     ) async throws {
         var config = SymbolizerConfiguration.default
         config.perfScriptOutputWithFileLineInformation = printFileLine
-        let converter = ProfileRecorderToPerfScriptConverter(
+        let converter = ProfileRecorderSampleConverter(
             config: config,
+            renderer: renderer,
             makeSymbolizer: {
+                if useFakeSymbolizer {
+                    return FakeSymbolizer()
+                }
                 if useNativeSymbolizer {
                     return NativeSymboliser()
                 } else {
@@ -102,7 +146,12 @@ struct ProfileRecorderSampleConverter: AsyncParsableCommand {
             }
         )
 
-        try await converter.convert(inputRawProfileRecorderFormat: "-", outputPerfScriptFormat: "-", logger: logger)
+        try await converter.convert(
+            inputRawProfileRecorderFormatPath: inputPath,
+            outputPath: outputPath,
+            format: .perfSymbolized,
+            logger: logger
+        )
     }
 
     func runDebugSymbolication(

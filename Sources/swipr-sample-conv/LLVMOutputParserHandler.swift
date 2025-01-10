@@ -60,7 +60,8 @@ final internal class LLVMOutputParserHandler: ChannelInboundHandler {
                             address: address,
                             functionName: functionName,
                             functionOffset: 0,
-                            library: "somewhere",
+                            library: nil,
+                            vmap: nil,
                             file: String(fileLineColumnSplit.first ?? "unknown"),
                             line: fileLineColumnSplit.dropFirst().first.flatMap { Int($0) }
                         )
@@ -82,6 +83,7 @@ final internal class LLVMOutputParserHandler: ChannelInboundHandler {
                             functionName: "0x" + String(address, radix: 16),
                             functionOffset: 0,
                             library: "somewhere",
+                            vmap: nil,
                             file: nil,
                             line: nil
                         )

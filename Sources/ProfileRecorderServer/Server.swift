@@ -15,6 +15,7 @@
 import NIO
 import NIOHTTP1
 import ProfileRecorder
+import ProfileRecorderSampleConversion
 import _NIOFileSystem
 import Foundation
 import NIOFoundationCompat
@@ -373,9 +374,9 @@ public struct ProfileRecorderServer: Sendable {
 struct SampleRequest: Sendable & Codable {
     var numberOfSamples: Int
     var timeInterval: TimeAmount
-    var format: ProfileRecorderSampler._SampleFormat
+    var format: ProfileRecorderOutputFormat
 
-    typealias SampleFormat = ProfileRecorderSampler._SampleFormat
+    typealias SampleFormat = ProfileRecorderOutputFormat
 
     private enum CodingKeys: CodingKey {
         case numberOfSamples

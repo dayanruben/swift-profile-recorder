@@ -42,4 +42,12 @@ This product contains the ELF/DWARF parsing library of Swift Backtrace.
   * HOMEPAGE:
     * https://github.com/swiftlang/swift
 
+---
+
+This product contains the profile.proto from Google's pprof package.
+
+  * LICENSE (Apache License v2.0, with Runtime Library Exception to the Apache 2.0 License):
+    * https://github.com/google/pprof/blob/main/LICENSE
+  * HOMEPAGE:
+    * https://github.com/google/pprof
 

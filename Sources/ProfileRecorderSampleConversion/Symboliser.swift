@@ -22,22 +22,29 @@ public struct SymbolisedStackFrame: Sendable & Hashable {
         public var address: UInt
         public var functionName: String
         public var functionOffset: UInt
-        public var library: String
+        public var _library: Optional<String>
+        public var vmap: Optional<DynamicLibMapping>
         public var file: Optional<String>
         public var line: Optional<Int>
+
+        public var library: String {
+            return self._library ?? self.vmap?.path ?? "unknown-lib"
+        }
 
         public init(
             address: UInt,
             functionName: String,
             functionOffset: UInt,
-            library: String,
+            library: String?,
+            vmap: DynamicLibMapping?,
             file: Optional<String> = nil,
             line: Optional<Int> = nil
         ) {
             self.address = address
             self.functionName = functionName
             self.functionOffset = functionOffset
-            self.library = library
+            self._library = library
+            self.vmap = vmap
             self.file = file
             self.line = line
         }
@@ -143,7 +150,8 @@ public class NativeSymboliser: Symbolizer {
                     address: relativeIP,
                     functionName: "unknown\(why) @ 0x\(String(relativeIP, radix: 16))",
                     functionOffset: 0,
-                    library: library.path,
+                    library: nil,
+                    vmap: library,
                     file: nil,
                     line: nil
                 )]
@@ -177,7 +185,8 @@ public class NativeSymboliser: Symbolizer {
                 address: relativeIP,
                 functionName: result.name,
                 functionOffset: UInt(exactly: result.offset) ?? 0,
-                library: library.path,
+                library: nil,
+                vmap: library,
                 file: nil,
                 line: nil
             )
@@ -200,7 +209,7 @@ public struct SymbolizerConfiguration: Sendable {
 ///
 /// Not thread-safe.
 public class CachedSymbolizer {
-    private let dynamicLibraryMappings: [DynamicLibMapping]
+    public let dynamicLibraryMappings: [DynamicLibMapping]
     private let group: EventLoopGroup
     private let symbolizer: any Symbolizer
     private let logger: Logger
@@ -281,7 +290,8 @@ public class CachedSymbolizer {
                     address: stackFrame.instructionPointer,
                     functionName: "unknown @ 0x\(String(stackFrame.instructionPointer, radix: 16))",
                     functionOffset: 0,
-                    library: "unknown-lib",
+                    library: nil,
+                    vmap: nil,
                     file: nil,
                     line: nil
                 )]
@@ -309,66 +319,6 @@ public class CachedSymbolizer {
             self.cache[stackFrame.instructionPointer] = symd
             return symd
         }
-    }
-
-    func formatSecAndNSec(sec: Int, nsec: Int) -> String {
-        var nSecString = "\(nsec)"
-        let missingDigits = 9 - nSecString.count
-        if missingDigits > 0 {
-            nSecString.insert(contentsOf: String(repeating: "0", count: missingDigits), at: nSecString.startIndex)
-        }
-        return "\(sec).\(nSecString)"
-    }
-
-    @available(*, noasync, message: "blocks calling thread")
-    public func renderPerfScriptFormat(_ sample: Sample) throws -> String {
-        var output = ""
-        output.reserveCapacity(256 + sample.stack.count * 128)
-
-        output += """
-                  \(sample.threadName)-T\(sample.tid)     \
-                  \(sample.pid)/\(sample.tid)     \
-                  \(formatSecAndNSec(sec: sample.timeSec, nsec: sample.timeNSec)):    \
-                  swipr
-
-                  """
-        for stackFrame in sample.stack.dropFirst() {
-            // We would have received the instruction pointer just _behind_ the actual instruction, so to accurately
-            // get the right frame, we need to get the intruction prior. On ARM that's easy (subtract 4) but on Intel
-            // that's impossible so we just subtract 1 instead.
-            var fixedUpStackFrame = stackFrame
-            if fixedUpStackFrame.instructionPointer >= 4 {
-                #if arch(arm) || arch(arm64)
-                // Known fixed-width instruction format
-                fixedUpStackFrame.instructionPointer -= 4
-                #else
-                // Unknown, subtract 1
-                fixedUpStackFrame.instructionPointer -= 1
-                #endif
-            }
-
-            let framesIncludingInlinedFrames = try self.symbolise(fixedUpStackFrame).allFrames
-            let hasMultiple = framesIncludingInlinedFrames.count > 1
-            for index in framesIncludingInlinedFrames.indices {
-                let symbolicatedFrame = framesIncludingInlinedFrames[index]
-                let isLast = index == framesIncludingInlinedFrames.endIndex - 1
-
-                output += """
-                      \t    \
-                      \(String(symbolicatedFrame.address, radix: 16)) \
-                      \(symbolicatedFrame.functionName)\(hasMultiple && !isLast ? " [inlined]" :"")\
-                      +0x\(String(symbolicatedFrame.functionOffset, radix: 16)) \
-                      (\(symbolicatedFrame.library))
-
-                      """
-                if self.configuration.perfScriptOutputWithFileLineInformation,
-                   let file = symbolicatedFrame.file, let line = symbolicatedFrame.line {
-                    output += "  \(file):\(line)\n"
-                }
-            }
-        }
-        output += "\n"
-        return output
     }
 
     public func shutdown() throws {
