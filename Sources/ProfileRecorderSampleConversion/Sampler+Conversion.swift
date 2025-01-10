@@ -46,7 +46,7 @@ extension ProfileRecorderSampler {
                 symbolisedSamplesPath = tmpDirPath.appending("samples.perf")
                 logger[metadataKey: "symbolicated-samples-path"] = "\(symbolisedSamplesPath.string)"
             case .pprofSymbolized:
-                symbolisedSamplesPath = tmpDirPath.appending("samples.pprof")
+                symbolisedSamplesPath = tmpDirPath.appending("samples.pprof.pb")
                 logger[metadataKey: "symbolicated-samples-path"] = "\(symbolisedSamplesPath.string)"
             case .raw:
                 symbolisedSamplesPath = tmpDirPath.appending("samples.raw")

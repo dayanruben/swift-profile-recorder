@@ -25,6 +25,7 @@ public struct ProfileRecorderServerConfiguration: Sendable {
     public var group: MultiThreadedEventLoopGroup
     public var bindTarget: Optional<SocketAddress>
     internal var unixDomainSocketPath: Optional<String>
+    internal let pprofRootSlug = ["debug"]
 
     public static var `default`: Self {
         return ProfileRecorderServerConfiguration(
@@ -74,6 +75,8 @@ public struct ProfileRecorderServerConfiguration: Sendable {
 }
 
 public struct ProfileRecorderServer: Sendable {
+    typealias Outbound = NIOAsyncChannelOutboundWriter<HTTPPart<HTTPResponseHead, ByteBuffer>>
+
     public let configuration: ProfileRecorderServerConfiguration
 
     public struct Error: Swift.Error {
@@ -221,15 +224,134 @@ public struct ProfileRecorderServer: Sendable {
         }
     }
 
-    func respondWithFailure(
-        string: String,
-        code: HTTPResponseStatus,
-        _ outbound: NIOAsyncChannelOutboundWriter<HTTPPart<HTTPResponseHead, ByteBuffer>>
-    ) async throws {
+    func respondWithFailure(string: String, code: HTTPResponseStatus, _ outbound: Outbound) async throws {
         try await outbound.write(.head(HTTPResponseHead(version: .http1_1, status: code)))
         try await outbound.write(.body(ByteBuffer(string: string)))
         try await outbound.write(.body(ByteBuffer(string: "\n")))
         try await outbound.write(.end(nil))
+    }
+
+    func sendBadRequestErrorWithExplainer(_ outbound: Outbound) async throws {
+        let example = SampleRequest(
+            numberOfSamples: 100,
+            timeInterval: TimeAmount.milliseconds(100),
+            format: .perfSymbolized
+        )
+        let exampleEncoded = String(decoding: try! JSONEncoder().encode(example), as: UTF8.self)
+        let exampleURL: String
+        var exampleCURLArgs: [String] = []
+        let bindTarget = self.configuration.bindTarget!  // will work, we received a request on it!
+        switch bindTarget {
+        case .v4:
+            let ipAddress = bindTarget.ipAddress!  // IPv4 has IP addresses
+            guard ipAddress != "0.0.0.0" else {
+                exampleURL = "http://127.0.0.1:\(bindTarget.port!)/sample"
+                break
+            }
+            exampleURL = "http://\(ipAddress):\(bindTarget.port!)/sample"
+        case .v6:
+            let ipAddress = bindTarget.ipAddress!  // IPv6 has IP addresses
+            guard ipAddress != "::" else {
+                exampleURL = "http://[::1]:\(bindTarget.port!)/sample"
+                break
+            }
+            exampleURL = "http://\(ipAddress):\(bindTarget.port!)/sample"
+        case .unixDomainSocket:
+            let udsPath = bindTarget.pathname!
+            exampleURL = "http+unix://\(udsPath.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!)/sample"
+            exampleCURLArgs.append(contentsOf: ["--unix-socket", udsPath, "http://127.0.0.1/sample"])
+        }
+
+        if exampleCURLArgs.isEmpty {
+            exampleCURLArgs.append(contentsOf: [exampleURL])
+        }
+        exampleCURLArgs.insert(contentsOf: ["-s", "-d", "'"+exampleEncoded+"'"], at: 0)
+        try await self.respondWithFailure(
+            string: """
+                    # Welcome to the Swift Profile Recorder Server!
+
+                    To request samples, please send POST request to \(exampleURL)
+
+                    ## Details
+
+                    URL: \(exampleURL)
+                    Is this a supported platform? \(ProfileRecorderSampler.isSupportedPlatform ? "yes" : "no")
+
+                    ## Examples
+
+                    Example body: \(exampleEncoded)
+
+                    If you're using curl, you could run
+
+                    ```
+                    curl \(exampleCURLArgs.joined(separator: " ")) > /tmp/samples.perf
+                    ```
+
+                    To also immediately demangle the symbols, run
+
+                    ```
+                    curl \(exampleCURLArgs.joined(separator: " ")) | swift demangle --simplified > /tmp/samples.perf
+                    ```
+
+                    Once you have `/tmp/samples.perf`, you can then visualise it.
+
+
+                    ## Visualisation
+
+                    ### FlameGraphs
+
+                    Repository: https://github.com/brendangregg/Flamegraph
+
+                    ```
+                    FlameGraph/stackcollapse-perf.pl < /tmp/samples.perf | FlameGraph/flamegraph.pl > /tmp/samples.svg
+                    open /tmp/samples.svg
+                    ```
+
+                    ### Firefox Profiler (https://profiler.firefox.com):
+
+                    How to use it?
+
+                    1. Open https://profiler.firefox.com and drag /tmp/samples.svg onto it.
+                    2. Click "Show all tracks" in "tracks" menu on the top left
+                    3. Slightly further down, select the first thread (track), hold Shift and select the last thread.
+                    4. Open the "Flame Graph" tab
+
+                    ### Other options
+
+                    Check https://profilerpedia.markhansen.co.nz/formats/linux-perf-script/#converts-to-transitive for
+                    a list of visualisation options for the "Linux perf script" format that Swift Profile Recorder produces.
+
+                    """,
+            code: .badRequest,
+            outbound
+        )
+    }
+
+    struct DecodedURL: Sendable {
+        var components: [String]
+        var queryParams: [String: String?]
+    }
+
+    func decodeURI(_ uri: String) -> DecodedURL? {
+        guard let url = URL(string: "http://127.0.0.1:6060" + uri) else {
+            return nil
+        }
+        let components = url.path.split(separator: "/")
+        let kvPairs: [(String, String?)] = url.query?
+            .split(separator: "&")
+            .compactMap { (queryItem: Substring) -> (String, String?)? in
+                let kv = queryItem.split(separator: "=", maxSplits: 1)
+                guard let key = kv.first else {
+                    // no key or value
+                    return nil
+                }
+                assert(kv.count < 3, "max spilt 1 of lead to \(kv)")
+                return (String(key), kv.dropFirst().first.map { String($0) })
+            } ?? []
+        return DecodedURL(
+            components: components.map(String.init),
+            queryParams: Dictionary(kvPairs, uniquingKeysWith: { l, r in r })
+        )
     }
 
     func handleRequest(
@@ -237,105 +359,32 @@ public struct ProfileRecorderServer: Sendable {
         outbound: NIOAsyncChannelOutboundWriter<HTTPPart<HTTPResponseHead, ByteBuffer>>,
         logger: Logger
     ) async throws {
-        guard request.head.method == .POST else {
-            let example = SampleRequest(
-                numberOfSamples: 100,
-                timeInterval: TimeAmount.milliseconds(100),
-                format: .perfSymbolized
-            )
-            let exampleEncoded = String(decoding: try! JSONEncoder().encode(example), as: UTF8.self)
-            let exampleURL: String
-            var exampleCURLArgs: [String] = []
-            let bindTarget = self.configuration.bindTarget!  // will work, we received a request on it!
-            switch bindTarget {
-            case .v4:
-                let ipAddress = bindTarget.ipAddress!  // IPv4 has IP addresses
-                guard ipAddress != "0.0.0.0" else {
-                    exampleURL = "http://127.0.0.1:\(bindTarget.port!)/sample"
-                    break
-                }
-                exampleURL = "http://\(ipAddress):\(bindTarget.port!)/sample"
-            case .v6:
-                let ipAddress = bindTarget.ipAddress!  // IPv6 has IP addresses
-                guard ipAddress != "::" else {
-                    exampleURL = "http://[::1]:\(bindTarget.port!)/sample"
-                    break
-                }
-                exampleURL = "http://\(ipAddress):\(bindTarget.port!)/sample"
-            case .unixDomainSocket:
-                let udsPath = bindTarget.pathname!
-                exampleURL = "http+unix://\(udsPath.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!)/sample"
-                exampleCURLArgs.append(contentsOf: ["--unix-socket", udsPath, "http://127.0.0.1/sample"])
-            }
-
-            if exampleCURLArgs.isEmpty {
-                exampleCURLArgs.append(contentsOf: [exampleURL])
-            }
-            exampleCURLArgs.insert(contentsOf: ["-s", "-d", "'"+exampleEncoded+"'"], at: 0)
-            try await self.respondWithFailure(
-                string: """
-                        # Welcome to the Swift Profile Recorder Server!
-
-                        To request samples, please send POST request to \(exampleURL)
-
-                        ## Details
-
-                        URL: \(exampleURL)
-                        Is this a supported platform? \(ProfileRecorderSampler.isSupportedPlatform ? "yes" : "no")
-
-                        ## Examples
-
-                        Example body: \(exampleEncoded)
-
-                        If you're using curl, you could run
-
-                        ```
-                        curl \(exampleCURLArgs.joined(separator: " ")) > /tmp/samples.perf
-                        ```
-
-                        To also immediately demangle the symbols, run
-
-                        ```
-                        curl \(exampleCURLArgs.joined(separator: " ")) | swift demangle --simplified > /tmp/samples.perf
-                        ```
-
-                        Once you have `/tmp/samples.perf`, you can then visualise it.
-
-
-                        ## Visualisation
-
-                        ### FlameGraphs
-
-                        Repository: https://github.com/brendangregg/Flamegraph
-
-                        ```
-                        FlameGraph/stackcollapse-perf.pl < /tmp/samples.perf | FlameGraph/flamegraph.pl > /tmp/samples.svg
-                        open /tmp/samples.svg
-                        ```
-
-                        ### Firefox Profiler (https://profiler.firefox.com):
-
-                        How to use it?
-
-                        1. Open https://profiler.firefox.com and drag /tmp/samples.svg onto it.
-                        2. Click "Show all tracks" in "tracks" menu on the top left
-                        3. Slightly further down, select the first thread (track), hold Shift and select the last thread.
-                        4. Open the "Flame Graph" tab
-
-                        ### Other options
-
-                        Check https://profilerpedia.markhansen.co.nz/formats/linux-perf-script/#converts-to-transitive for
-                        a list of visualisation options for the "Linux perf script" format that Swift Profile Recorder produces.
-
-                        """,
-                code: .badRequest,
-                outbound
-            )
-            return
-        }
-        let sampleRequest: SampleRequest
         do {
-            sampleRequest = try JSONDecoder().decode(SampleRequest.self, from: request.body ?? ByteBuffer())
+
+            let sampleRequest: SampleRequest
+            switch (request.head.method, self.decodeURI(request.head.uri)) {
+            case (.POST, _):
+                // Native Swift Profile Recorder Sampling server
+                sampleRequest = try JSONDecoder().decode(SampleRequest.self, from: request.body ?? ByteBuffer())
+            case (.GET, .some(let decodedURI)) where decodedURI.components.matches(
+                prefix: self.configuration.pprofRootSlug,
+                ["pprof", "profile"]
+            ) != nil:
+                let seconds = (Int(decodedURI.queryParams["seconds"].flatMap { $0 } ?? "not set") ?? 30)
+                    .clamping(to: 0...1000) // 30 s seems to be Golang's default
+                let sampleRate = 100.clamping(to: 0...1000) // 100 Hz, seems to be Golang's default
+                let numberOfSamples = seconds * sampleRate
+                let timeIntervalBetweenSamplesMS = (1000 / sampleRate).clamping(to: 1...100_000)
+
+                sampleRequest = SampleRequest(
+                    numberOfSamples: numberOfSamples,
+                    timeInterval: .milliseconds(Int64(timeIntervalBetweenSamplesMS)),
+                    format: .pprofSymbolized
+                )
+            default:
+                try await self.sendBadRequestErrorWithExplainer(outbound)
+                return
+            }
             try await ProfileRecorderSampler.sharedInstance._withSamples(
                 sampleCount: sampleRequest.numberOfSamples,
                 timeBetweenSamples: sampleRequest.timeInterval,
@@ -476,5 +525,31 @@ extension TimeAmount {
         } else {
             return "\(fullNS) ns"
         }
+    }
+}
+
+extension Array where Element == String {
+    func matches(prefix: [String] = [], _ path: [String]) -> [String]? {
+        guard self.starts(with: prefix) else {
+            return nil
+        }
+        let remainder = self.dropFirst(prefix.count)
+        if remainder == path[...] {
+            return path
+        } else {
+            return nil
+        }
+    }
+}
+
+extension BinaryInteger {
+    func clamping(to: ClosedRange<Self>) -> Self {
+        if self < to.lowerBound {
+            return to.lowerBound
+        }
+        if self > to.upperBound {
+            return to.upperBound
+        }
+        return self
     }
 }
