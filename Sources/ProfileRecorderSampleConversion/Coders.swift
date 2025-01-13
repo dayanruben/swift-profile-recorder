@@ -23,6 +23,13 @@ public struct Message: Decodable {
     public var exit: CInt?
 }
 
+public struct SampleConfig: Codable & Hashable & Sendable {
+    public var currentTimeSeconds: Int
+    public var currentTimeNanoseconds: Int
+    public var microSecondsBetweenSamples: Int
+    public var sampleCount: Int
+}
+
 public struct DynamicLibMapping: Decodable & Sendable & CustomStringConvertible & Hashable {
     enum CodingKeys: CodingKey {
         case path

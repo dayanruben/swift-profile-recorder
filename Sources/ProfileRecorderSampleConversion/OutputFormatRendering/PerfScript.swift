@@ -67,6 +67,7 @@ public struct PerfScriptOutputRenderer: ProfileRecorderSampleConversionOutputRen
     }
 
     public func finalise(
+        sampleConfiguration: SampleConfig,
         configuration: ProfileRecorderSampleConversionConfiguration,
         symbolizer: CachedSymbolizer
     ) -> ByteBuffer {

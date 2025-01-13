@@ -26,7 +26,18 @@ final class PprofTests: XCTestCase {
         var renderer = PprofOutputRenderer()
         defer {
             var remainder: ByteBuffer?
-            XCTAssertNoThrow(remainder = try renderer.finalise(configuration: .default, symbolizer: self.symbolizer))
+            XCTAssertNoThrow(
+                remainder = try renderer.finalise(
+                    sampleConfiguration: SampleConfig(
+                        currentTimeSeconds: 0,
+                        currentTimeNanoseconds: 0,
+                        microSecondsBetweenSamples: 0,
+                        sampleCount: 0
+                    ),
+                    configuration: .default,
+                    symbolizer: self.symbolizer
+                )
+            )
             XCTAssertNotEqual(ByteBuffer(string: ""), remainder)
         }
         let actual = try renderer.consumeSingleSample(

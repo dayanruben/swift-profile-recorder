@@ -33,6 +33,7 @@ public protocol ProfileRecorderSampleConversionOutputRenderer: Sendable {
     ) throws -> ByteBuffer
 
     mutating func finalise(
+        sampleConfiguration: SampleConfig,
         configuration: ProfileRecorderSampleConversionConfiguration,
         symbolizer: CachedSymbolizer
     ) throws -> ByteBuffer

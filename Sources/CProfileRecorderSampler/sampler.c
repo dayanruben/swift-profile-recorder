@@ -316,6 +316,7 @@ swipr_request_sample(FILE *output,
     size_t num_minidumps = 0;
     char old_thread_name[128] = {0};
     swipr_os_dep_get_current_thread_name(old_thread_name, sizeof(old_thread_name));
+    struct timespec current_time = swipr_get_current_time();
 
     struct swipr_minidump *minidumps = calloc(SWIPR_MAX_MUTATOR_THREADS, sizeof(*minidumps));
     if (!minidumps) {
@@ -337,6 +338,18 @@ swipr_request_sample(FILE *output,
                 err);
         return err;
     }
+
+    fprintf(output,
+            "[SWIPR] CONF { "
+            "\"sampleCount\": %llu, "
+            "\"microSecondsBetweenSamples\": %llu, "
+            "\"currentTimeSeconds\": %llu, "
+            "\"currentTimeNanoseconds\": %llu, "
+            "}\n",
+            (unsigned long long)sample_count,
+            (unsigned long long)usecs_between_samples,
+            (unsigned long long)current_time.tv_sec,
+            (unsigned long long)current_time.tv_nsec);
 
     swipr_os_dep_set_current_thread_name("ProfileRecorder-sampling");
     for (size_t sample_no=0; sample_no<sample_count; sample_no++) {

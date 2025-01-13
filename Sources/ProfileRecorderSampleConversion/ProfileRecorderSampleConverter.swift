@@ -91,6 +91,12 @@ public struct ProfileRecorderSampleConverter: Sendable {
             var config = ProfileRecorderSampleConversionConfiguration.default
             config.includeFileLineInformation = self.symbolizerConfiguration.perfScriptOutputWithFileLineInformation
 
+            var sampleConfig = SampleConfig(
+                currentTimeSeconds: 0,
+                currentTimeNanoseconds: 0,
+                microSecondsBetweenSamples: 1,
+                sampleCount: 0
+            )
             var vmaps: [DynamicLibMapping] = []
             var vmapsRead = true
             var currentSample: Sample? = nil
@@ -107,7 +113,11 @@ public struct ProfileRecorderSampleConverter: Sendable {
             defer {
                 if let symboliser = symboliser {
                     do {
-                        let renderedSample = try self.renderer.finalise(configuration: config, symbolizer: symboliser)
+                        let renderedSample = try self.renderer.finalise(
+                            sampleConfiguration: sampleConfig,
+                            configuration: config,
+                            symbolizer: symboliser
+                        )
                         renderedSample.withUnsafeReadableBytes { renderedPtr in
                             _ = fwrite(renderedPtr.baseAddress, 1, renderedPtr.count, output)
                         }
@@ -131,6 +141,11 @@ public struct ProfileRecorderSampleConverter: Sendable {
                     if let _ = message.exit {
                         throw Error(message: message.message)
                     }
+                case "CONF":
+                    guard let conf = try? decoder.decode(SampleConfig.self, from: Data(line.dropFirst(13).utf8)) else {
+                        continue
+                    }
+                    sampleConfig = conf
                 case "VERS":
                     guard let version = try? decoder.decode(Version.self, from: Data(line.dropFirst(13).utf8)) else {
                         logger.error("Could not decode Swift Profile Recorder version", metadata: ["line": "\(line)"])

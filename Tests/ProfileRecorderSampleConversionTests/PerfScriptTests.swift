@@ -25,7 +25,16 @@ final class PerfScriptTests: XCTestCase {
     func testPerfScriptNumberRenderingSmallNumber() throws {
         let renderer = PerfScriptOutputRenderer()
         defer {
-            let remainder = renderer.finalise(configuration: .default, symbolizer: self.symbolizer)
+            let remainder = renderer.finalise(
+                sampleConfiguration: SampleConfig(
+                    currentTimeSeconds: 0,
+                    currentTimeNanoseconds: 0,
+                    microSecondsBetweenSamples: 0,
+                    sampleCount: 0
+                ),
+                configuration: .default,
+                symbolizer: self.symbolizer
+            )
             XCTAssertEqual(ByteBuffer(string: ""), remainder)
         }
         let actual = try renderer.consumeSingleSample(
@@ -59,7 +68,16 @@ final class PerfScriptTests: XCTestCase {
     func testPerfScriptNumberRenderingLargeNumber() throws {
         let renderer = PerfScriptOutputRenderer()
         defer {
-            let remainder = renderer.finalise(configuration: .default, symbolizer: self.symbolizer)
+            let remainder = renderer.finalise(
+                sampleConfiguration: SampleConfig(
+                    currentTimeSeconds: 0,
+                    currentTimeNanoseconds: 0,
+                    microSecondsBetweenSamples: 0,
+                    sampleCount: 0
+                ),
+                configuration: .default,
+                symbolizer: self.symbolizer
+            )
             XCTAssertEqual(ByteBuffer(string: ""), remainder)
         }
         let actual = try renderer.consumeSingleSample(

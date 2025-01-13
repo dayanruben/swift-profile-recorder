@@ -231,7 +231,7 @@ public struct ProfileRecorderServer: Sendable {
         try await outbound.write(.end(nil))
     }
 
-    func sendBadRequestErrorWithExplainer(_ outbound: Outbound) async throws {
+    func sendNotFoundErrorWithExplainer(_ outbound: Outbound) async throws {
         let example = SampleRequest(
             numberOfSamples: 100,
             timeInterval: TimeAmount.milliseconds(100),
@@ -322,7 +322,7 @@ public struct ProfileRecorderServer: Sendable {
                     a list of visualisation options for the "Linux perf script" format that Swift Profile Recorder produces.
 
                     """,
-            code: .badRequest,
+            code: .notFound,
             outbound
         )
     }
@@ -382,7 +382,7 @@ public struct ProfileRecorderServer: Sendable {
                     format: .pprofSymbolized
                 )
             default:
-                try await self.sendBadRequestErrorWithExplainer(outbound)
+                try await self.sendNotFoundErrorWithExplainer(outbound)
                 return
             }
             try await ProfileRecorderSampler.sharedInstance._withSamples(

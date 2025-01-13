@@ -34,6 +34,7 @@ public struct PprofOutputRenderer: ProfileRecorderSampleConversionOutputRenderer
     }
 
     public mutating func finalise(
+        sampleConfiguration: SampleConfig,
         configuration: ProfileRecorderSampleConversionConfiguration,
         symbolizer: CachedSymbolizer
     ) throws -> ByteBuffer {
@@ -43,6 +44,8 @@ public struct PprofOutputRenderer: ProfileRecorderSampleConversionOutputRenderer
         }
         let samplesID = stringTable.addAndGetID("samples", type: StringWithID.self)
         let countID = stringTable.addAndGetID("count", type: StringWithID.self)
+        let cpuID = stringTable.addAndGetID("cpu", type: StringWithID.self)
+        let nanosecondsID = stringTable.addAndGetID("nanoseconds", type: StringWithID.self)
 
         let profile = Perftools_Profiles_Profile.with { profile in
             profile.location = self.aggregator.locations.values.sorted(by: { $0.id < $1.id }).map { location in
@@ -71,6 +74,14 @@ public struct PprofOutputRenderer: ProfileRecorderSampleConversionOutputRenderer
                     outSample.value = [Int64(count)]
                 }
             }
+            profile.periodType = Perftools_Profiles_ValueType.with {
+                $0.type = Int64(cpuID)
+                $0.unit = Int64(nanosecondsID)
+            }
+            profile.timeNanos = (Int64(sampleConfiguration.currentTimeSeconds) * 1_000_000_000) + Int64(sampleConfiguration.currentTimeNanoseconds)
+            profile.durationNanos = Int64(sampleConfiguration.sampleCount) * Int64(sampleConfiguration.microSecondsBetweenSamples) * 1_000
+            profile.period = Int64(sampleConfiguration.microSecondsBetweenSamples) * 1_000
+
             /*
              we are symbolized already...
             profile.mapping = symbolizer.dynamicLibraryMappings.enumerated().map { (index, vmap) in
