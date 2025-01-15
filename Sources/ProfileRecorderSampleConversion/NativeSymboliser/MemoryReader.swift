@@ -32,7 +32,7 @@
 
 
 
-#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+#if canImport(Darwin)
 import Darwin
 #elseif os(Windows)
 import ucrt
@@ -40,10 +40,6 @@ import ucrt
 import Glibc
 #elseif canImport(Musl)
 import Musl
-#endif
-
-#if os(macOS)
-
 #endif
 
 @_spi(MemoryReaders) public protocol MemoryReader {
