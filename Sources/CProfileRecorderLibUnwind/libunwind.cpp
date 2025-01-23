@@ -45,8 +45,10 @@
 
 using namespace libunwind;
 
+#if __APPLE__ || __GLIBC__
 /// internal object to represent this processes address space
 LocalAddressSpace LocalAddressSpace::sThisAddressSpace;
+#endif
 
 _LIBUNWIND_EXPORT swipr_unw_addr_space_t swipr_unw_local_addr_space =
     (swipr_unw_addr_space_t)&LocalAddressSpace::sThisAddressSpace;
@@ -446,6 +448,7 @@ int __swipr_unw_remove_find_dynamic_unwind_sections(
 
 // Add logging hooks in Debug builds only
 #ifndef NDEBUG
+#if __APPLE__ || __GLIBC__
 #include <stdlib.h>
 
 _LIBUNWIND_HIDDEN
@@ -484,5 +487,6 @@ bool logDWARF() {
   return log;
 }
 
+#endif // __APPLE__ || __GLIBC__
 #endif // NDEBUG
 
