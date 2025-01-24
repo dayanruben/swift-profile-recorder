@@ -45,7 +45,6 @@ import Musl
 #endif
 import CProfileRecorderSwiftELF
 
-
 // .. Use *our* Elf definitions ................................................
 
 // On Linux there is an <elf.h> header that can be dragged in via Glibc, which
@@ -1061,7 +1060,7 @@ protocol ElfSymbolTableProtocol {
 protocol ElfSymbolLookupProtocol {
   associatedtype Traits: ElfTraits
   typealias CallSiteInfo = DwarfReader<ElfImage<Traits>>.CallSiteInfo
-
+  
 
   func lookupSymbol(address: Traits.Address) -> ImageSymbol?
   func inlineCallSites(at address: Traits.Address) -> ArraySlice<CallSiteInfo>
@@ -1198,13 +1197,13 @@ struct ElfSymbolTable<SomeElfTraits: ElfTraits>: ElfSymbolTableProtocol {
         nextValue = _symbols[mid + 1].value
       }
 
-      if symbol.value <= address && nextValue >= address {
+      if symbol.value <= address && nextValue > address {
         var ndx = mid
         while ndx > 0 && _symbols[ndx - 1].value == address {
           ndx -= 1
         }
         return _symbols[ndx]
-      } else if symbol.value < address {
+      } else if symbol.value <= address {
         min = mid + 1
       } else if symbol.value > address {
         max = mid
@@ -1847,7 +1846,7 @@ final class ElfImage<SomeElfTraits: ElfTraits>
     return []
   }
 
-
+  
 
   func sourceLocation(
     for address: Traits.Address

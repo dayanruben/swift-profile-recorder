@@ -138,6 +138,7 @@ find "$target_c_src" "$target_swift_src" \
         -e "s/@_specialize\(kind: full, where R == UnsafeLocalMemoryReader\)//g" \
         -e "s/@_specialize\(kind: full, where R == UnsafeLocalMemoryReader, Traits == Elf32Traits\)//g" \
         -e "s/@_specialize\(kind: full, where R == UnsafeLocalMemoryReader, Traits == Elf64Traits\)//g" \
+        -e "s/^#if os\(macOS\) \|\| os\(iOS\) \|\| os\(tvOS\) \|\| os\(watchOS\)$/#if canImport(Darwin)/g" \
         -e "1s%^%$(echo "$vendored_file_text" | tr '\n' '%' | sed 's/%/\\n/g')%" \
         '{}' \;
 echo "Okay, all done."

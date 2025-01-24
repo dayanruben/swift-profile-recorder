@@ -34,7 +34,6 @@
 
 import CProfileRecorderSwiftELF
 
-
 // .. Use *our* Dwarf definitions ..............................................
 
 // To avoid confusion with other similar sets of definitions, we've put ours

@@ -42,6 +42,10 @@ import Glibc
 import Musl
 #endif
 
+#if os(macOS)
+
+#endif
+
 @_spi(MemoryReaders) public protocol MemoryReader {
   typealias Address = UInt64
   typealias Size = UInt64
