@@ -175,6 +175,7 @@ public struct ProfileRecorderServer: Sendable {
                                                         "ProfileRecorder sampling server request",
                                                         metadata: ["request": "\(request)"]
                                                     )
+
                                                     try await handleRequest(request, outbound: outbound, logger: logger)
                                                 }
                                                 outbound.finish()
@@ -360,7 +361,6 @@ public struct ProfileRecorderServer: Sendable {
         logger: Logger
     ) async throws {
         do {
-
             let sampleRequest: SampleRequest
             switch (request.head.method, self.decodeURI(request.head.uri)) {
             case (.POST, _):
@@ -391,27 +391,31 @@ public struct ProfileRecorderServer: Sendable {
                 format: sampleRequest.format,
                 logger: logger
             ) { samples in
-                try await outbound.write(
-                    .head(
-                        HTTPResponseHead(
-                            version: .http1_1,
-                            status: .ok,
-                            headers: [
-                                "content-disposition": "filename=\"samples-\(getpid())-\(time(nil)).perf\"",
-                                "content-type": "application/octet-stream",
-                            ]
+                try await FileSystem.shared.withFileHandle(forReadingAt: FilePath(samples)) { handle in
+                    try await outbound.write(
+                        .head(
+                            HTTPResponseHead(
+                                version: .http1_1,
+                                status: .ok,
+                                headers: [
+                                    "content-disposition": "filename=\"samples-\(getpid())-\(time(nil)).perf\"",
+                                    "content-type": "application/octet-stream",
+                                ]
+                            )
                         )
                     )
-                )
-                try await FileSystem.shared.withFileHandle(forReadingAt: FilePath(samples)) { handle in
                     var reader = handle.bufferedReader()
                     while true {
                         let chunk = try await reader.read(.mebibytes(4))
                         guard chunk.readableBytes > 0 else { break }
-                        try await outbound.write(.body(chunk))
+                        do {
+                            try await outbound.write(.body(chunk))
+                        } catch {
+                            break
+                        }
                     }
+                    try? await outbound.write(.end(nil))
                 }
-                try await outbound.write(.end(nil))
             }
         } catch {
             try await self.respondWithFailure(string: "\(error)", code: .internalServerError, outbound)

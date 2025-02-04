@@ -84,8 +84,8 @@ public final class ProfileRecorderSampler: Sendable {
                             failIfFileExists: failIfFileExists,
                             count: count,
                             timeBetweenSamples: timeBetweenSamples,
-                            // FIXME: EmbeddedEventLoop is a hack here...
-                            eventLoop: EmbeddedEventLoop()).whenComplete { result in
+                            eventLoop: MultiThreadedEventLoopGroup.singleton.any()
+        ).whenComplete { result in
             queue.async {
                 handler(result.map { outputFilePath })
             }

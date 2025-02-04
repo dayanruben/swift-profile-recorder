@@ -155,7 +155,9 @@ swipr_make_sample(struct swipr_minidump *minidumps,
     for (int i=0; i<num_threads; i++) {
         swipr_precondition(all_threads[i].ti_id != 0);
         g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = all_threads[i].ti_id;
+        swipr_precondition(g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed == NULL);
         g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed = swipr_os_dep_sem_create(0);
+        swipr_precondition(g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed == NULL);
         g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed = swipr_os_dep_sem_create(0);
     }
 
@@ -317,13 +319,7 @@ swipr_request_sample(FILE *output,
     char old_thread_name[128] = {0};
     swipr_os_dep_get_current_thread_name(old_thread_name, sizeof(old_thread_name));
     struct timespec current_time = swipr_get_current_time();
-
-    struct swipr_minidump *minidumps = calloc(SWIPR_MAX_MUTATOR_THREADS, sizeof(*minidumps));
-    if (!minidumps) {
-        fprintf(output,
-                "[SWIPR] MESG { \"message\": \"ProfileRecorder could not allocate memory to collect minidumps.\", \"exit\": 1 }\n");
-        return 1;
-    }
+    struct swipr_minidump *minidumps = NULL;
 
 #if !defined(__linux__)
     fprintf(output,
@@ -331,11 +327,20 @@ swipr_request_sample(FILE *output,
     return 1;
 #endif
 
+    minidumps = calloc(SWIPR_MAX_MUTATOR_THREADS, sizeof(*minidumps));
+    if (!minidumps) {
+        fprintf(output,
+                "[SWIPR] MESG { \"message\": \"ProfileRecorder could not allocate memory to collect minidumps.\", \"exit\": 1 }\n");
+        return 1;
+    }
+
     int err = swipr_initialise_c2ms(output);
     if (err) {
         fprintf(output,
                 "[SWIPR] MESG { \"message\": \"ProfileRecorder initialisation failed, error: %d.\" }\n",
                 err);
+        free(minidumps);
+        minidumps = NULL;
         return err;
     }
 
@@ -396,6 +401,9 @@ swipr_request_sample(FILE *output,
         usleep(usecs_between_samples);
     }
     swipr_os_dep_set_current_thread_name(old_thread_name);
+
+    free(minidumps);
+    minidumps = NULL;
     return 0;
 }
 

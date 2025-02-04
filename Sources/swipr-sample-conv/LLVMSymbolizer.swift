@@ -146,6 +146,10 @@ internal class LLVMSymboliser: Symbolizer {
         assert(self.channel == nil)
         assert(self.process == nil)
     }
+
+    public var description: String {
+        return "LLVMSymbolizer"
+    }
 }
 
 final class LogErrorHandler: ChannelInboundHandler {

@@ -103,7 +103,7 @@ public struct ProfileRecorderSampleConverter: Sendable {
             var bufferCapacity: ssize_t = 1024
             var buffer: UnsafeMutablePointer<CChar>? = UnsafeMutablePointer<CChar>.allocate(capacity: Int(bufferCapacity))
             defer {
-                buffer?.deallocate()
+                buffer!.deallocate()
             }
 
             var symboliser: CachedSymbolizer? = nil
@@ -121,6 +121,7 @@ public struct ProfileRecorderSampleConverter: Sendable {
                         renderedSample.withUnsafeReadableBytes { renderedPtr in
                             _ = fwrite(renderedPtr.baseAddress, 1, renderedPtr.count, output)
                         }
+                        logger.info("done symbolising", metadata: ["cached-sym": "\(symboliser.description)"])
                     } catch {
                         accumulatedErrors.append(error)
                     }

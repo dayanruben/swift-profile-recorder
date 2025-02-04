@@ -80,7 +80,7 @@ struct ProfileRecorderSampleConverterCommand: AsyncParsableCommand {
             unstuckerWorkaround: self.unstuckerWorkaround
         )
         guard self.debugSymbolication.isEmpty else {
-            try self.runDebugSymbolication(
+            try Self.runDebugSymbolication(
                 self.debugSymbolication,
                 logger: logger,
                 llvmSymbolizerConfig: llvmSymbolizerConfig,
@@ -154,7 +154,7 @@ struct ProfileRecorderSampleConverterCommand: AsyncParsableCommand {
         )
     }
 
-    func runDebugSymbolication(
+    static func runDebugSymbolication(
         _ syms: [String],
         logger: Logger,
         llvmSymbolizerConfig: LLVMSymboliserConfig,

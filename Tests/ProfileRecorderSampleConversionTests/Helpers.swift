@@ -16,6 +16,10 @@ import ProfileRecorderSampleConversion
 import Logging
 
 final class FakeSymbolizer: Symbolizer {
+    var description: String {
+        return "FakeSymbolizer"
+    }
+
     func start() throws {
     }
 

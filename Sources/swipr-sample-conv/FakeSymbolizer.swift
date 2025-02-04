@@ -43,4 +43,8 @@ internal class FakeSymbolizer: Symbolizer {
 
     func shutdown() throws {
     }
+
+    var description: String {
+        return "FakeSymbolizer"
+    }
 }

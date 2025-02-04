@@ -97,6 +97,8 @@ public struct PprofOutputRenderer: ProfileRecorderSampleConversionOutputRenderer
             profile.stringTable = [""] + stringTable.values.sorted(by: { $0.id < $1.id }).map { $0.value }
         }
         let output: ByteBufferForProto = try profile.serializedBytes()
+
+        self.aggregator = SampleAggregator()
         return output.bytes
     }
 }

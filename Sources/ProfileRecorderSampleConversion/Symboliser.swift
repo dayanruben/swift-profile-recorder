@@ -66,6 +66,8 @@ public protocol Symbolizer {
 
     @available(*, noasync, message: "blocks the calling thread")
     func shutdown() throws
+
+    var description: String { get }
 }
 
 enum AnyElfImage {
@@ -195,6 +197,10 @@ public class NativeSymboliser: Symbolizer {
     }
 
     public func shutdown() throws {}
+
+    public var description: String {
+        return "NativeSymboliser(cachedELFs: \(self.elfSourceCache.count))"
+    }
 }
 
 public struct SymbolizerConfiguration: Sendable {
@@ -208,7 +214,7 @@ public struct SymbolizerConfiguration: Sendable {
 /// Symbolises `StackFrame`s.
 ///
 /// Not thread-safe.
-public class CachedSymbolizer {
+public class CachedSymbolizer: CustomStringConvertible {
     public let dynamicLibraryMappings: [DynamicLibMapping]
     private let group: EventLoopGroup
     private let symbolizer: any Symbolizer
@@ -312,6 +318,11 @@ public class CachedSymbolizer {
     }
 
     public func symbolise(_ stackFrame: StackFrame) throws -> SymbolisedStackFrame {
+        defer {
+            if self.cache.count > 16_000 {
+                self.cache.removeAll(keepingCapacity: true)
+            }
+        }
         if let symd = self.cache[stackFrame.instructionPointer] {
             return symd
         } else {
@@ -323,6 +334,10 @@ public class CachedSymbolizer {
 
     public func shutdown() throws {
         try self.symbolizer.shutdown()
+    }
+
+    public var description: String {
+        return "CachedSymbolizer(cache: \(self.cache.count), vmaps: \(self.dynamicLibraryMappings.count), sym: \(self.symbolizer.description))"
     }
 }
 

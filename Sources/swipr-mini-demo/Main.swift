@@ -20,7 +20,7 @@ import ProfileRecorderServer
 import Logging
 
 @main
-struct ProfileRecorderMiniDemo: ParsableCommand {
+struct ProfileRecorderMiniDemo: ParsableCommand & Sendable {
     @Flag(inversion: .prefixedNo, help: "Should we run a blocking function?")
     var blocking: Bool = false
 
@@ -44,6 +44,9 @@ struct ProfileRecorderMiniDemo: ParsableCommand {
 
     @Option(help: "How many iterations?")
     var iterations: Int = 10
+
+    @Option(help: "Run multi-threaded")
+    var threads: Int = 1
 
     func run() throws {
         let logger = Logger(label: "swipr-mini-demo")
@@ -82,26 +85,41 @@ struct ProfileRecorderMiniDemo: ParsableCommand {
               \(self.blocking ? ", blocking" : "")
               """
         )
+        let queue = DispatchQueue.global()
         for _ in 0..<self.iterations {
-            if self.arrayAppends {
-                var xs: [Int] = []
-                for x in 0..<4_000_000 {
-                    xs.append(x)
+            if self.threads > 1 {
+                let g = DispatchGroup()
+                for _ in 0..<self.threads {
+                    queue.async(group: g) {
+                        self.runIteration()
+                    }
                 }
-                precondition(xs.count == xs.count - 1 + 1)
-            }
-            if self.burnCPU {
-                doBurnCPU()
-            }
-            if self.blocking {
-                func hideBlocking() {
-                    Thread.sleep(forTimeInterval: 0.2)
-                }
-                hideBlocking()
+                g.wait()
+            } else {
+                self.runIteration()
             }
         }
         print("DONE")
         fflush(stdout)
+    }
+
+    func runIteration() {
+        if self.arrayAppends {
+            var xs: [Int] = []
+            for x in 0..<4_000_000 {
+                xs.append(x)
+            }
+            precondition(xs.count == xs.count - 1 + 1)
+        }
+        if self.burnCPU {
+            doBurnCPU()
+        }
+        if self.blocking {
+            func hideBlocking() {
+                Thread.sleep(forTimeInterval: 0.2)
+            }
+            hideBlocking()
+        }
     }
 }
 
