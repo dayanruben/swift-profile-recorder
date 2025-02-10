@@ -382,13 +382,13 @@ public struct ProfileRecorderServer: Sendable {
                 sampleRequest = try JSONDecoder().decode(SampleRequest.self, from: request.body ?? ByteBuffer())
             case (.GET, .some(let decodedURI)) where decodedURI.components.matches(
                 prefix: self.configuration.pprofRootSlug,
-                ["pprof", "profile"]
+                oneOfPaths: [["pprof", "profile"], ["pprof", "symbolizer=fake", "profile"]]
             ) != nil:
                 let seconds = (Int(decodedURI.queryParams["seconds"].flatMap { $0 } ?? "not set") ?? 30)
                     .clamping(to: 0...1000) // 30 s seems to be Golang's default
                 let symbolizerKind = decodedURI.queryParams["symbolizer"].flatMap { kind in
                     ProfileRecorderSymbolizerKind(rawValue: kind ?? "n/a")
-                } ?? .native
+                } ?? (decodedURI.components.contains("symbolizer=fake") ? .fake : .native)
                 let sampleRate = 100.clamping(to: 0...1000) // 100 Hz, seems to be Golang's default
                 let numberOfSamples = seconds * sampleRate
                 let timeIntervalBetweenSamplesMS = (1000 / sampleRate).clamping(to: 1...100_000)
@@ -569,6 +569,21 @@ extension TimeAmount {
 }
 
 extension Array where Element == String {
+    func matches(prefix: [String] = [], oneOfPaths possiblePaths: [[String]]) -> [String]? {
+        guard self.starts(with: prefix) else {
+            return nil
+        }
+        let remainder = Array(self.dropFirst(prefix.count))
+
+        for path in possiblePaths {
+            if let match = remainder.matches(path) {
+                return match
+            }
+        }
+
+        return nil
+    }
+
     func matches(prefix: [String] = [], _ path: [String]) -> [String]? {
         guard self.starts(with: prefix) else {
             return nil

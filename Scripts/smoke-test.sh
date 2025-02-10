@@ -27,5 +27,5 @@ curl -o /output/samples.pprof \
 curl -o /output/samples-fakesym.pprof \
     -s \
     --unix-socket /tmp/foo.sock \
-    'http://unix/debug/pprof/profile?seconds=10&symbolizer=fake'
+    http://unix/debug/pprof/symbolizer=fake/profile?seconds=10
 wait "$demo_pid"
