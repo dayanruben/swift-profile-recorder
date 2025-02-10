@@ -355,7 +355,7 @@ private final class HTTPHandler: ChannelInboundHandler {
             head.headers.replaceOrAdd(name: "content-type", value: "application/octet-stream")
             let context = loopBoundContext.value
             return context.writeAndFlush(Self.wrapOutboundOut(.head(head))).flatMap {
-                fileIO.openFile(path: path, eventLoop: eventLoop)
+                fileIO.openFile(_deprecatedPath: path, eventLoop: eventLoop)
             }
         }.flatMap { [fileIO = self.fileIO] fhAndRegion in
             let fh = NIOLoopBound(fhAndRegion.0, eventLoop: eventLoop)
@@ -399,7 +399,7 @@ private final class HTTPHandler: ChannelInboundHandler {
             head.headers.replaceOrAdd(name: "content-type", value: "application/octet-stream")
             let context = loopBoundContext.value
             return context.writeAndFlush(Self.wrapOutboundOut(.head(head))).flatMap {
-                fileIO.openFile(path: samplePath, eventLoop: eventLoop)
+                fileIO.openFile(_deprecatedPath: samplePath, eventLoop: eventLoop)
             }
         }.flatMap { [fileIO = self.fileIO] fhAndRegion in
             let fh = NIOLoopBound(fhAndRegion.0, eventLoop: eventLoop)
@@ -466,7 +466,7 @@ private final class HTTPHandler: ChannelInboundHandler {
                 return
             }
             let path = self.htdocsPath + "/" + path
-            let fileHandleAndRegion = self.fileIO.openFile(path: path, eventLoop: context.eventLoop)
+            let fileHandleAndRegion = self.fileIO.openFile(_deprecatedPath: path, eventLoop: context.eventLoop)
             fileHandleAndRegion.whenFailure {
                 sendErrorResponse(request: request, $0)
             }
@@ -682,7 +682,12 @@ func runWebServer() -> Void {
 
     @Sendable func childChannelInitializer(channel: Channel) -> EventLoopFuture<Void> {
         return channel.pipeline.configureHTTPServerPipeline(withErrorHandling: true).flatMap {
-            channel.pipeline.addHandler(HTTPHandler(fileIO: fileIO, htdocsPath: htdocs))
+            do {
+                try channel.pipeline.syncOperations.addHandler(HTTPHandler(fileIO: fileIO, htdocsPath: htdocs))
+                return channel.eventLoop.makeSucceededVoidFuture()
+            } catch {
+                return channel.eventLoop.makeFailedFuture(error)
+            }
         }
     }
 

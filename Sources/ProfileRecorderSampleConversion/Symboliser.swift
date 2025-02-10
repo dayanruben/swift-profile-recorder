@@ -14,6 +14,7 @@
 
 import NIO
 import Foundation
+import NIOConcurrencyHelpers
 import NIOExtras
 import Logging
 
@@ -57,7 +58,7 @@ public struct SymbolisedStackFrame: Sendable & Hashable {
     }
 }
 
-public protocol Symbolizer {
+public protocol Symbolizer: Sendable {
     @available(*, noasync, message: "blocks the calling thread")
     func start() throws
 
@@ -138,14 +139,61 @@ enum AnyElfImage {
     }
 }
 
-public class NativeSymboliser: Symbolizer {
-    private var elfSourceCache: [String: AnyElfImage] = [:]
+internal struct LockedELFSourceCacheReference: @unchecked /* the ElfImage types aren't */ Sendable {
+    private let value: NIOLockedValueBox<[String: AnyElfImage]> = NIOLockedValueBox([:])
+
+    enum Error: Swift.Error {
+        case loadFailed
+        case lookupFailed
+    }
+
+    var count: Int {
+        return self.value.withLockedValue { $0.count }
+    }
+
+    @available(*, noasync, message: "blocks the calling thread")
+    func lookup(library: DynamicLibMapping, relativeIP: UInt, logger: Logger) -> Result<[ImageSymbol], Error> {
+        return self.value.withLockedValue { elfSourceCache in
+            var elfImage: AnyElfImage? = elfSourceCache[library.path]
+            if elfImage == nil {
+                if let source = try? ImageSource(path: library.path) {
+                    if let image = try? Elf64Image(source: source) {
+                        elfImage = .elf64(image)
+                    } else if let image = try? Elf32Image(source: source) {
+                        elfImage = .elf32(image)
+                    } else {
+                        elfImage = nil
+                    }
+                }
+                elfSourceCache[library.path] = elfImage
+            }
+            guard let elfImage = elfImage else {
+                return .failure(.loadFailed)
+            }
+
+            guard let results = elfImage.lookupRealAndInlinedFrames(
+                address: UInt64(relativeIP),
+                logger: logger
+            ) else {
+                return .failure(.lookupFailed)
+            }
+            return .success(results)
+        }
+    }
+}
+
+public final class NativeSymboliser: Symbolizer & Sendable {
+    private let elfSourceCache = LockedELFSourceCacheReference()
 
     public init() {}
 
     public func start() throws {}
 
-    public func symbolise(relativeIP: UInt, library: DynamicLibMapping, logger: Logger) throws -> SymbolisedStackFrame {
+    public func symbolise(
+        relativeIP: UInt,
+        library: DynamicLibMapping,
+        logger: Logger
+    ) throws -> SymbolisedStackFrame {
         func makeFailed(_ why: String = "") -> SymbolisedStackFrame {
             return SymbolisedStackFrame(
                 allFrames: [SymbolisedStackFrame.SingleFrame(
@@ -160,38 +208,30 @@ public class NativeSymboliser: Symbolizer {
             )
         }
 
-        var elfImage: AnyElfImage? = self.elfSourceCache[library.path]
-        if elfImage == nil {
-            if let source = try? ImageSource(path: library.path) {
-                if let image = try? Elf32Image(source: source) {
-                    elfImage = .elf32(image)
-                } else if let image = try? Elf64Image(source: source) {
-                    elfImage = .elf64(image)
-                } else {
-                    elfImage = nil
-                }
+        let results: [ImageSymbol]
+        switch self.elfSourceCache.lookup(library: library, relativeIP: relativeIP, logger: logger) {
+        case .success(let success):
+            results = success
+        case .failure(let error):
+            switch error {
+            case .lookupFailed:
+                return makeFailed()
+            case .loadFailed:
+                return makeFailed("-load-failed")
             }
-            self.elfSourceCache[library.path] = elfImage
-        }
-        guard let elfImage = elfImage else {
-            return makeFailed("-load-failed")
         }
 
-        let results = elfImage.lookupRealAndInlinedFrames(address: UInt64(relativeIP), logger: logger)
-
-        guard let results = results else {
-            return makeFailed()
-        }
         return SymbolisedStackFrame(
-            allFrames: results.map { result in SymbolisedStackFrame.SingleFrame(
-                address: relativeIP,
-                functionName: result.name,
-                functionOffset: UInt(exactly: result.offset) ?? 0,
-                library: nil,
-                vmap: library,
-                file: nil,
-                line: nil
-            )
+            allFrames: results.map { result in
+                SymbolisedStackFrame.SingleFrame(
+                    address: relativeIP,
+                    functionName: result.name,
+                    functionOffset: UInt(exactly: result.offset) ?? 0,
+                    library: nil,
+                    vmap: library,
+                    file: nil,
+                    line: nil
+                )
             }
         )
     }
@@ -212,23 +252,25 @@ public struct SymbolizerConfiguration: Sendable {
 }
 
 /// Symbolises `StackFrame`s.
-///
-/// Not thread-safe.
-public class CachedSymbolizer: CustomStringConvertible {
+public final class CachedSymbolizer: Sendable & CustomStringConvertible {
     public let dynamicLibraryMappings: [DynamicLibMapping]
     private let group: EventLoopGroup
-    private let symbolizer: any Symbolizer
+    private let symbolizer: any (Symbolizer & Sendable)
     private let logger: Logger
-    private var cache: [UInt: SymbolisedStackFrame] = [:]
-    private var configuration: SymbolizerConfiguration
+    private let configuration: SymbolizerConfiguration
+    private let state: NIOLockedValueBox<State> = NIOLockedValueBox(State())
+
+    private struct State: Sendable {
+        var cache: [UInt: SymbolisedStackFrame] = [:]
+    }
 
     public init(
         configuration: SymbolizerConfiguration,
-        symbolizer: some Symbolizer,
+        symbolizer: Symbolizer,
         dynamicLibraryMappings: [DynamicLibMapping],
         group: EventLoopGroup,
         logger: Logger
-    ) throws {
+    ) {
         self.configuration = configuration
         self.dynamicLibraryMappings = dynamicLibraryMappings
             .compactMap { mapping in
@@ -240,14 +282,15 @@ public class CachedSymbolizer: CustomStringConvertible {
                     return nil
                 }
                 return mapping
-            }.sorted(by: { l, r in
-                return l.segmentStartAddress < r.segmentStartAddress
-            })
+            }.sorted()
         self.group = group
         self.symbolizer = symbolizer
         self.logger = logger
         logger.trace("starting CachedSymbolizer", metadata: ["mappings": "\(self.dynamicLibraryMappings)"])
-        try self.symbolizer.start()
+    }
+
+    var cacheCount: Int {
+        return self.state.withLockedValue { $0.cache.count }
     }
 
     private func symboliseSlow(_ stackFrame: StackFrame) throws -> SymbolisedStackFrame {
@@ -318,26 +361,30 @@ public class CachedSymbolizer: CustomStringConvertible {
     }
 
     public func symbolise(_ stackFrame: StackFrame) throws -> SymbolisedStackFrame {
-        defer {
-            if self.cache.count > 16_000 {
-                self.cache.removeAll(keepingCapacity: true)
+        return try self.state.withLockedValue { state in
+            defer {
+                if state.cache.count > 16_000 {
+                    state.cache.removeAll(keepingCapacity: true)
+                }
+            }
+            if let symd = state.cache[stackFrame.instructionPointer] {
+                return symd
+            } else {
+                let symd = try self.symboliseSlow(stackFrame)
+                state.cache[stackFrame.instructionPointer] = symd
+                return symd
             }
         }
-        if let symd = self.cache[stackFrame.instructionPointer] {
-            return symd
-        } else {
-            let symd = try self.symboliseSlow(stackFrame)
-            self.cache[stackFrame.instructionPointer] = symd
-            return symd
-        }
-    }
-
-    public func shutdown() throws {
-        try self.symbolizer.shutdown()
     }
 
     public var description: String {
-        return "CachedSymbolizer(cache: \(self.cache.count), vmaps: \(self.dynamicLibraryMappings.count), sym: \(self.symbolizer.description))"
+        return """
+               CachedSymbolizer(\
+               cache: \(self.cacheCount), \
+               vmaps: \(self.dynamicLibraryMappings.count), \
+               sym: \(self.symbolizer.description)\
+               )
+               """
     }
 }
 

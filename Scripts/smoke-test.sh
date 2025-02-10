@@ -12,7 +12,7 @@ SWIPR_SAMPLING_SERVER_URL=unix:///tmp/foo.sock \
     /root/build/release/swipr-mini-demo \
     --blocking  --burn-cpu --array-appends \
     --output /output/samples.swipr \
-    --iterations 50 \
+    --iterations 100 \
     --sampling-server &
 demo_pid=$!
 sleep 3
@@ -21,7 +21,11 @@ curl -o /output/samples.perf \
     --unix-socket /tmp/foo.sock \
     http://unix/sample
 curl -o /output/samples.pprof \
-    -sd '{"timeInterval":"100 ms","numberOfSamples":100, "format": "pprofSymbolized"}' \
+    -s \
     --unix-socket /tmp/foo.sock \
-    http://unix/sample
+    http://unix/debug/pprof/profile?seconds=10
+curl -o /output/samples-fakesym.pprof \
+    -s \
+    --unix-socket /tmp/foo.sock \
+    'http://unix/debug/pprof/profile?seconds=10&symbolizer=fake'
 wait "$demo_pid"

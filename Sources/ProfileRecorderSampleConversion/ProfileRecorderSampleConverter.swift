@@ -22,12 +22,33 @@ public struct ProfileRecorderSampleConverter: Sendable {
     var renderer: any ProfileRecorderSampleConversionOutputRenderer
     let threadPool: NIOThreadPool
     let group: EventLoopGroup
-    let makeSymbolizer: @Sendable () throws -> any Symbolizer
+    let symbolizer: SymbolizerMaker
 
     public struct Error: Swift.Error {
         var message: String
     }
 
+    // TODO: Remove once we can remove the deprecated init
+    enum SymbolizerMaker: Sendable {
+        case symbolizer(any Symbolizer)
+        case maker(@Sendable () throws -> any (Symbolizer & Sendable))
+    }
+
+    internal init(
+        config: SymbolizerConfiguration,
+        threadPool: NIOThreadPool,
+        group: any EventLoopGroup,
+        renderer: any ProfileRecorderSampleConversionOutputRenderer,
+        symbolizer: SymbolizerMaker
+    ) {
+        self.symbolizerConfiguration = config
+        self.renderer = renderer
+        self.symbolizer = symbolizer
+        self.threadPool = threadPool
+        self.group = group
+    }
+
+    @available(*, deprecated, message: "Please provide an initialised symboliser")
     public init(
         config: SymbolizerConfiguration,
         threadPool: NIOThreadPool = .singleton,
@@ -35,11 +56,29 @@ public struct ProfileRecorderSampleConverter: Sendable {
         renderer: any ProfileRecorderSampleConversionOutputRenderer,
         makeSymbolizer: @Sendable @escaping () throws -> any Symbolizer
     ) {
-        self.symbolizerConfiguration = config
-        self.renderer = renderer
-        self.makeSymbolizer = makeSymbolizer
-        self.threadPool = threadPool
-        self.group = group
+        self.init(
+            config: config,
+            threadPool: threadPool,
+            group: group,
+            renderer: renderer,
+            symbolizer: .maker(makeSymbolizer)
+        )
+    }
+
+    public init(
+        config: SymbolizerConfiguration,
+        threadPool: NIOThreadPool = .singleton,
+        group: any EventLoopGroup = .singletonMultiThreadedEventLoopGroup,
+        renderer: any ProfileRecorderSampleConversionOutputRenderer,
+        symbolizer: any Symbolizer
+    ) {
+        self.init(
+            config: config,
+            threadPool: threadPool,
+            group: group,
+            renderer: renderer,
+            symbolizer: .symbolizer(symbolizer)
+        )
     }
 
     public func convert(
@@ -63,6 +102,39 @@ public struct ProfileRecorderSampleConverter: Sendable {
     public mutating func convertSync(
         inputRawProfileRecorderFormatPath fromPath: String,
         outputPath toPath: String,
+        format: ProfileRecorderOutputFormat,
+        logger: Logger
+    ) throws {
+        switch self.symbolizer {
+        case .symbolizer(let symbolizer):
+            return try self.convertSync(
+                inputRawProfileRecorderFormatPath: fromPath,
+                outputPath: toPath,
+                underlyingSymbolizer: symbolizer,
+                format: format,
+                logger: logger
+            )
+        case .maker(let maker):
+            let symbolizer = try maker()
+            try symbolizer.start()
+            defer {
+                try! symbolizer.shutdown()
+            }
+            return try self.convertSync(
+                inputRawProfileRecorderFormatPath: fromPath,
+                outputPath: toPath,
+                underlyingSymbolizer: symbolizer,
+                format: format,
+                logger: logger
+            )
+        }
+    }
+
+    @available(*, noasync, message: "blocks calling thread")
+    internal mutating func convertSync(
+        inputRawProfileRecorderFormatPath fromPath: String,
+        outputPath toPath: String,
+        underlyingSymbolizer: any Symbolizer,
         format: ProfileRecorderOutputFormat,
         logger: Logger
     ) throws {
@@ -107,9 +179,6 @@ public struct ProfileRecorderSampleConverter: Sendable {
             }
 
             var symboliser: CachedSymbolizer? = nil
-            defer {
-                try! symboliser?.shutdown()
-            }
             defer {
                 if let symboliser = symboliser {
                     do {
@@ -165,7 +234,6 @@ public struct ProfileRecorderSampleConverter: Sendable {
                     }
 
                     if vmapsRead {
-                        try symboliser?.shutdown()
                         symboliser = nil
                         vmaps.removeAll()
                         vmapsRead = false
@@ -174,9 +242,9 @@ public struct ProfileRecorderSampleConverter: Sendable {
                 case "SMPL":
                     vmapsRead = true
                     if symboliser == nil {
-                        symboliser = try CachedSymbolizer(
+                        symboliser = CachedSymbolizer(
                             configuration: .default,
-                            symbolizer: try self.makeSymbolizer(),
+                            symbolizer: underlyingSymbolizer,
                             dynamicLibraryMappings: vmaps,
                             group: group,
                             logger: logger

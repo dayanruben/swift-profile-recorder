@@ -1,4 +1,4 @@
-// swift-tools-version:5.8
+// swift-tools-version:5.10
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "swift-profile-recorder",
     platforms: [
-        .macOS(.v11), .iOS(.v14)
+        .macOS(.v11), .iOS(.v14), .watchOS(.v7), .tvOS(.v14)
     ],
     products: [
         .library(name: "ProfileRecorder", targets: ["ProfileRecorder"]),
@@ -29,6 +29,7 @@ let package = Package(
             dependencies: [
                 "ProfileRecorder",
                 "ProfileRecorderServer",
+                "ProfileRecorderHelpers",
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
             ]),
@@ -37,6 +38,7 @@ let package = Package(
             dependencies: [
                 "ProfileRecorder",
                 "ProfileRecorderServer",
+                "ProfileRecorderHelpers",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "Logging", package: "swift-log"),
@@ -47,6 +49,7 @@ let package = Package(
                 "ProfileRecorder",
                 "CProfileRecorderSwiftELF",
                 "PprofFormat",
+                "ProfileRecorderHelpers",
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOFoundationCompat", package: "swift-nio"),
                 .product(name: "Logging", package: "swift-log"),
@@ -57,6 +60,7 @@ let package = Package(
             dependencies: [
                 "CProfileRecorderSwiftELF",
                 "ProfileRecorderSampleConversion",
+                "ProfileRecorderHelpers",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Logging", package: "swift-log"),
                 
@@ -66,6 +70,7 @@ let package = Package(
         .target(
             name: "ProfileRecorder",
             dependencies: [
+                "ProfileRecorderHelpers",
                 .targetItem(
                     name: "CProfileRecorderSampler",
                     // We currently only support Linux but we compile just fine on macOS too.
@@ -78,14 +83,23 @@ let package = Package(
             ]
         ),
         .target(
+            name: "ProfileRecorderHelpers",
+            dependencies: [
+                .product(name: "NIO", package: "swift-nio"),
+                .product(name: "_NIOFileSystem", package: "swift-nio"),
+            ]
+        ),
+        .target(
             name: "PprofFormat",
             dependencies: [
+                "ProfileRecorderHelpers",
                 .product(name: "SwiftProtobuf", package: "swift-protobuf"),
             ]
         ),
         .target(
             name: "ProfileRecorderServer",
             dependencies: [
+                "ProfileRecorderHelpers",
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOFoundationCompat", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
@@ -124,6 +138,7 @@ let package = Package(
                     dependencies: [
                         "ProfileRecorder",
                         "ProfileRecorderSampleConversion",
+                        "ProfileRecorderHelpers",
                         .product(name: "Atomics", package: "swift-atomics"),
                         .product(name: "NIO", package: "swift-nio"),
                         .product(name: "Logging", package: "swift-log"),
@@ -133,6 +148,7 @@ let package = Package(
                     dependencies: [
                         "ProfileRecorder",
                         "ProfileRecorderSampleConversion",
+                        "ProfileRecorderHelpers",
                         .product(name: "Atomics", package: "swift-atomics"),
                         .product(name: "NIO", package: "swift-nio"),
                         .product(name: "Logging", package: "swift-log"),

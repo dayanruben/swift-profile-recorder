@@ -20,6 +20,7 @@ import NIO
 
 final class CachedSymbolizerTests: XCTestCase {
     private var symbolizer: CachedSymbolizer! = nil
+    private var underlyingSymbolizer: FakeSymbolizer! = nil
     private var logger: Logger! = nil
 
     func testSymbolisingFrameThatIsFound() throws {
@@ -62,10 +63,11 @@ final class CachedSymbolizerTests: XCTestCase {
         self.logger = Logger(label: "\(Self.self)")
         self.logger.logLevel = .info
 
-        let fakeSym = FakeSymbolizer()
-        self.symbolizer = try CachedSymbolizer(
+        self.underlyingSymbolizer = FakeSymbolizer()
+        try self.underlyingSymbolizer!.start()
+        self.symbolizer = CachedSymbolizer(
             configuration: SymbolizerConfiguration(perfScriptOutputWithFileLineInformation: false),
-            symbolizer: fakeSym,
+            symbolizer: self.underlyingSymbolizer!,
             dynamicLibraryMappings: [
                 DynamicLibMapping(
                     path: "/lib/libfoo.so",
@@ -80,7 +82,8 @@ final class CachedSymbolizerTests: XCTestCase {
     }
 
     override func tearDown() {
-        XCTAssertNoThrow(try self.symbolizer.shutdown())
+        XCTAssertNoThrow(try self.underlyingSymbolizer!.shutdown())
+        self.underlyingSymbolizer = nil
         self.symbolizer = nil
         self.logger = nil
     }

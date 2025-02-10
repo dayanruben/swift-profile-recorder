@@ -12,17 +12,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-import ProfileRecorderSampleConversion
 import NIO
 import Foundation
 import Logging
 import NIOExtras
 
-internal class FakeSymbolizer: Symbolizer {
-    func start() throws {
-    }
+public final class _ProfileRecorderFakeSymbolizer: Symbolizer {
+    public init() {}
 
-    func symbolise(
+    public func start() throws {}
+
+    public func symbolise(
         relativeIP: UInt,
         library: DynamicLibMapping,
         logger: Logger
@@ -41,10 +41,9 @@ internal class FakeSymbolizer: Symbolizer {
 
     }
 
-    func shutdown() throws {
-    }
+    public func shutdown() throws {}
 
-    var description: String {
+    public var description: String {
         return "FakeSymbolizer"
     }
 }

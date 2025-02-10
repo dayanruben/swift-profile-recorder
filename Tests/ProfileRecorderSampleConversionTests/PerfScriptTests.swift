@@ -20,6 +20,7 @@ import NIO
 
 final class PerfScriptTests: XCTestCase {
     private var symbolizer: CachedSymbolizer! = nil
+    private var underlyingSymbolizer: (any Symbolizer)! = nil
     private var logger: Logger! = nil
 
     func testPerfScriptNumberRenderingSmallNumber() throws {
@@ -113,10 +114,11 @@ final class PerfScriptTests: XCTestCase {
         self.logger = Logger(label: "\(Self.self)")
         self.logger.logLevel = .info
 
-        let fakeSym = FakeSymbolizer()
-        self.symbolizer = try CachedSymbolizer(
+        self.underlyingSymbolizer = FakeSymbolizer()
+        try self.underlyingSymbolizer!.start()
+        self.symbolizer = CachedSymbolizer(
             configuration: SymbolizerConfiguration(perfScriptOutputWithFileLineInformation: false),
-            symbolizer: fakeSym,
+            symbolizer: self.underlyingSymbolizer!,
             dynamicLibraryMappings: [
                 DynamicLibMapping(
                     path: "/lib/libfoo.so",
@@ -131,7 +133,8 @@ final class PerfScriptTests: XCTestCase {
     }
 
     override func tearDown() {
-        XCTAssertNoThrow(try self.symbolizer.shutdown())
+        XCTAssertNoThrow(try self.underlyingSymbolizer!.shutdown())
+        self.underlyingSymbolizer = nil
         self.symbolizer = nil
         self.logger = nil
     }

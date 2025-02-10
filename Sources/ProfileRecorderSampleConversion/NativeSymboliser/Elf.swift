@@ -1615,7 +1615,6 @@ final class ElfImage<SomeElfTraits: ElfTraits>
   @_specialize(kind: full, where SomeElfTraits == Elf64Traits)
   func getSection(_ name: String, debug: Bool = false) -> ImageSource? {
     if let sectionHeaders = sectionHeaders {
-      let zname = ".z" + name.dropFirst()
       let stringShdr = sectionHeaders[Int(header.e_shstrndx)]
       do {
         let base = ImageSource.Address(stringShdr.sh_offset)

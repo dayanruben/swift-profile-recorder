@@ -12,10 +12,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if canImport(Glibc)
+@preconcurrency import Glibc // Sendability of stdout/stderr/..., needs to be at the top of the file
+#endif
 import ProfileRecorderSampleConversion
 import NIO
 import Foundation
 import Logging
+import NIOConcurrencyHelpers
 import NIOExtras
 
 public struct LLVMSymboliserConfig: Sendable {
@@ -24,15 +28,17 @@ public struct LLVMSymboliserConfig: Sendable {
 }
 
 /// Symbolises `StackFrame`s using `llvm-symbolizer`.
-///
-/// Not thread-safe.
-internal class LLVMSymboliser: Symbolizer {
+internal final class LLVMSymboliser: Symbolizer & Sendable {
     private let group: EventLoopGroup
-    private var process: Process? = nil
-    private var channel: Channel? = nil
-    private var unstucker: RepeatedTask? = nil
     private let logger: Logger
     private let config: LLVMSymboliserConfig
+    private let state = NIOLockedValueBox(State())
+
+    struct State: Sendable {
+        var process: Process? = nil
+        var channel: Channel? = nil
+        var unstucker: RepeatedTask? = nil
+    }
 
     internal init(
         config: LLVMSymboliserConfig,
@@ -44,13 +50,14 @@ internal class LLVMSymboliser: Symbolizer {
         self.logger = logger
     }
 
+    @available(*, noasync, message: "Blocks the calling thread")
     internal func start() throws {
         let stdIn = Pipe()
         let stdOut = Pipe()
 
-        let p = Process()
-        p.standardInput = stdIn.fileHandleForReading
-        p.standardOutput = stdOut.fileHandleForWriting
+        let process = Process()
+        process.standardInput = stdIn.fileHandleForReading
+        process.standardOutput = stdOut.fileHandleForWriting
         let symboliserPath: String
         if let path = ProcessInfo.processInfo.environment["SWIPR_LLVM_SYMBOLIZER"] {
             symboliserPath = path
@@ -58,37 +65,41 @@ internal class LLVMSymboliser: Symbolizer {
             symboliserPath = "/usr/bin/llvm-symbolizer"
         }
 
-        p.executableURL = URL(fileURLWithPath: symboliserPath)
-        p.arguments = [
+        process.executableURL = URL(fileURLWithPath: symboliserPath)
+        process.arguments = [
             "--print-address",
             "--demangle",
             "--inlining=true",
             "--functions=linkage",
             "--basenames",
         ] + (self.config.viaJSON ? ["--output-style=JSON"] : [])
-        try p.run()
-        self.process = p
+        try process.run()
 
         let channel: Channel = try NIOPipeBootstrap(group: self.group)
             .channelInitializer { [
                 logger = self.logger,
                 viaJSON = self.config.viaJSON
             ] channel in
-                return channel.pipeline.addHandlers([
-                    ByteToMessageHandler(LineBasedFrameDecoder()),
-                    viaJSON ? LLVMJSONOutputParserHandler() : LLVMOutputParserHandler(),
-                    LLVMSymbolizerEncoderHandler(logger: logger),
-                    LogErrorHandler(logger: logger),
-                    RequestResponseHandler<LLVMSymbolizerQuery, SymbolisedStackFrame>()
-                ])
+                do {
+                    try channel.pipeline.syncOperations.addHandlers([
+                        ByteToMessageHandler(LineBasedFrameDecoder()),
+                        viaJSON ? LLVMJSONOutputParserHandler() : LLVMOutputParserHandler(),
+                        LLVMSymbolizerEncoderHandler(logger: logger),
+                        LogErrorHandler(logger: logger),
+                        RequestResponseHandler<LLVMSymbolizerQuery, SymbolisedStackFrame>()
+                    ])
+                    return channel.eventLoop.makeSucceededVoidFuture()
+                } catch {
+                    return channel.eventLoop.makeFailedFuture(error)
+                }
             }
             .takingOwnershipOfDescriptors(
                 input: dup(stdOut.fileHandleForReading.fileDescriptor),
                 output: dup(stdIn.fileHandleForWriting.fileDescriptor)
             ).wait()
-        self.channel = channel
+        var unstucker: RepeatedTask? = nil
         if self.config.unstuckerWorkaround {
-            self.unstucker = channel.eventLoop.scheduleRepeatedTask(initialDelay: .milliseconds(1000),
+            unstucker = channel.eventLoop.scheduleRepeatedTask(initialDelay: .milliseconds(1000),
                                                                     delay: .milliseconds(1000)) { _ in
                 let p = channel.eventLoop.makePromise(of: SymbolisedStackFrame.self)
                 channel.writeAndFlush((StackFrame(instructionPointer: .max, stackPointer: 0), p)).cascadeFailure(to: p)
@@ -99,8 +110,19 @@ internal class LLVMSymboliser: Symbolizer {
                 }
             }
         }
+
+        self.state.withLockedValue { state in
+            assert(state.channel == nil)
+            assert(state.process == nil)
+            assert(state.unstucker == nil)
+
+            state.channel = channel
+            state.process = process
+            state.unstucker = unstucker
+        }
     }
 
+    @available(*, noasync, message: "Blocks the calling thread")
     internal func symbolise(
         relativeIP: UInt,
         library: DynamicLibMapping,
@@ -110,13 +132,14 @@ internal class LLVMSymboliser: Symbolizer {
             var relativeIP: UInt
             var library: DynamicLibMapping
         }
-        let promise = self.channel!.eventLoop.makePromise(of: SymbolisedStackFrame.self)
+        let channel = self.state.withLockedValue { $0.channel }!
+        let promise = channel.eventLoop.makePromise(of: SymbolisedStackFrame.self)
         let sched = promise.futureResult.eventLoop.scheduleTask(in: .seconds(10)) {
             promise.fail(TimeoutError(relativeIP: relativeIP, library: library))
         }
         do {
             let query = LLVMSymbolizerQuery(address: relativeIP, library: library)
-            try self.channel!.writeAndFlush((query, promise)).wait()
+            try channel.writeAndFlush((query, promise)).wait()
         } catch {
             self.logger.error("write to llvm-symbolizer pipe failed", metadata: ["error": "\(error)"])
             promise.fail(error)
@@ -127,24 +150,32 @@ internal class LLVMSymboliser: Symbolizer {
         return try promise.futureResult.wait()
     }
 
+    @available(*, noasync, message: "Blocks the calling thread")
     internal func shutdown() throws {
         self.logger.debug("shutting down")
-        self.unstucker?.cancel(promise: nil)
+        let state = self.state.withLockedValue { state in
+            let oldState = state
+            state = State()
+            return oldState
+        }
+        state.unstucker?.cancel(promise: nil)
 
-        self.process?.terminate()
-        self.process = nil
+        state.process?.terminate()
 
         do {
-            try self.channel?.close().wait()
+            try state.channel?.close().wait()
         } catch ChannelError.alreadyClosed {
             // ok
         }
-        self.channel = nil
     }
 
     deinit {
-        assert(self.channel == nil)
-        assert(self.process == nil)
+        assert(self.state.withLockedValue { state in
+            assert(state.channel == nil)
+            assert(state.process == nil)
+            assert(state.unstucker == nil)
+            return state.channel == nil && state.process == nil && state.unstucker == nil
+        })
     }
 
     public var description: String {

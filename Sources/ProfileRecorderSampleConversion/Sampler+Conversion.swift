@@ -28,6 +28,7 @@ extension ProfileRecorderSampler {
         sampleCount: Int,
         timeBetweenSamples: TimeAmount,
         format: ProfileRecorderOutputFormat,
+        symbolizer: any Symbolizer,
         logger: Logger,
         _ body: (String) async throws -> R
     ) async throws -> R {
@@ -41,6 +42,7 @@ extension ProfileRecorderSampler {
             logger[metadataKey: "sample-count"] = "\(sampleCount)"
             logger[metadataKey: "time-between-samples"] = "\(timeBetweenSamples.prettyPrint)"
             logger[metadataKey: "raw-samples-path"] = "\(rawSamplesPath)"
+            logger[metadataKey: "symbolizer"] = "\(symbolizer)"
             switch format {
             case .perfSymbolized:
                 symbolisedSamplesPath = tmpDirPath.appending("samples.perf")
@@ -72,11 +74,7 @@ extension ProfileRecorderSampler {
                 case .raw:
                     fatalError("we shouldn't be here")
                 }
-                let converter = ProfileRecorderSampleConverter(
-                    config: .default,
-                    renderer: renderer,
-                    makeSymbolizer: { NativeSymboliser() }
-                )
+                let converter = ProfileRecorderSampleConverter(config: .default, renderer: renderer, symbolizer: symbolizer)
                 try await converter.convert(
                     inputRawProfileRecorderFormatPath: rawSamplesPath.string,
                     outputPath: symbolisedSamplesPath.string,
@@ -97,10 +95,16 @@ extension ProfileRecorderSampler {
         logger: Logger,
         _ body: (String) async throws -> R
     ) async throws -> R {
+        let symbolizer = NativeSymboliser()
+        try symbolizer.start()
+        defer {
+            try! symbolizer.shutdown()
+        }
         return try await self._withSamples(
             sampleCount: sampleCount,
             timeBetweenSamples: timeBetweenSamples,
             format: .perfSymbolized,
+            symbolizer: symbolizer,
             logger: logger,
             body
         )

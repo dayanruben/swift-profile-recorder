@@ -30,7 +30,7 @@ public struct SampleConfig: Codable & Hashable & Sendable {
     public var sampleCount: Int
 }
 
-public struct DynamicLibMapping: Decodable & Sendable & CustomStringConvertible & Hashable {
+public struct DynamicLibMapping: Decodable & Sendable & CustomStringConvertible & Hashable & Comparable {
     enum CodingKeys: CodingKey {
         case path
         case fileMappedAddress
@@ -69,6 +69,10 @@ public struct DynamicLibMapping: Decodable & Sendable & CustomStringConvertible 
         } else {
             throw FailedToDecodeAddressError()
         }
+    }
+
+    public static func < (lhs: DynamicLibMapping, rhs: DynamicLibMapping) -> Bool {
+        return lhs.segmentStartAddress < rhs.segmentStartAddress
     }
 
     public var description: String {

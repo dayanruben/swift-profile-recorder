@@ -16,6 +16,7 @@ import NIO
 import NIOHTTP1
 import ProfileRecorder
 import ProfileRecorderSampleConversion
+import ProfileRecorderHelpers
 import _NIOFileSystem
 import Foundation
 import NIOFoundationCompat
@@ -152,6 +153,12 @@ public struct ProfileRecorderServer: Sendable {
             return try await (body(ServerInfo(startResult: .couldNotStart(error))))
         }
 
+        let symbolizer = NativeSymboliser()
+        try symbolizer.start()
+        defer {
+            try! symbolizer.shutdown()
+        }
+
         return try await asyncDo {
             return try await serverChannel.executeThenClose { server in
                 return try await withThrowingTaskGroup(of: R?.self) { group in
@@ -176,7 +183,12 @@ public struct ProfileRecorderServer: Sendable {
                                                         metadata: ["request": "\(request)"]
                                                     )
 
-                                                    try await handleRequest(request, outbound: outbound, logger: logger)
+                                                    try await handleRequest(
+                                                        request,
+                                                        outbound: outbound,
+                                                        symbolizer: symbolizer,
+                                                        logger: logger
+                                                    )
                                                 }
                                                 outbound.finish()
                                             }
@@ -218,7 +230,7 @@ public struct ProfileRecorderServer: Sendable {
                     fatalError("unreachable")
                 }
             }
-        } finally: {
+        } finally: { _ in
             if let udsPath = configuration.unixDomainSocketPath {
                 _ = try? await FileSystem.shared.removeItem(at: FilePath(udsPath))
             }
@@ -236,7 +248,8 @@ public struct ProfileRecorderServer: Sendable {
         let example = SampleRequest(
             numberOfSamples: 100,
             timeInterval: TimeAmount.milliseconds(100),
-            format: .perfSymbolized
+            format: .perfSymbolized,
+            symbolizer: .native
         )
         let exampleEncoded = String(decoding: try! JSONEncoder().encode(example), as: UTF8.self)
         let exampleURL: String
@@ -358,6 +371,7 @@ public struct ProfileRecorderServer: Sendable {
     func handleRequest(
         _ request: NIOHTTPServerRequestFull,
         outbound: NIOAsyncChannelOutboundWriter<HTTPPart<HTTPResponseHead, ByteBuffer>>,
+        symbolizer: any Symbolizer,
         logger: Logger
     ) async throws {
         do {
@@ -372,6 +386,9 @@ public struct ProfileRecorderServer: Sendable {
             ) != nil:
                 let seconds = (Int(decodedURI.queryParams["seconds"].flatMap { $0 } ?? "not set") ?? 30)
                     .clamping(to: 0...1000) // 30 s seems to be Golang's default
+                let symbolizerKind = decodedURI.queryParams["symbolizer"].flatMap { kind in
+                    ProfileRecorderSymbolizerKind(rawValue: kind ?? "n/a")
+                } ?? .native
                 let sampleRate = 100.clamping(to: 0...1000) // 100 Hz, seems to be Golang's default
                 let numberOfSamples = seconds * sampleRate
                 let timeIntervalBetweenSamplesMS = (1000 / sampleRate).clamping(to: 1...100_000)
@@ -379,7 +396,8 @@ public struct ProfileRecorderServer: Sendable {
                 sampleRequest = SampleRequest(
                     numberOfSamples: numberOfSamples,
                     timeInterval: .milliseconds(Int64(timeIntervalBetweenSamplesMS)),
-                    format: .pprofSymbolized
+                    format: .pprofSymbolized,
+                    symbolizer: symbolizerKind
                 )
             default:
                 try await self.sendNotFoundErrorWithExplainer(outbound)
@@ -389,6 +407,7 @@ public struct ProfileRecorderServer: Sendable {
                 sampleCount: sampleRequest.numberOfSamples,
                 timeBetweenSamples: sampleRequest.timeInterval,
                 format: sampleRequest.format,
+                symbolizer: sampleRequest.symbolizer == .native ? symbolizer : _ProfileRecorderFakeSymbolizer(),
                 logger: logger
             ) { samples in
                 try await FileSystem.shared.withFileHandle(forReadingAt: FilePath(samples)) { handle in
@@ -424,10 +443,16 @@ public struct ProfileRecorderServer: Sendable {
     }
 }
 
+enum ProfileRecorderSymbolizerKind: String, Sendable & Codable {
+    case native
+    case fake
+}
+
 struct SampleRequest: Sendable & Codable {
     var numberOfSamples: Int
     var timeInterval: TimeAmount
     var format: ProfileRecorderOutputFormat
+    var symbolizer: ProfileRecorderSymbolizerKind
 
     typealias SampleFormat = ProfileRecorderOutputFormat
 
@@ -435,12 +460,19 @@ struct SampleRequest: Sendable & Codable {
         case numberOfSamples
         case timeInterval
         case format
+        case symbolizer
     }
 
-    internal init(numberOfSamples: Int, timeInterval: TimeAmount, format: SampleFormat) {
+    internal init(
+        numberOfSamples: Int,
+        timeInterval: TimeAmount,
+        format: SampleFormat,
+        symbolizer: ProfileRecorderSymbolizerKind
+    ) {
         self.numberOfSamples = numberOfSamples
         self.timeInterval = timeInterval
         self.format = format
+        self.symbolizer = symbolizer
     }
 
     init(from decoder: any Decoder) throws {
@@ -450,6 +482,7 @@ struct SampleRequest: Sendable & Codable {
         let timeIntervalString = try container.decode(String.self, forKey: SampleRequest.CodingKeys.timeInterval)
         self.timeInterval = try TimeAmount(timeIntervalString, defaultUnit: "ms")
         self.format = try container.decodeIfPresent(SampleFormat.self, forKey: .format) ?? .perfSymbolized
+        self.symbolizer = try container.decodeIfPresent(ProfileRecorderSymbolizerKind.self, forKey: .symbolizer) ?? .native
     }
     
     func encode(to encoder: any Encoder) throws {
@@ -459,6 +492,9 @@ struct SampleRequest: Sendable & Codable {
         try container.encode(self.timeInterval.prettyPrint, forKey: SampleRequest.CodingKeys.timeInterval)
         if self.format != .perfSymbolized {
             try container.encode(self.format, forKey: .format)
+        }
+        if self.symbolizer != .native {
+            try container.encode(self.symbolizer, forKey: .symbolizer)
         }
     }
 }

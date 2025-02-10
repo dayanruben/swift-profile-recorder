@@ -12,12 +12,16 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if canImport(Glibc)
+@preconcurrency import Glibc // Sendability of stdout/stderr/..., needs to be at the top of the file
+#endif
 import ArgumentParser
 
 import Foundation
 import NIO
 import Logging
 import ProfileRecorderSampleConversion
+import ProfileRecorderHelpers
 
 @main
 struct ProfileRecorderSampleConverterCommand: AsyncParsableCommand {
@@ -79,71 +83,80 @@ struct ProfileRecorderSampleConverterCommand: AsyncParsableCommand {
             viaJSON: self.viaJSON,
             unstuckerWorkaround: self.unstuckerWorkaround
         )
-        guard self.debugSymbolication.isEmpty else {
-            try Self.runDebugSymbolication(
-                self.debugSymbolication,
-                logger: logger,
-                llvmSymbolizerConfig: llvmSymbolizerConfig,
-                useNativeSymbolizer: self.useNativeSymbolizer
-            )
-            return
-        }
-
-        do {
-            let renderer: any ProfileRecorderSampleConversionOutputRenderer
-            switch self.format {
-            case .perfSymbolized:
-                renderer = PerfScriptOutputRenderer()
-            case .pprofSymbolized:
-                renderer = PprofOutputRenderer()
-            case .raw:
-                throw ValidationError("the input file is already in raw format")
-            }
-            try await Self.go(
-                inputPath: self.inputPath,
-                outputPath: self.outputPath,
-                useNativeSymbolizer: self.useNativeSymbolizer,
-                useFakeSymbolizer: self.useFakeSymbolizer,
-                llvmSymboliserConfig: llvmSymbolizerConfig,
-                printFileLine: self.enableFileLine,
-                renderer: renderer,
+        let symboliser: any Symbolizer
+        switch (self.useNativeSymbolizer, self.useFakeSymbolizer) {
+        case (true, false):
+            symboliser = NativeSymboliser()
+        case (false, false):
+            symboliser = LLVMSymboliser(
+                config: llvmSymbolizerConfig,
+                group: .singletonMultiThreadedEventLoopGroup,
                 logger: logger
             )
-        } catch {
-            fputs("ERROR: \(error)\n", stderr)
-            Foundation.exit(EXIT_FAILURE)
+        case (_, true):
+            symboliser = _ProfileRecorderFakeSymbolizer()
+        }
+
+        try await NIOThreadPool.singleton.runIfActive {
+            try symboliser.start()
+        }
+        try await asyncDo {
+            guard self.debugSymbolication.isEmpty else {
+                try Self.runDebugSymbolication(
+                    self.debugSymbolication,
+                    logger: logger,
+                    symbolizer: symboliser
+                )
+                return
+            }
+
+            do {
+                let renderer: any ProfileRecorderSampleConversionOutputRenderer
+                switch self.format {
+                case .perfSymbolized:
+                    renderer = PerfScriptOutputRenderer()
+                case .pprofSymbolized:
+                    renderer = PprofOutputRenderer()
+                case .raw:
+                    throw ValidationError("the input file is already in raw format")
+                }
+                try await Self.go(
+                    inputPath: self.inputPath,
+                    outputPath: self.outputPath,
+                    symbolizer: symboliser,
+                    printFileLine: self.enableFileLine,
+                    renderer: renderer,
+                    logger: logger
+                )
+            } catch {
+                fputs("ERROR: \(error)\n", stderr)
+                Foundation.exit(EXIT_FAILURE)
+            }
+        } finally: { _ in
+            try await NIOThreadPool.singleton.runIfActive {
+                try symboliser.shutdown()
+            }
         }
     }
 
     static func go(
         inputPath: String,
         outputPath: String,
-        useNativeSymbolizer: Bool,
-        useFakeSymbolizer: Bool,
-        llvmSymboliserConfig: LLVMSymboliserConfig,
+        symbolizer: any Symbolizer,
         printFileLine: Bool,
         renderer: any ProfileRecorderSampleConversionOutputRenderer,
+        threadPool: NIOThreadPool = .singleton,
+        group: any EventLoopGroup = .singletonMultiThreadedEventLoopGroup,
         logger: Logger
     ) async throws {
         var config = SymbolizerConfiguration.default
         config.perfScriptOutputWithFileLineInformation = printFileLine
         let converter = ProfileRecorderSampleConverter(
             config: config,
+            threadPool: threadPool,
+            group: group,
             renderer: renderer,
-            makeSymbolizer: {
-                if useFakeSymbolizer {
-                    return FakeSymbolizer()
-                }
-                if useNativeSymbolizer {
-                    return NativeSymboliser()
-                } else {
-                    return LLVMSymboliser(
-                        config: llvmSymboliserConfig,
-                        group: .singletonMultiThreadedEventLoopGroup,
-                        logger: logger
-                    )
-                }
-            }
+            symbolizer: symbolizer
         )
 
         try await converter.convert(
@@ -157,8 +170,7 @@ struct ProfileRecorderSampleConverterCommand: AsyncParsableCommand {
     static func runDebugSymbolication(
         _ syms: [String],
         logger: Logger,
-        llvmSymbolizerConfig: LLVMSymboliserConfig,
-        useNativeSymbolizer: Bool
+        symbolizer: any Symbolizer
     ) throws {
         let fileAddresses: [(String, UInt?)] = syms.map { fileAddressString -> (String, UInt?) in
             let split = fileAddressString.split(separator: ":")
@@ -171,22 +183,12 @@ struct ProfileRecorderSampleConverterCommand: AsyncParsableCommand {
             return (String(split[0]), address)
         }
 
-        let symboliser: any Symbolizer = useNativeSymbolizer ? NativeSymboliser() : LLVMSymboliser(
-            config: llvmSymbolizerConfig,
-            group: .singletonMultiThreadedEventLoopGroup,
-            logger: logger
-        )
-        try symboliser.start()
-        defer {
-            try! symboliser.shutdown()
-        }
-
         for fileAddress in fileAddresses {
             guard let address = fileAddress.1 else {
                 print(fileAddress.0)
                 continue
             }
-            let symd = try symboliser.symbolise(
+            let symd = try symbolizer.symbolise(
                 relativeIP: address,
                 library: DynamicLibMapping(
                     path: fileAddress.0,

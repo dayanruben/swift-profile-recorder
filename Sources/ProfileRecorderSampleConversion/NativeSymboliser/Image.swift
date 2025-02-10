@@ -32,7 +32,7 @@
 
 
 
-struct ImageSymbol {
+struct ImageSymbol: Sendable & Hashable {
   var name: String
   var offset: Int
 }
