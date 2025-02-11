@@ -83,7 +83,15 @@ curl -sd '{"numberOfSamples":100,"timeInterval":"10 ms"}' --unix-socket /var/run
 
 ### Installing the Swift Profile Recorder Server
 
-The Swift Profile Recorder Server is easy to integrate into your application:
+The Swift Profile Recorder Server is easy to integrate into your application. First, add a dependency on ProfileRecorder:
+
+```swift
+    .package(url: "https://github.com/apple/swift-profile-recorder.git", .upToNextMinor(from: 0.3.0)),
+        
+    [...]
+        
+    .product(name: "ProfileRecorderServer", package: "swipr"),
+```
 
 ```swift
 import ProfileRecorderServer
