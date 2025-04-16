@@ -18,7 +18,6 @@
 import NIO
 import _NIOFileSystem
 import Dispatch
-import Logging
 #if canImport(CProfileRecorderSampler) // only on macOS & Linux
 @_implementationOnly import CProfileRecorderSampler
 #endif
