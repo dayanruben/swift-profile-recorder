@@ -40,9 +40,9 @@ public struct ProfileRecorderServerConfiguration: Sendable {
     public static func parseFromEnvironment() async throws -> Self {
         let serverURLString: String
 
-        if let string = ProcessInfo.processInfo.environment["SWIPR_SAMPLING_SERVER_URL"] {
+        if let string = ProcessInfo.processInfo.environment["SWIPR_SAMPLING_SERVER_URL"], !string.isEmpty {
             serverURLString = string
-        } else if let string = ProcessInfo.processInfo.environment["SWIPR_SAMPLING_SERVER_URL_PATTERN"] {
+        } else if let string = ProcessInfo.processInfo.environment["SWIPR_SAMPLING_SERVER_URL_PATTERN"], !string.isEmpty {
             serverURLString = string
                 .replacingOccurrences(of: "{PID}", with: "\(getpid())")
                 .replacingOccurrences(of: "{UUID}", with: "\(UUID().uuidString)")
