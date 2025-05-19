@@ -30,8 +30,8 @@
 #ifndef CProfileRecorderSWIFTELF_h
 #define CProfileRecorderSWIFTELF_h
 
-#include "elf.h"
-#include "eh_frame_hdr.h"
-#include "dwarf.h"
+#include "swipr-elf.h"
+#include "swipr-eh_frame_hdr.h"
+#include "swipr-dwarf.h"
 
 #endif

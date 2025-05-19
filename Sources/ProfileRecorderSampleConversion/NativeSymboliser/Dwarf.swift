@@ -47,13 +47,13 @@ typealias SWIPR_Dwarf_Sbyte  = CProfileRecorderSwiftELF.SWIPR_Dwarf_Sbyte
 typealias SWIPR_Dwarf_Sword  = CProfileRecorderSwiftELF.SWIPR_Dwarf_Sword
 typealias SWIPR_Dwarf_Sxword = CProfileRecorderSwiftELF.SWIPR_Dwarf_Sxword
 
-typealias Dwarf32_Offset = CProfileRecorderSwiftELF.Dwarf32_Offset
-typealias Dwarf32_Size   = CProfileRecorderSwiftELF.Dwarf32_Size
-typealias Dwarf32_Length = CProfileRecorderSwiftELF.Dwarf32_Length
+typealias SWIPR_Dwarf32_Offset = CProfileRecorderSwiftELF.SWIPR_Dwarf32_Offset
+typealias SWIPR_Dwarf32_Size   = CProfileRecorderSwiftELF.SWIPR_Dwarf32_Size
+typealias SWIPR_Dwarf32_Length = CProfileRecorderSwiftELF.SWIPR_Dwarf32_Length
 
-typealias Dwarf64_Offset = CProfileRecorderSwiftELF.Dwarf64_Offset
-typealias Dwarf64_Size   = CProfileRecorderSwiftELF.Dwarf64_Size
-typealias Dwarf64_Length = CProfileRecorderSwiftELF.Dwarf64_Length
+typealias SWIPR_Dwarf64_Offset = CProfileRecorderSwiftELF.SWIPR_Dwarf64_Offset
+typealias SWIPR_Dwarf64_Size   = CProfileRecorderSwiftELF.SWIPR_Dwarf64_Size
+typealias SWIPR_Dwarf64_Length = CProfileRecorderSwiftELF.SWIPR_Dwarf64_Length
 
 typealias SWIPR_Dwarf_UnitType           = CProfileRecorderSwiftELF.SWIPR_Dwarf_UnitType
 typealias SWIPR_Dwarf_Tag                = CProfileRecorderSwiftELF.SWIPR_Dwarf_Tag
@@ -61,174 +61,174 @@ typealias SWIPR_Dwarf_ChildDetermination = CProfileRecorderSwiftELF.SWIPR_Dwarf_
 typealias SWIPR_Dwarf_Attribute          = CProfileRecorderSwiftELF.SWIPR_Dwarf_Attribute
 typealias SWIPR_Dwarf_Form               = CProfileRecorderSwiftELF.SWIPR_Dwarf_Form
 
-let DW_OP_addr                = CProfileRecorderSwiftELF.DW_OP_addr
-let DW_OP_deref               = CProfileRecorderSwiftELF.DW_OP_deref
-let DW_OP_const1u             = CProfileRecorderSwiftELF.DW_OP_const1u
-let DW_OP_const1s             = CProfileRecorderSwiftELF.DW_OP_const1s
-let DW_OP_const2u             = CProfileRecorderSwiftELF.DW_OP_const2u
-let DW_OP_const2s             = CProfileRecorderSwiftELF.DW_OP_const2s
-let DW_OP_const4u             = CProfileRecorderSwiftELF.DW_OP_const4u
-let DW_OP_const4s             = CProfileRecorderSwiftELF.DW_OP_const4s
-let DW_OP_const8u             = CProfileRecorderSwiftELF.DW_OP_const8u
-let DW_OP_const8s             = CProfileRecorderSwiftELF.DW_OP_const8s
-let DW_OP_constu              = CProfileRecorderSwiftELF.DW_OP_constu
-let DW_OP_consts              = CProfileRecorderSwiftELF.DW_OP_consts
-let DW_OP_dup                 = CProfileRecorderSwiftELF.DW_OP_dup
-let DW_OP_drop                = CProfileRecorderSwiftELF.DW_OP_drop
-let DW_OP_over                = CProfileRecorderSwiftELF.DW_OP_over
-let DW_OP_pick                = CProfileRecorderSwiftELF.DW_OP_pick
-let DW_OP_swap                = CProfileRecorderSwiftELF.DW_OP_swap
-let DW_OP_rot                 = CProfileRecorderSwiftELF.DW_OP_rot
-let DW_OP_xderef              = CProfileRecorderSwiftELF.DW_OP_xderef
-let DW_OP_abs                 = CProfileRecorderSwiftELF.DW_OP_abs
-let DW_OP_and                 = CProfileRecorderSwiftELF.DW_OP_and
-let DW_OP_div                 = CProfileRecorderSwiftELF.DW_OP_div
-let DW_OP_minus               = CProfileRecorderSwiftELF.DW_OP_minus
-let DW_OP_mod                 = CProfileRecorderSwiftELF.DW_OP_mod
-let DW_OP_mul                 = CProfileRecorderSwiftELF.DW_OP_mul
-let DW_OP_neg                 = CProfileRecorderSwiftELF.DW_OP_neg
-let DW_OP_not                 = CProfileRecorderSwiftELF.DW_OP_not
-let DW_OP_or                  = CProfileRecorderSwiftELF.DW_OP_or
-let DW_OP_plus                = CProfileRecorderSwiftELF.DW_OP_plus
-let DW_OP_plus_uconst         = CProfileRecorderSwiftELF.DW_OP_plus_uconst
-let DW_OP_shl                 = CProfileRecorderSwiftELF.DW_OP_shl
-let DW_OP_shr                 = CProfileRecorderSwiftELF.DW_OP_shr
-let DW_OP_shra                = CProfileRecorderSwiftELF.DW_OP_shra
-let DW_OP_xor                 = CProfileRecorderSwiftELF.DW_OP_xor
-let DW_OP_bra                 = CProfileRecorderSwiftELF.DW_OP_bra
-let DW_OP_eq                  = CProfileRecorderSwiftELF.DW_OP_eq
-let DW_OP_ge                  = CProfileRecorderSwiftELF.DW_OP_ge
-let DW_OP_gt                  = CProfileRecorderSwiftELF.DW_OP_gt
-let DW_OP_le                  = CProfileRecorderSwiftELF.DW_OP_le
-let DW_OP_lt                  = CProfileRecorderSwiftELF.DW_OP_lt
-let DW_OP_ne                  = CProfileRecorderSwiftELF.DW_OP_ne
-let DW_OP_skip                = CProfileRecorderSwiftELF.DW_OP_skip
-let DW_OP_lit0                = CProfileRecorderSwiftELF.DW_OP_lit0
-let DW_OP_lit1                = CProfileRecorderSwiftELF.DW_OP_lit1
-let DW_OP_lit2                = CProfileRecorderSwiftELF.DW_OP_lit2
-let DW_OP_lit3                = CProfileRecorderSwiftELF.DW_OP_lit3
-let DW_OP_lit4                = CProfileRecorderSwiftELF.DW_OP_lit4
-let DW_OP_lit5                = CProfileRecorderSwiftELF.DW_OP_lit5
-let DW_OP_lit6                = CProfileRecorderSwiftELF.DW_OP_lit6
-let DW_OP_lit7                = CProfileRecorderSwiftELF.DW_OP_lit7
-let DW_OP_lit8                = CProfileRecorderSwiftELF.DW_OP_lit8
-let DW_OP_lit9                = CProfileRecorderSwiftELF.DW_OP_lit9
-let DW_OP_lit10               = CProfileRecorderSwiftELF.DW_OP_lit10
-let DW_OP_lit11               = CProfileRecorderSwiftELF.DW_OP_lit11
-let DW_OP_lit12               = CProfileRecorderSwiftELF.DW_OP_lit12
-let DW_OP_lit13               = CProfileRecorderSwiftELF.DW_OP_lit13
-let DW_OP_lit14               = CProfileRecorderSwiftELF.DW_OP_lit14
-let DW_OP_lit15               = CProfileRecorderSwiftELF.DW_OP_lit15
-let DW_OP_lit16               = CProfileRecorderSwiftELF.DW_OP_lit16
-let DW_OP_lit17               = CProfileRecorderSwiftELF.DW_OP_lit17
-let DW_OP_lit18               = CProfileRecorderSwiftELF.DW_OP_lit18
-let DW_OP_lit19               = CProfileRecorderSwiftELF.DW_OP_lit19
-let DW_OP_lit20               = CProfileRecorderSwiftELF.DW_OP_lit20
-let DW_OP_lit21               = CProfileRecorderSwiftELF.DW_OP_lit21
-let DW_OP_lit22               = CProfileRecorderSwiftELF.DW_OP_lit22
-let DW_OP_lit23               = CProfileRecorderSwiftELF.DW_OP_lit23
-let DW_OP_lit24               = CProfileRecorderSwiftELF.DW_OP_lit24
-let DW_OP_lit25               = CProfileRecorderSwiftELF.DW_OP_lit25
-let DW_OP_lit26               = CProfileRecorderSwiftELF.DW_OP_lit26
-let DW_OP_lit27               = CProfileRecorderSwiftELF.DW_OP_lit27
-let DW_OP_lit28               = CProfileRecorderSwiftELF.DW_OP_lit28
-let DW_OP_lit29               = CProfileRecorderSwiftELF.DW_OP_lit29
-let DW_OP_lit30               = CProfileRecorderSwiftELF.DW_OP_lit30
-let DW_OP_lit31               = CProfileRecorderSwiftELF.DW_OP_lit31
+let internal_SWIPR_DW_OP_addr                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_addr
+let internal_SWIPR_DW_OP_deref               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_deref
+let internal_SWIPR_DW_OP_const1u             = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_const1u
+let internal_SWIPR_DW_OP_const1s             = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_const1s
+let internal_SWIPR_DW_OP_const2u             = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_const2u
+let internal_SWIPR_DW_OP_const2s             = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_const2s
+let internal_SWIPR_DW_OP_const4u             = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_const4u
+let internal_SWIPR_DW_OP_const4s             = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_const4s
+let internal_SWIPR_DW_OP_const8u             = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_const8u
+let internal_SWIPR_DW_OP_const8s             = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_const8s
+let internal_SWIPR_DW_OP_constu              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_constu
+let internal_SWIPR_DW_OP_consts              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_consts
+let internal_SWIPR_DW_OP_dup                 = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_dup
+let internal_SWIPR_DW_OP_drop                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_drop
+let internal_SWIPR_DW_OP_over                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_over
+let internal_SWIPR_DW_OP_pick                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_pick
+let internal_SWIPR_DW_OP_swap                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_swap
+let internal_SWIPR_DW_OP_rot                 = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_rot
+let internal_SWIPR_DW_OP_xderef              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_xderef
+let internal_SWIPR_DW_OP_abs                 = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_abs
+let internal_SWIPR_DW_OP_and                 = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_and
+let internal_SWIPR_DW_OP_div                 = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_div
+let internal_SWIPR_DW_OP_minus               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_minus
+let internal_SWIPR_DW_OP_mod                 = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_mod
+let internal_SWIPR_DW_OP_mul                 = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_mul
+let internal_SWIPR_DW_OP_neg                 = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_neg
+let internal_SWIPR_DW_OP_not                 = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_not
+let internal_SWIPR_DW_OP_or                  = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_or
+let internal_SWIPR_DW_OP_plus                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_plus
+let internal_SWIPR_DW_OP_plus_uconst         = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_plus_uconst
+let internal_SWIPR_DW_OP_shl                 = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_shl
+let internal_SWIPR_DW_OP_shr                 = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_shr
+let internal_SWIPR_DW_OP_shra                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_shra
+let internal_SWIPR_DW_OP_xor                 = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_xor
+let internal_SWIPR_DW_OP_bra                 = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_bra
+let internal_SWIPR_DW_OP_eq                  = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_eq
+let internal_SWIPR_DW_OP_ge                  = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_ge
+let internal_SWIPR_DW_OP_gt                  = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_gt
+let internal_SWIPR_DW_OP_le                  = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_le
+let internal_SWIPR_DW_OP_lt                  = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lt
+let internal_SWIPR_DW_OP_ne                  = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_ne
+let internal_SWIPR_DW_OP_skip                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_skip
+let internal_SWIPR_DW_OP_lit0                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit0
+let internal_SWIPR_DW_OP_lit1                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit1
+let internal_SWIPR_DW_OP_lit2                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit2
+let internal_SWIPR_DW_OP_lit3                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit3
+let internal_SWIPR_DW_OP_lit4                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit4
+let internal_SWIPR_DW_OP_lit5                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit5
+let internal_SWIPR_DW_OP_lit6                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit6
+let internal_SWIPR_DW_OP_lit7                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit7
+let internal_SWIPR_DW_OP_lit8                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit8
+let internal_SWIPR_DW_OP_lit9                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit9
+let internal_SWIPR_DW_OP_lit10               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit10
+let internal_SWIPR_DW_OP_lit11               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit11
+let internal_SWIPR_DW_OP_lit12               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit12
+let internal_SWIPR_DW_OP_lit13               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit13
+let internal_SWIPR_DW_OP_lit14               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit14
+let internal_SWIPR_DW_OP_lit15               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit15
+let internal_SWIPR_DW_OP_lit16               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit16
+let internal_SWIPR_DW_OP_lit17               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit17
+let internal_SWIPR_DW_OP_lit18               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit18
+let internal_SWIPR_DW_OP_lit19               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit19
+let internal_SWIPR_DW_OP_lit20               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit20
+let internal_SWIPR_DW_OP_lit21               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit21
+let internal_SWIPR_DW_OP_lit22               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit22
+let internal_SWIPR_DW_OP_lit23               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit23
+let internal_SWIPR_DW_OP_lit24               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit24
+let internal_SWIPR_DW_OP_lit25               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit25
+let internal_SWIPR_DW_OP_lit26               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit26
+let internal_SWIPR_DW_OP_lit27               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit27
+let internal_SWIPR_DW_OP_lit28               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit28
+let internal_SWIPR_DW_OP_lit29               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit29
+let internal_SWIPR_DW_OP_lit30               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit30
+let internal_SWIPR_DW_OP_lit31               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lit31
 
-let DW_OP_reg0                = CProfileRecorderSwiftELF.DW_OP_reg0
-let DW_OP_reg1                = CProfileRecorderSwiftELF.DW_OP_reg1
-let DW_OP_reg2                = CProfileRecorderSwiftELF.DW_OP_reg2
-let DW_OP_reg3                = CProfileRecorderSwiftELF.DW_OP_reg3
-let DW_OP_reg4                = CProfileRecorderSwiftELF.DW_OP_reg4
-let DW_OP_reg5                = CProfileRecorderSwiftELF.DW_OP_reg5
-let DW_OP_reg6                = CProfileRecorderSwiftELF.DW_OP_reg6
-let DW_OP_reg7                = CProfileRecorderSwiftELF.DW_OP_reg7
-let DW_OP_reg8                = CProfileRecorderSwiftELF.DW_OP_reg8
-let DW_OP_reg9                = CProfileRecorderSwiftELF.DW_OP_reg9
-let DW_OP_reg10               = CProfileRecorderSwiftELF.DW_OP_reg10
-let DW_OP_reg11               = CProfileRecorderSwiftELF.DW_OP_reg11
-let DW_OP_reg12               = CProfileRecorderSwiftELF.DW_OP_reg12
-let DW_OP_reg13               = CProfileRecorderSwiftELF.DW_OP_reg13
-let DW_OP_reg14               = CProfileRecorderSwiftELF.DW_OP_reg14
-let DW_OP_reg15               = CProfileRecorderSwiftELF.DW_OP_reg15
-let DW_OP_reg16               = CProfileRecorderSwiftELF.DW_OP_reg16
-let DW_OP_reg17               = CProfileRecorderSwiftELF.DW_OP_reg17
-let DW_OP_reg18               = CProfileRecorderSwiftELF.DW_OP_reg18
-let DW_OP_reg19               = CProfileRecorderSwiftELF.DW_OP_reg19
-let DW_OP_reg20               = CProfileRecorderSwiftELF.DW_OP_reg20
-let DW_OP_reg21               = CProfileRecorderSwiftELF.DW_OP_reg21
-let DW_OP_reg22               = CProfileRecorderSwiftELF.DW_OP_reg22
-let DW_OP_reg23               = CProfileRecorderSwiftELF.DW_OP_reg23
-let DW_OP_reg24               = CProfileRecorderSwiftELF.DW_OP_reg24
-let DW_OP_reg25               = CProfileRecorderSwiftELF.DW_OP_reg25
-let DW_OP_reg26               = CProfileRecorderSwiftELF.DW_OP_reg26
-let DW_OP_reg27               = CProfileRecorderSwiftELF.DW_OP_reg27
-let DW_OP_reg28               = CProfileRecorderSwiftELF.DW_OP_reg28
-let DW_OP_reg29               = CProfileRecorderSwiftELF.DW_OP_reg29
-let DW_OP_reg30               = CProfileRecorderSwiftELF.DW_OP_reg30
-let DW_OP_reg31               = CProfileRecorderSwiftELF.DW_OP_reg31
+let internal_SWIPR_DW_OP_reg0                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg0
+let internal_SWIPR_DW_OP_reg1                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg1
+let internal_SWIPR_DW_OP_reg2                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg2
+let internal_SWIPR_DW_OP_reg3                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg3
+let internal_SWIPR_DW_OP_reg4                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg4
+let internal_SWIPR_DW_OP_reg5                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg5
+let internal_SWIPR_DW_OP_reg6                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg6
+let internal_SWIPR_DW_OP_reg7                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg7
+let internal_SWIPR_DW_OP_reg8                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg8
+let internal_SWIPR_DW_OP_reg9                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg9
+let internal_SWIPR_DW_OP_reg10               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg10
+let internal_SWIPR_DW_OP_reg11               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg11
+let internal_SWIPR_DW_OP_reg12               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg12
+let internal_SWIPR_DW_OP_reg13               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg13
+let internal_SWIPR_DW_OP_reg14               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg14
+let internal_SWIPR_DW_OP_reg15               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg15
+let internal_SWIPR_DW_OP_reg16               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg16
+let internal_SWIPR_DW_OP_reg17               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg17
+let internal_SWIPR_DW_OP_reg18               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg18
+let internal_SWIPR_DW_OP_reg19               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg19
+let internal_SWIPR_DW_OP_reg20               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg20
+let internal_SWIPR_DW_OP_reg21               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg21
+let internal_SWIPR_DW_OP_reg22               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg22
+let internal_SWIPR_DW_OP_reg23               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg23
+let internal_SWIPR_DW_OP_reg24               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg24
+let internal_SWIPR_DW_OP_reg25               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg25
+let internal_SWIPR_DW_OP_reg26               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg26
+let internal_SWIPR_DW_OP_reg27               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg27
+let internal_SWIPR_DW_OP_reg28               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg28
+let internal_SWIPR_DW_OP_reg29               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg29
+let internal_SWIPR_DW_OP_reg30               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg30
+let internal_SWIPR_DW_OP_reg31               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reg31
 
-let DW_OP_breg0               = CProfileRecorderSwiftELF.DW_OP_breg0
-let DW_OP_breg1               = CProfileRecorderSwiftELF.DW_OP_breg1
-let DW_OP_breg2               = CProfileRecorderSwiftELF.DW_OP_breg2
-let DW_OP_breg3               = CProfileRecorderSwiftELF.DW_OP_breg3
-let DW_OP_breg4               = CProfileRecorderSwiftELF.DW_OP_breg4
-let DW_OP_breg5               = CProfileRecorderSwiftELF.DW_OP_breg5
-let DW_OP_breg6               = CProfileRecorderSwiftELF.DW_OP_breg6
-let DW_OP_breg7               = CProfileRecorderSwiftELF.DW_OP_breg7
-let DW_OP_breg8               = CProfileRecorderSwiftELF.DW_OP_breg8
-let DW_OP_breg9               = CProfileRecorderSwiftELF.DW_OP_breg9
-let DW_OP_breg10              = CProfileRecorderSwiftELF.DW_OP_breg10
-let DW_OP_breg11              = CProfileRecorderSwiftELF.DW_OP_breg11
-let DW_OP_breg12              = CProfileRecorderSwiftELF.DW_OP_breg12
-let DW_OP_breg13              = CProfileRecorderSwiftELF.DW_OP_breg13
-let DW_OP_breg14              = CProfileRecorderSwiftELF.DW_OP_breg14
-let DW_OP_breg15              = CProfileRecorderSwiftELF.DW_OP_breg15
-let DW_OP_breg16              = CProfileRecorderSwiftELF.DW_OP_breg16
-let DW_OP_breg17              = CProfileRecorderSwiftELF.DW_OP_breg17
-let DW_OP_breg18              = CProfileRecorderSwiftELF.DW_OP_breg18
-let DW_OP_breg19              = CProfileRecorderSwiftELF.DW_OP_breg19
-let DW_OP_breg20              = CProfileRecorderSwiftELF.DW_OP_breg20
-let DW_OP_breg21              = CProfileRecorderSwiftELF.DW_OP_breg21
-let DW_OP_breg22              = CProfileRecorderSwiftELF.DW_OP_breg22
-let DW_OP_breg23              = CProfileRecorderSwiftELF.DW_OP_breg23
-let DW_OP_breg24              = CProfileRecorderSwiftELF.DW_OP_breg24
-let DW_OP_breg25              = CProfileRecorderSwiftELF.DW_OP_breg25
-let DW_OP_breg26              = CProfileRecorderSwiftELF.DW_OP_breg26
-let DW_OP_breg27              = CProfileRecorderSwiftELF.DW_OP_breg27
-let DW_OP_breg28              = CProfileRecorderSwiftELF.DW_OP_breg28
-let DW_OP_breg29              = CProfileRecorderSwiftELF.DW_OP_breg29
-let DW_OP_breg30              = CProfileRecorderSwiftELF.DW_OP_breg30
-let DW_OP_breg31              = CProfileRecorderSwiftELF.DW_OP_breg31
-let DW_OP_regx                = CProfileRecorderSwiftELF.DW_OP_regx
-let DW_OP_fbreg               = CProfileRecorderSwiftELF.DW_OP_fbreg
-let DW_OP_bregx               = CProfileRecorderSwiftELF.DW_OP_bregx
-let DW_OP_piece               = CProfileRecorderSwiftELF.DW_OP_piece
-let DW_OP_deref_size          = CProfileRecorderSwiftELF.DW_OP_deref_size
-let DW_OP_xderef_size         = CProfileRecorderSwiftELF.DW_OP_xderef_size
-let DW_OP_nop                 = CProfileRecorderSwiftELF.DW_OP_nop
-let DW_OP_push_object_address = CProfileRecorderSwiftELF.DW_OP_push_object_address
-let DW_OP_call2               = CProfileRecorderSwiftELF.DW_OP_call2
-let DW_OP_call4               = CProfileRecorderSwiftELF.DW_OP_call4
-let DW_OP_call_ref            = CProfileRecorderSwiftELF.DW_OP_call_ref
-let DW_OP_form_tls_address    = CProfileRecorderSwiftELF.DW_OP_form_tls_address
-let DW_OP_call_frame_cfa      = CProfileRecorderSwiftELF.DW_OP_call_frame_cfa
-let DW_OP_bit_piece           = CProfileRecorderSwiftELF.DW_OP_bit_piece
-let DW_OP_implicit_value      = CProfileRecorderSwiftELF.DW_OP_implicit_value
-let DW_OP_stack_value         = CProfileRecorderSwiftELF.DW_OP_stack_value
-let DW_OP_implicit_pointer    = CProfileRecorderSwiftELF.DW_OP_implicit_pointer
-let DW_OP_addrx               = CProfileRecorderSwiftELF.DW_OP_addrx
-let DW_OP_constx              = CProfileRecorderSwiftELF.DW_OP_constx
-let DW_OP_entry_value         = CProfileRecorderSwiftELF.DW_OP_entry_value
-let DW_OP_const_type          = CProfileRecorderSwiftELF.DW_OP_const_type
-let DW_OP_regval_type         = CProfileRecorderSwiftELF.DW_OP_regval_type
-let DW_OP_deref_type          = CProfileRecorderSwiftELF.DW_OP_deref_type
-let DW_OP_xderef_type         = CProfileRecorderSwiftELF.DW_OP_xderef_type
-let DW_OP_convert             = CProfileRecorderSwiftELF.DW_OP_convert
-let DW_OP_reinterpret         = CProfileRecorderSwiftELF.DW_OP_reinterpret
-let DW_OP_lo_user             = CProfileRecorderSwiftELF.DW_OP_lo_user
-let DW_OP_hi_user             = CProfileRecorderSwiftELF.DW_OP_hi_user
+let internal_SWIPR_DW_OP_breg0               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg0
+let internal_SWIPR_DW_OP_breg1               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg1
+let internal_SWIPR_DW_OP_breg2               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg2
+let internal_SWIPR_DW_OP_breg3               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg3
+let internal_SWIPR_DW_OP_breg4               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg4
+let internal_SWIPR_DW_OP_breg5               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg5
+let internal_SWIPR_DW_OP_breg6               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg6
+let internal_SWIPR_DW_OP_breg7               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg7
+let internal_SWIPR_DW_OP_breg8               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg8
+let internal_SWIPR_DW_OP_breg9               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg9
+let internal_SWIPR_DW_OP_breg10              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg10
+let internal_SWIPR_DW_OP_breg11              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg11
+let internal_SWIPR_DW_OP_breg12              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg12
+let internal_SWIPR_DW_OP_breg13              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg13
+let internal_SWIPR_DW_OP_breg14              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg14
+let internal_SWIPR_DW_OP_breg15              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg15
+let internal_SWIPR_DW_OP_breg16              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg16
+let internal_SWIPR_DW_OP_breg17              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg17
+let internal_SWIPR_DW_OP_breg18              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg18
+let internal_SWIPR_DW_OP_breg19              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg19
+let internal_SWIPR_DW_OP_breg20              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg20
+let internal_SWIPR_DW_OP_breg21              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg21
+let internal_SWIPR_DW_OP_breg22              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg22
+let internal_SWIPR_DW_OP_breg23              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg23
+let internal_SWIPR_DW_OP_breg24              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg24
+let internal_SWIPR_DW_OP_breg25              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg25
+let internal_SWIPR_DW_OP_breg26              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg26
+let internal_SWIPR_DW_OP_breg27              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg27
+let internal_SWIPR_DW_OP_breg28              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg28
+let internal_SWIPR_DW_OP_breg29              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg29
+let internal_SWIPR_DW_OP_breg30              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg30
+let internal_SWIPR_DW_OP_breg31              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_breg31
+let internal_SWIPR_DW_OP_regx                = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_regx
+let internal_SWIPR_DW_OP_fbreg               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_fbreg
+let internal_SWIPR_DW_OP_bregx               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_bregx
+let internal_SWIPR_DW_OP_piece               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_piece
+let internal_SWIPR_DW_OP_deref_size          = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_deref_size
+let internal_SWIPR_DW_OP_xderef_size         = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_xderef_size
+let internal_SWIPR_DW_OP_nop                 = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_nop
+let internal_SWIPR_DW_OP_push_object_address = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_push_object_address
+let internal_SWIPR_DW_OP_call2               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_call2
+let internal_SWIPR_DW_OP_call4               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_call4
+let internal_SWIPR_DW_OP_call_ref            = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_call_ref
+let internal_SWIPR_DW_OP_form_tls_address    = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_form_tls_address
+let internal_SWIPR_DW_OP_call_frame_cfa      = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_call_frame_cfa
+let internal_SWIPR_DW_OP_bit_piece           = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_bit_piece
+let internal_SWIPR_DW_OP_implicit_value      = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_implicit_value
+let internal_SWIPR_DW_OP_stack_value         = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_stack_value
+let internal_SWIPR_DW_OP_implicit_pointer    = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_implicit_pointer
+let internal_SWIPR_DW_OP_addrx               = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_addrx
+let internal_SWIPR_DW_OP_constx              = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_constx
+let internal_SWIPR_DW_OP_entry_value         = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_entry_value
+let internal_SWIPR_DW_OP_const_type          = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_const_type
+let internal_SWIPR_DW_OP_regval_type         = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_regval_type
+let internal_SWIPR_DW_OP_deref_type          = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_deref_type
+let internal_SWIPR_DW_OP_xderef_type         = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_xderef_type
+let internal_SWIPR_DW_OP_convert             = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_convert
+let internal_SWIPR_DW_OP_reinterpret         = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_reinterpret
+let internal_SWIPR_DW_OP_lo_user             = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_lo_user
+let internal_SWIPR_DW_OP_hi_user             = CProfileRecorderSwiftELF.internal_SWIPR_DW_OP_hi_user
 
 typealias SWIPR_Dwarf_LNS_Opcode = CProfileRecorderSwiftELF.SWIPR_Dwarf_LNS_Opcode
 typealias SWIPR_Dwarf_LNE_Opcode = CProfileRecorderSwiftELF.SWIPR_Dwarf_LNE_Opcode
@@ -237,55 +237,55 @@ typealias SWIPR_Dwarf_Lhdr_Format = CProfileRecorderSwiftELF.SWIPR_Dwarf_Lhdr_Fo
 typealias DWARF32_Lhdr = CProfileRecorderSwiftELF.DWARF32_Lhdr
 typealias DWARF64_Lhdr = CProfileRecorderSwiftELF.DWARF64_Lhdr
 
-let DW_CFA_advance_loc        = CProfileRecorderSwiftELF.DW_CFA_advance_loc
-let DW_CFA_offset             = CProfileRecorderSwiftELF.DW_CFA_offset
-let DW_CFA_restore            = CProfileRecorderSwiftELF.DW_CFA_restore
-let DW_CFA_nop                = CProfileRecorderSwiftELF.DW_CFA_nop
-let DW_CFA_set_loc            = CProfileRecorderSwiftELF.DW_CFA_set_loc
-let DW_CFA_advance_loc1       = CProfileRecorderSwiftELF.DW_CFA_advance_loc1
-let DW_CFA_advance_loc2       = CProfileRecorderSwiftELF.DW_CFA_advance_loc2
-let DW_CFA_advance_loc4       = CProfileRecorderSwiftELF.DW_CFA_advance_loc4
-let DW_CFA_offset_extended    = CProfileRecorderSwiftELF.DW_CFA_offset_extended
-let DW_CFA_restore_extended   = CProfileRecorderSwiftELF.DW_CFA_restore_extended
-let DW_CFA_undefined          = CProfileRecorderSwiftELF.DW_CFA_undefined
-let DW_CFA_same_value         = CProfileRecorderSwiftELF.DW_CFA_same_value
-let DW_CFA_register           = CProfileRecorderSwiftELF.DW_CFA_register
-let DW_CFA_remember_state     = CProfileRecorderSwiftELF.DW_CFA_remember_state
-let DW_CFA_restore_state      = CProfileRecorderSwiftELF.DW_CFA_restore_state
-let DW_CFA_def_cfa            = CProfileRecorderSwiftELF.DW_CFA_def_cfa
-let DW_CFA_def_cfa_register   = CProfileRecorderSwiftELF.DW_CFA_def_cfa_register
-let DW_CFA_def_cfa_offset     = CProfileRecorderSwiftELF.DW_CFA_def_cfa_offset
-let DW_CFA_def_cfa_expression = CProfileRecorderSwiftELF.DW_CFA_def_cfa_expression
-let DW_CFA_expression         = CProfileRecorderSwiftELF.DW_CFA_expression
-let DW_CFA_offset_extended_sf = CProfileRecorderSwiftELF.DW_CFA_offset_extended_sf
-let DW_CFA_def_cfa_sf         = CProfileRecorderSwiftELF.DW_CFA_def_cfa_sf
-let DW_CFA_def_cfa_offset_sf  = CProfileRecorderSwiftELF.DW_CFA_def_cfa_offset_sf
-let DW_CFA_val_offset         = CProfileRecorderSwiftELF.DW_CFA_val_offset
-let DW_CFA_val_offset_sf      = CProfileRecorderSwiftELF.DW_CFA_val_offset_sf
-let DW_CFA_val_expression     = CProfileRecorderSwiftELF.DW_CFA_val_expression
-let DW_CFA_lo_user            = CProfileRecorderSwiftELF.DW_CFA_lo_user
-let DW_CFA_hi_user            = CProfileRecorderSwiftELF.DW_CFA_hi_user
+let internal_SWIPR_DW_CFA_advance_loc        = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_advance_loc
+let internal_SWIPR_DW_CFA_offset             = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_offset
+let internal_SWIPR_DW_CFA_restore            = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_restore
+let internal_SWIPR_DW_CFA_nop                = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_nop
+let internal_SWIPR_DW_CFA_set_loc            = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_set_loc
+let internal_SWIPR_DW_CFA_advance_loc1       = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_advance_loc1
+let internal_SWIPR_DW_CFA_advance_loc2       = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_advance_loc2
+let internal_SWIPR_DW_CFA_advance_loc4       = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_advance_loc4
+let internal_SWIPR_DW_CFA_offset_extended    = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_offset_extended
+let internal_SWIPR_DW_CFA_restore_extended   = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_restore_extended
+let internal_SWIPR_DW_CFA_undefined          = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_undefined
+let internal_SWIPR_DW_CFA_same_value         = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_same_value
+let internal_SWIPR_DW_CFA_register           = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_register
+let internal_SWIPR_DW_CFA_remember_state     = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_remember_state
+let internal_SWIPR_DW_CFA_restore_state      = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_restore_state
+let internal_SWIPR_DW_CFA_def_cfa            = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_def_cfa
+let internal_SWIPR_DW_CFA_def_cfa_register   = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_def_cfa_register
+let internal_SWIPR_DW_CFA_def_cfa_offset     = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_def_cfa_offset
+let internal_SWIPR_DW_CFA_def_cfa_expression = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_def_cfa_expression
+let internal_SWIPR_DW_CFA_expression         = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_expression
+let internal_SWIPR_DW_CFA_offset_extended_sf = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_offset_extended_sf
+let internal_SWIPR_DW_CFA_def_cfa_sf         = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_def_cfa_sf
+let internal_SWIPR_DW_CFA_def_cfa_offset_sf  = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_def_cfa_offset_sf
+let internal_SWIPR_DW_CFA_val_offset         = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_val_offset
+let internal_SWIPR_DW_CFA_val_offset_sf      = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_val_offset_sf
+let internal_SWIPR_DW_CFA_val_expression     = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_val_expression
+let internal_SWIPR_DW_CFA_lo_user            = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_lo_user
+let internal_SWIPR_DW_CFA_hi_user            = CProfileRecorderSwiftELF.internal_SWIPR_DW_CFA_hi_user
 
 typealias SWIPR_Dwarf_RLE_Entry = CProfileRecorderSwiftELF.SWIPR_Dwarf_RLE_Entry
-typealias Dwarf32_CIEHdr  = CProfileRecorderSwiftELF.Dwarf32_CIEHdr
-typealias Dwarf64_CIEHdr  = CProfileRecorderSwiftELF.Dwarf64_CIEHdr
-typealias Dwarf32_FDEHdr  = CProfileRecorderSwiftELF.Dwarf32_FDEHdr
+typealias SWIPR_Dwarf32_CIEHdr  = CProfileRecorderSwiftELF.SWIPR_Dwarf32_CIEHdr
+typealias SWIPR_Dwarf64_CIEHdr  = CProfileRecorderSwiftELF.SWIPR_Dwarf64_CIEHdr
+typealias SWIPR_Dwarf32_FDEHdr  = CProfileRecorderSwiftELF.SWIPR_Dwarf32_FDEHdr
 
 typealias EHFrameHdr      = CProfileRecorderSwiftELF.EHFrameHdr
 typealias EHFrameEncoding = CProfileRecorderSwiftELF.EHFrameEncoding
 
-let DW_EH_PE_omit    = CProfileRecorderSwiftELF.DW_EH_PE_omit
-let DW_EH_PE_uleb128 = CProfileRecorderSwiftELF.DW_EH_PE_uleb128
-let DW_EH_PE_udata2  = CProfileRecorderSwiftELF.DW_EH_PE_udata2
-let DW_EH_PE_udata4  = CProfileRecorderSwiftELF.DW_EH_PE_udata4
-let DW_EH_PE_udata8  = CProfileRecorderSwiftELF.DW_EH_PE_udata8
-let DW_EH_PE_sleb128 = CProfileRecorderSwiftELF.DW_EH_PE_sleb128
-let DW_EH_PE_sdata2  = CProfileRecorderSwiftELF.DW_EH_PE_sdata2
-let DW_EH_PE_sdata4  = CProfileRecorderSwiftELF.DW_EH_PE_sdata4
-let DW_EH_PE_sdata8  = CProfileRecorderSwiftELF.DW_EH_PE_sdata8
-let DW_EH_PE_absptr  = CProfileRecorderSwiftELF.DW_EH_PE_absptr
-let DW_EH_PE_pcrel   = CProfileRecorderSwiftELF.DW_EH_PE_pcrel
-let DW_EH_PE_datarel = CProfileRecorderSwiftELF.DW_EH_PE_datarel
+let internal_SWIPR_DW_EH_PE_omit    = CProfileRecorderSwiftELF.internal_SWIPR_DW_EH_PE_omit
+let internal_SWIPR_DW_EH_PE_uleb128 = CProfileRecorderSwiftELF.internal_SWIPR_DW_EH_PE_uleb128
+let internal_SWIPR_DW_EH_PE_udata2  = CProfileRecorderSwiftELF.internal_SWIPR_DW_EH_PE_udata2
+let internal_SWIPR_DW_EH_PE_udata4  = CProfileRecorderSwiftELF.internal_SWIPR_DW_EH_PE_udata4
+let internal_SWIPR_DW_EH_PE_udata8  = CProfileRecorderSwiftELF.internal_SWIPR_DW_EH_PE_udata8
+let internal_SWIPR_DW_EH_PE_sleb128 = CProfileRecorderSwiftELF.internal_SWIPR_DW_EH_PE_sleb128
+let internal_SWIPR_DW_EH_PE_sdata2  = CProfileRecorderSwiftELF.internal_SWIPR_DW_EH_PE_sdata2
+let internal_SWIPR_DW_EH_PE_sdata4  = CProfileRecorderSwiftELF.internal_SWIPR_DW_EH_PE_sdata4
+let internal_SWIPR_DW_EH_PE_sdata8  = CProfileRecorderSwiftELF.internal_SWIPR_DW_EH_PE_sdata8
+let internal_SWIPR_DW_EH_PE_absptr  = CProfileRecorderSwiftELF.internal_SWIPR_DW_EH_PE_absptr
+let internal_SWIPR_DW_EH_PE_pcrel   = CProfileRecorderSwiftELF.internal_SWIPR_DW_EH_PE_pcrel
+let internal_SWIPR_DW_EH_PE_datarel = CProfileRecorderSwiftELF.internal_SWIPR_DW_EH_PE_datarel
 
 // .. Dwarf specific errors ....................................................
 
@@ -376,35 +376,35 @@ extension ImageSource {
     var addr = a
 
     switch valueEnc {
-    case DW_EH_PE_omit:
+    case internal_SWIPR_DW_EH_PE_omit:
       return nil
-    case DW_EH_PE_uleb128:
+    case internal_SWIPR_DW_EH_PE_uleb128:
       (addr, value) = try fetchULEB128(from: addr)
-    case DW_EH_PE_udata2:
+    case internal_SWIPR_DW_EH_PE_udata2:
       let u2 = maybeSwap(try fetch(from: addr, as: UInt16.self))
       value = UInt64(u2)
       addr += 2
-    case DW_EH_PE_udata4:
+    case internal_SWIPR_DW_EH_PE_udata4:
       let u4 = maybeSwap(try fetch(from: addr, as: UInt32.self))
       value = UInt64(u4)
       addr += 4
-    case DW_EH_PE_udata8:
+    case internal_SWIPR_DW_EH_PE_udata8:
       let u8 = maybeSwap(try fetch(from: addr, as: UInt64.self))
       value = u8
       addr += 8
-    case DW_EH_PE_sleb128:
+    case internal_SWIPR_DW_EH_PE_sleb128:
       let (newAddr, newValue) = try fetchSLEB128(from: addr)
       value = UInt64(bitPattern: newValue)
       addr = newAddr
-    case DW_EH_PE_sdata2:
+    case internal_SWIPR_DW_EH_PE_sdata2:
       let s2 = maybeSwap(try fetch(from: addr, as: Int16.self))
       value = UInt64(bitPattern: Int64(s2))
       addr += 2
-    case DW_EH_PE_sdata4:
+    case internal_SWIPR_DW_EH_PE_sdata4:
       let s4 = maybeSwap(try fetch(from: addr, as: Int32.self))
       value = UInt64(bitPattern: Int64(s4))
       addr += 4
-    case DW_EH_PE_sdata8:
+    case internal_SWIPR_DW_EH_PE_sdata8:
       let s8 = maybeSwap(try fetch(from: addr, as: Int64.self))
       value = UInt64(bitPattern: s8)
       addr += 8
@@ -415,11 +415,11 @@ extension ImageSource {
     let offsetEnc = EHFrameEncoding(encoding & 0xf0)
 
     switch offsetEnc {
-    case DW_EH_PE_absptr:
+    case internal_SWIPR_DW_EH_PE_absptr:
       return (addr, value)
-    case DW_EH_PE_pcrel:
+    case internal_SWIPR_DW_EH_PE_pcrel:
       return (addr, UInt64(pc) &+ value)
-    case DW_EH_PE_datarel:
+    case internal_SWIPR_DW_EH_PE_datarel:
       return (addr, UInt64(data) &+ value)
     default:
       throw DwarfError.unknownEHOffsetEncoding
@@ -623,12 +623,12 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
         if let lineBase = unit.lineBase,
            lineNumberInfo[n].baseOffset == lineBase {
           var filename = "<unknown>"
-          if let nameVal = unit.attributes[.DW_AT_name],
+          if let nameVal = unit.attributes[.internal_SWIPR_DW_AT_name],
              case let .string(theName) = nameVal {
             filename = theName
           }
           var dirname = "."
-          if let dirVal = unit.attributes[.DW_AT_comp_dir],
+          if let dirVal = unit.attributes[.internal_SWIPR_DW_AT_comp_dir],
              case let .string(theDir) = dirVal {
             dirname = theDir
           }
@@ -676,7 +676,7 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
         throw DwarfError.unsupportedVersion(version)
       }
 
-      var unitType: SWIPR_Dwarf_UnitType = .DW_UT_unknown
+      var unitType: SWIPR_Dwarf_UnitType = .internal_SWIPR_DW_UT_unknown
       let addressSize: Int
       let abbrevOffset: Address
       let dieBounds: Bounds
@@ -725,10 +725,10 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
         dieBounds = Bounds(base: cursor.pos, size: next - cursor.pos)
       }
 
-      if unitType == .DW_UT_skeleton || unitType == .DW_UT_split_compile {
+      if unitType == .internal_SWIPR_DW_UT_skeleton || unitType == .internal_SWIPR_DW_UT_split_compile {
         // .6 dwo_id
         let _ = try cursor.read(as: UInt64.self)
-      } else if unitType == .DW_UT_type || unitType == .DW_UT_split_type {
+      } else if unitType == .internal_SWIPR_DW_UT_type || unitType == .internal_SWIPR_DW_UT_split_type {
         // .6 type_signature
         let _ = try cursor.read(as: UInt64.self)
 
@@ -767,23 +767,23 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
         shouldFetchIndirect: false
       )
 
-      if let value = firstPass[.DW_AT_addr_base],
+      if let value = firstPass[.internal_SWIPR_DW_AT_addr_base],
          case let .sectionOffset(offset) = value {
         unit.addrBase = offset
       }
-      if let value = firstPass[.DW_AT_str_offsets_base],
+      if let value = firstPass[.internal_SWIPR_DW_AT_str_offsets_base],
          case let .sectionOffset(offset) = value {
         unit.strOffsetsBase = offset
       }
-      if let value = firstPass[.DW_AT_loclists_base],
+      if let value = firstPass[.internal_SWIPR_DW_AT_loclists_base],
          case let .sectionOffset(offset) = value {
         unit.loclistsBase = offset
       }
-      if let value = firstPass[.DW_AT_stmt_list],
+      if let value = firstPass[.internal_SWIPR_DW_AT_stmt_list],
          case let .sectionOffset(offset) = value {
         unit.lineBase = offset
       }
-      if let value = firstPass[.DW_AT_low_pc],
+      if let value = firstPass[.internal_SWIPR_DW_AT_low_pc],
          case let .address(lowPC) = value {
         unit.lowPC = lowPC
       }
@@ -972,7 +972,7 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
                                         shouldFetchIndirect: true)
           }
 
-          if let pathVal = attributes[.DW_LNCT_path],
+          if let pathVal = attributes[.internal_SWIPR_DW_LNCT_path],
              case let .string(path) = pathVal {
             dirNames.append(path)
           } else {
@@ -1015,18 +1015,18 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
           }
 
           let path: String
-          if let pathVal = attributes[.DW_LNCT_path],
+          if let pathVal = attributes[.internal_SWIPR_DW_LNCT_path],
              case let .string(thePath) = pathVal {
             path = thePath
           } else {
             path = "<unknown>"
           }
 
-          let dirIndex = attributes[.DW_LNCT_directory_index]?.intValue()
-          let timestamp = attributes[.DW_LNCT_timestamp]?.intValue()
-          let size = attributes[.DW_LNCT_size]?.uint64Value()
+          let dirIndex = attributes[.internal_SWIPR_DW_LNCT_directory_index]?.intValue()
+          let timestamp = attributes[.internal_SWIPR_DW_LNCT_timestamp]?.intValue()
+          let size = attributes[.internal_SWIPR_DW_LNCT_size]?.uint64Value()
           let md5sum: [UInt8]?
-          if let md5sumVal = attributes[.DW_LNCT_MD5],
+          if let md5sumVal = attributes[.internal_SWIPR_DW_LNCT_MD5],
              case let .data(theSum) = md5sumVal {
             md5sum = theSum
           } else {
@@ -1106,7 +1106,7 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
           throw DwarfError.badForm(rawForm)
         }
 
-        if form == .DW_FORM_implicit_const {
+        if form == .internal_SWIPR_DW_FORM_implicit_const {
           let value = try cursor.readSLEB128()
           attributes.append((attr, form, value))
         } else {
@@ -1115,7 +1115,7 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
       }
 
       abbrevs[abbrev] = AbbrevInfo(tag: tag,
-                                     hasChildren: children != .DW_CHILDREN_no,
+                                     hasChildren: children != .internal_SWIPR_DW_CHILDREN_no,
                                      attributes: attributes)
     }
 
@@ -1195,7 +1195,7 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
                     shouldFetchIndirect: Bool,
                     constantValue: Int64? = nil) throws -> DwarfValue {
     let form: SWIPR_Dwarf_Form
-    if theForm == .DW_FORM_indirect {
+    if theForm == .internal_SWIPR_DW_FORM_indirect {
       let rawForm = try cursor.readULEB128()
       guard let theForm = SWIPR_Dwarf_Form(rawValue: SWIPR_Dwarf_Byte(rawForm)) else {
         throw DwarfError.badForm(rawForm)
@@ -1206,10 +1206,10 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
     }
 
     switch form {
-      case .DW_FORM_implicit_const:
+      case .internal_SWIPR_DW_FORM_implicit_const:
         return .signedInt64(constantValue!)
 
-      case .DW_FORM_addr:
+      case .internal_SWIPR_DW_FORM_addr:
         let address: UInt64
         switch addressSize {
           case 4:
@@ -1220,24 +1220,24 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
             throw DwarfError.badAddressSize(addressSize)
         }
         return .address(address)
-      case .DW_FORM_addrx, .DW_FORM_addrx1, .DW_FORM_addrx2,
-           .DW_FORM_addrx3, .DW_FORM_addrx4:
+      case .internal_SWIPR_DW_FORM_addrx, .internal_SWIPR_DW_FORM_addrx1, .internal_SWIPR_DW_FORM_addrx2,
+           .internal_SWIPR_DW_FORM_addrx3, .internal_SWIPR_DW_FORM_addrx4:
         guard let addrSection = addrSection else {
           throw DwarfError.missingAddrSection
         }
 
         let ndx: UInt64
         switch form {
-          case .DW_FORM_addrx:
+          case .internal_SWIPR_DW_FORM_addrx:
             ndx = try cursor.readULEB128()
-          case .DW_FORM_addrx1:
+          case .internal_SWIPR_DW_FORM_addrx1:
             ndx = UInt64(try cursor.read(as: UInt8.self))
-          case .DW_FORM_addrx2:
+          case .internal_SWIPR_DW_FORM_addrx2:
             ndx = UInt64(maybeSwap(try cursor.read(as: UInt16.self)))
-          case .DW_FORM_addrx3:
+          case .internal_SWIPR_DW_FORM_addrx3:
             let bytes = try cursor.read(as: (UInt8, UInt8, UInt8).self)
             ndx = threeByteToOffset(bytes)
-          case .DW_FORM_addrx4:
+          case .internal_SWIPR_DW_FORM_addrx4:
             ndx = UInt64(maybeSwap(try cursor.read(as: UInt32.self)))
           default:
             fatalError("unreachable")
@@ -1264,68 +1264,68 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
           }
           return .address(address)
         }
-      case .DW_FORM_block:
+      case .internal_SWIPR_DW_FORM_block:
         let length = try cursor.readULEB128()
         let bytes = try cursor.read(count: Int(length), as: UInt8.self)
         return .data(bytes)
-      case .DW_FORM_block1:
+      case .internal_SWIPR_DW_FORM_block1:
         let length = try cursor.read(as: UInt8.self)
         let bytes = try cursor.read(count: Int(length), as: UInt8.self)
         return .data(bytes)
-      case .DW_FORM_block2:
+      case .internal_SWIPR_DW_FORM_block2:
         let length = maybeSwap(try cursor.read(as: UInt16.self))
         let bytes = try cursor.read(count: Int(length), as: UInt8.self)
         return .data(bytes)
-      case .DW_FORM_block4:
+      case .internal_SWIPR_DW_FORM_block4:
         let length = maybeSwap(try cursor.read(as: UInt32.self))
         let bytes = try cursor.read(count: Int(length), as: UInt8.self)
         return .data(bytes)
 
-      case .DW_FORM_sdata:
+      case .internal_SWIPR_DW_FORM_sdata:
         let data = try cursor.readSLEB128()
         return .signedInt64(data)
 
-      case .DW_FORM_udata:
+      case .internal_SWIPR_DW_FORM_udata:
         let data = try cursor.readULEB128()
         return .unsignedInt64(data)
 
-      case .DW_FORM_data1:
+      case .internal_SWIPR_DW_FORM_data1:
         let data = try cursor.read(as: UInt8.self)
         return .unsignedInt8(data)
 
-      case .DW_FORM_data2:
+      case .internal_SWIPR_DW_FORM_data2:
         let data = maybeSwap(try cursor.read(as: UInt16.self))
         return .unsignedInt16(data)
 
-      case .DW_FORM_data4:
+      case .internal_SWIPR_DW_FORM_data4:
         let data = maybeSwap(try cursor.read(as: UInt32.self))
         return .unsignedInt32(data)
 
-      case .DW_FORM_data8:
+      case .internal_SWIPR_DW_FORM_data8:
         let data = maybeSwap(try cursor.read(as: UInt64.self))
         return .unsignedInt64(data)
 
-      case .DW_FORM_data16:
+      case .internal_SWIPR_DW_FORM_data16:
         let data = try cursor.read(count: 16, as: UInt8.self)
         return .data(data)
 
-      case .DW_FORM_exprloc:
+      case .internal_SWIPR_DW_FORM_exprloc:
         let length = try cursor.readULEB128()
         let bytes = try cursor.read(count: Int(length), as: UInt8.self)
         return .expression(bytes)
 
-      case .DW_FORM_flag:
+      case .internal_SWIPR_DW_FORM_flag:
         let flag = try cursor.read(as: UInt8.self)
         return .flag(flag != 0)
 
-      case .DW_FORM_flag_present:
+      case .internal_SWIPR_DW_FORM_flag_present:
         return .flag(true)
 
-      case .DW_FORM_loclistx:
+      case .internal_SWIPR_DW_FORM_loclistx:
         let offset = try cursor.readULEB128()
         return .locationList(offset)
 
-      case .DW_FORM_sec_offset:
+      case .internal_SWIPR_DW_FORM_sec_offset:
         let offset: UInt64
         if isDwarf64 {
           offset = maybeSwap(try cursor.read(as: UInt64.self))
@@ -1334,34 +1334,34 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
         }
         return .sectionOffset(offset)
 
-      case .DW_FORM_rnglistx:
+      case .internal_SWIPR_DW_FORM_rnglistx:
         let offset = try cursor.readULEB128()
         return .rangeList(offset)
 
-      case .DW_FORM_ref1, .DW_FORM_ref2, .DW_FORM_ref4, .DW_FORM_ref8,
-           .DW_FORM_ref_udata:
+      case .internal_SWIPR_DW_FORM_ref1, .internal_SWIPR_DW_FORM_ref2, .internal_SWIPR_DW_FORM_ref4, .internal_SWIPR_DW_FORM_ref8,
+           .internal_SWIPR_DW_FORM_ref_udata:
         guard let baseOffset = unit?.baseOffset else {
           throw DwarfError.missingBaseOffset
         }
 
         let offset: Address
         switch form {
-          case .DW_FORM_ref1:
+          case .internal_SWIPR_DW_FORM_ref1:
             offset = UInt64(try cursor.read(as: UInt8.self))
-          case .DW_FORM_ref2:
+          case .internal_SWIPR_DW_FORM_ref2:
             offset = UInt64(maybeSwap(try cursor.read(as: UInt16.self)))
-          case .DW_FORM_ref4:
+          case .internal_SWIPR_DW_FORM_ref4:
             offset = UInt64(maybeSwap(try cursor.read(as: UInt32.self)))
-          case .DW_FORM_ref8:
+          case .internal_SWIPR_DW_FORM_ref8:
             offset = maybeSwap(try cursor.read(as: UInt64.self))
-          case .DW_FORM_ref_udata:
+          case .internal_SWIPR_DW_FORM_ref_udata:
             offset = try cursor.readULEB128()
           default:
             fatalError("unreachable")
         }
         return .reference(offset + baseOffset)
 
-      case .DW_FORM_ref_addr:
+      case .internal_SWIPR_DW_FORM_ref_addr:
         let offset: UInt64
         if isDwarf64 {
           offset = maybeSwap(try cursor.read(as: UInt64.self))
@@ -1370,25 +1370,25 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
         }
         return .reference(offset)
 
-      case .DW_FORM_ref_sig8:
+      case .internal_SWIPR_DW_FORM_ref_sig8:
         let signature = try cursor.read(count: 8, as: UInt8.self)
         return .signature(signature)
 
-      case .DW_FORM_ref_sup4:
+      case .internal_SWIPR_DW_FORM_ref_sup4:
         let offset = maybeSwap(try cursor.read(as: UInt32.self))
         return .supplementaryReference(Address(offset))
 
-      case .DW_FORM_ref_sup8:
+      case .internal_SWIPR_DW_FORM_ref_sup8:
         let offset = maybeSwap(try cursor.read(as: UInt64.self))
         return .supplementaryReference(Address(offset))
 
-      case .DW_FORM_string:
+      case .internal_SWIPR_DW_FORM_string:
         guard let string = try cursor.readString() else {
           throw DwarfError.badString
         }
         return .string(string)
 
-      case .DW_FORM_strp:
+      case .internal_SWIPR_DW_FORM_strp:
         guard let strSection = strSection else {
           throw DwarfError.missingStrSection
         }
@@ -1409,7 +1409,7 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
           return .string(string)
         }
 
-      case .DW_FORM_strp_sup:
+      case .internal_SWIPR_DW_FORM_strp_sup:
         let offset: UInt64
         if isDwarf64 {
           offset = maybeSwap(try cursor.read(as: UInt64.self))
@@ -1418,7 +1418,7 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
         }
         return .supplementaryString(offset)
 
-      case .DW_FORM_line_strp:
+      case .internal_SWIPR_DW_FORM_line_strp:
         guard let lineStrSection = lineStrSection else {
           throw DwarfError.missingLineStrSection
         }
@@ -1439,8 +1439,8 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
           return .string(string)
         }
 
-      case .DW_FORM_strx,
-           .DW_FORM_strx1, .DW_FORM_strx2, .DW_FORM_strx3,.DW_FORM_strx4:
+      case .internal_SWIPR_DW_FORM_strx,
+           .internal_SWIPR_DW_FORM_strx1, .internal_SWIPR_DW_FORM_strx2, .internal_SWIPR_DW_FORM_strx3,.internal_SWIPR_DW_FORM_strx4:
         guard let strOffsetsSection = strOffsetsSection else {
           throw DwarfError.missingStrOffsetsSection
         }
@@ -1450,16 +1450,16 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
 
         let offset: UInt64
         switch form {
-          case .DW_FORM_strx:
+          case .internal_SWIPR_DW_FORM_strx:
             offset = try cursor.readULEB128()
-          case .DW_FORM_strx1:
+          case .internal_SWIPR_DW_FORM_strx1:
             offset = UInt64(try cursor.read(as: UInt8.self))
-          case .DW_FORM_strx2:
+          case .internal_SWIPR_DW_FORM_strx2:
             offset = UInt64(maybeSwap(try cursor.read(as: UInt16.self)))
-          case .DW_FORM_strx3:
+          case .internal_SWIPR_DW_FORM_strx3:
             let bytes = try cursor.read(as: (UInt8, UInt8, UInt8).self)
             offset = threeByteToOffset(bytes)
-          case .DW_FORM_strx4:
+          case .internal_SWIPR_DW_FORM_strx4:
             offset = UInt64(maybeSwap(try cursor.read(as: UInt32.self)))
           default:
             fatalError("unreachable")
@@ -1490,7 +1490,7 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
           return .string(string)
         }
 
-      case .DW_FORM_indirect:
+      case .internal_SWIPR_DW_FORM_indirect:
         // We should have handled this already
         throw DwarfError.doubleIndirectForm
       default:
@@ -1536,10 +1536,10 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
     attributes: [SWIPR_Dwarf_Attribute:DwarfValue],
     _ fn: (CallSiteInfo) -> ()
   ) throws {
-    guard let abstractOriginVal = attributes[.DW_AT_abstract_origin],
-          let callFile = attributes[.DW_AT_call_file]?.uint64Value(),
-          let callLine = attributes[.DW_AT_call_line]?.uint64Value(),
-          let callColumn = attributes[.DW_AT_call_column]?.uint64Value(),
+    guard let abstractOriginVal = attributes[.internal_SWIPR_DW_AT_abstract_origin],
+          let callFile = attributes[.internal_SWIPR_DW_AT_call_file]?.uint64Value(),
+          let callLine = attributes[.internal_SWIPR_DW_AT_call_line]?.uint64Value(),
+          let callColumn = attributes[.internal_SWIPR_DW_AT_call_column]?.uint64Value(),
           case let .reference(abstractOrigin) = abstractOriginVal else {
       return
     }
@@ -1557,7 +1557,7 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
 
     let tag = abbrevInfo.tag
 
-    if tag != .DW_TAG_subprogram {
+    if tag != .internal_SWIPR_DW_TAG_subprogram {
       return
     }
 
@@ -1568,7 +1568,7 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
       shouldFetchIndirect: true
     )
 
-    if let specificationVal = refAttrs[.DW_AT_specification],
+    if let specificationVal = refAttrs[.internal_SWIPR_DW_AT_specification],
        case let .reference(specification) = specificationVal {
       cursor = ImageSourceCursor(source: infoSection,
                                  offset: specification)
@@ -1582,7 +1582,7 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
       }
 
       let tag = abbrevInfo.tag
-      if tag != .DW_TAG_subprogram {
+      if tag != .internal_SWIPR_DW_TAG_subprogram {
         return
       }
 
@@ -1597,12 +1597,12 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
     var name: String? = nil
     var rawName: String? = nil
 
-    if let nameVal = refAttrs[.DW_AT_name],
+    if let nameVal = refAttrs[.internal_SWIPR_DW_AT_name],
        case let .string(theName) = nameVal {
       name = theName
     }
 
-    if let linkageNameVal = refAttrs[.DW_AT_linkage_name],
+    if let linkageNameVal = refAttrs[.internal_SWIPR_DW_AT_linkage_name],
        case let .string(theRawName) = linkageNameVal {
       rawName = theRawName
     } else {
@@ -1617,8 +1617,8 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
       }
     }
 
-    if let lowPCVal = attributes[.DW_AT_low_pc],
-       let highPCVal = attributes[.DW_AT_high_pc],
+    if let lowPCVal = attributes[.internal_SWIPR_DW_AT_low_pc],
+       let highPCVal = attributes[.internal_SWIPR_DW_AT_high_pc],
        case let .address(lowPC) = lowPCVal {
       let highPC: Address
       if case let .address(highPCAddr) = highPCVal {
@@ -1638,7 +1638,7 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
            filename: filename,
            line: Int(callLine),
            column: Int(callColumn)))
-    } else if let rangeVal = attributes[.DW_AT_ranges],
+    } else if let rangeVal = attributes[.internal_SWIPR_DW_AT_ranges],
               let rangesSection = rangesSection,
               case let .sectionOffset(offset) = rangeVal,
               unit.version < 5 {
@@ -1720,10 +1720,10 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
             at: &cursor,
             unit: unit,
             abbrevInfo: abbrevInfo,
-            shouldFetchIndirect: tag == .DW_TAG_inlined_subroutine
+            shouldFetchIndirect: tag == .internal_SWIPR_DW_TAG_inlined_subroutine
           )
 
-          if tag == .DW_TAG_inlined_subroutine {
+          if tag == .internal_SWIPR_DW_TAG_inlined_subroutine {
             try buildCallSiteInfo(depth: depth,
                                   unit: unit,
                                   attributes: attributes) {
@@ -1737,7 +1737,7 @@ struct DwarfReader<S: DwarfSource & AnyObject> {
         }
       } catch {
         let name: String
-        if let value = unit.attributes[.DW_AT_name],
+        if let value = unit.attributes[.internal_SWIPR_DW_AT_name],
            case let .string(theName) = value {
           name = theName
         } else {
@@ -1913,17 +1913,17 @@ struct DwarfLineNumberInfo {
         state.basicBlock = false
         state.prologueEnd = false
         state.epilogueBegin = false
-      } else if opcode == .DW_LNS_extended {
+      } else if opcode == .internal_SWIPR_DW_LNS_extended {
         // Extended opcode
         let length = try cursor.readULEB128()
         let opcode = try cursor.read(as: SWIPR_Dwarf_LNE_Opcode.self)
 
         switch opcode {
-          case .DW_LNE_end_sequence:
+          case .internal_SWIPR_DW_LNE_end_sequence:
             state.endSequence = true
             line(state, &done)
             state = initialState
-          case .DW_LNE_set_address:
+          case .internal_SWIPR_DW_LNE_set_address:
             let address: UInt64
             guard let addressSize = addressSize else {
               throw DwarfError.unspecifiedAddressSize
@@ -1937,7 +1937,7 @@ struct DwarfLineNumberInfo {
                 throw DwarfError.badAddressSize(addressSize)
             }
             state.address = Address(address)
-              case .DW_LNE_define_file:
+              case .internal_SWIPR_DW_LNE_define_file:
                 guard let path = try cursor.readString() else {
                   throw DwarfError.badString
                 }
@@ -1951,7 +1951,7 @@ struct DwarfLineNumberInfo {
                                size: size != 0 ? size : nil,
                                md5sum: nil
                              ))
-              case .DW_LNE_set_discriminator:
+              case .internal_SWIPR_DW_LNE_set_discriminator:
                 let discriminator = try cursor.readULEB128()
                 state.discriminator = UInt(discriminator)
               default:
@@ -1960,34 +1960,34 @@ struct DwarfLineNumberInfo {
       } else {
         // Standard opcode
         switch opcode {
-          case .DW_LNS_copy:
+          case .internal_SWIPR_DW_LNS_copy:
             line(state, &done)
             state.discriminator = 0
             state.basicBlock = false
             state.prologueEnd = false
             state.epilogueBegin = false
-          case .DW_LNS_advance_pc:
+          case .internal_SWIPR_DW_LNS_advance_pc:
             let advance = UInt(try cursor.readULEB128())
             let instrAdvance
               = (state.opIndex + advance) / maximumOpsPerInstruction
             let newOp = (state.opIndex + advance) % maximumOpsPerInstruction
             state.address += Address(instrAdvance)
             state.opIndex = newOp
-          case .DW_LNS_advance_line:
+          case .internal_SWIPR_DW_LNS_advance_line:
             let advance = try cursor.readSLEB128()
             state.line += Int(advance)
-          case .DW_LNS_set_file:
+          case .internal_SWIPR_DW_LNS_set_file:
             let file = Int(try cursor.readULEB128())
             state.file = file
             state.path = fullPathForFile(index: state.file)
-          case .DW_LNS_set_column:
+          case .internal_SWIPR_DW_LNS_set_column:
             let column = Int(try cursor.readULEB128())
             state.column = column
-          case .DW_LNS_negate_stmt:
+          case .internal_SWIPR_DW_LNS_negate_stmt:
             state.isStmt = !state.isStmt
-          case .DW_LNS_set_basic_block:
+          case .internal_SWIPR_DW_LNS_set_basic_block:
             state.basicBlock = true
-          case .DW_LNS_const_add_pc:
+          case .internal_SWIPR_DW_LNS_const_add_pc:
             let adjustedOpcode = UInt(255 - opcodeBase)
             let advance = adjustedOpcode / UInt(lineRange)
             let instrAdvance
@@ -1995,15 +1995,15 @@ struct DwarfLineNumberInfo {
             let newOp = (state.opIndex + advance) % maximumOpsPerInstruction
             state.address += Address(instrAdvance)
             state.opIndex = newOp
-          case .DW_LNS_fixed_advance_pc:
+          case .internal_SWIPR_DW_LNS_fixed_advance_pc:
             let advance = try cursor.read(as: SWIPR_Dwarf_Half.self)
             state.address += Address(advance)
             state.opIndex = 0
-          case .DW_LNS_set_prologue_end:
+          case .internal_SWIPR_DW_LNS_set_prologue_end:
             state.prologueEnd = true
-          case .DW_LNS_set_epilogue_begin:
+          case .internal_SWIPR_DW_LNS_set_epilogue_begin:
             state.epilogueBegin = true
-          case .DW_LNS_set_isa:
+          case .internal_SWIPR_DW_LNS_set_isa:
             let isa = UInt(try cursor.readULEB128())
             state.isa = isa
           default:
@@ -2057,7 +2057,7 @@ public func testDwarfReaderFor(path: String) -> Bool {
 
     print("Units:")
     for unit in reader.units {
-      if let value = unit.attributes[.DW_AT_name],
+      if let value = unit.attributes[.internal_SWIPR_DW_AT_name],
          case let .string(name) = value {
         print("  \(name)")
       } else {

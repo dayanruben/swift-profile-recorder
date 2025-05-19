@@ -38,8 +38,8 @@
 #include <inttypes.h>
 
 #ifdef __cplusplus
-namespace swift {
-namespace runtime {
+namespace SWIPRswift {
+namespace SWIPRruntime {
 #endif
 
 /* .. Useful macros ......................................................... */
@@ -63,24 +63,24 @@ struct EHFrameHdr {
 /* .. Constants ............................................................. */
 
 typedef EH_FRAME_OPTIONS(uint8_t, EHFrameEncoding) {
-  DW_EH_PE_omit		= 0xff,	// No value is present
-  DW_EH_PE_uleb128	= 0x01, // Unsigned value encoded using LEB128
-  DW_EH_PE_udata2	= 0x02, // A 2-byte unsigned value
-  DW_EH_PE_udata4	= 0x03, // A 4-byte unsigned value
-  DW_EH_PE_udata8	= 0x04, // An 8-byte unsigned value
-  DW_EH_PE_sleb128	= 0x09, // Signed value encoded using LEB128
-  DW_EH_PE_sdata2	= 0x0a, // A 2-byte signed value
-  DW_EH_PE_sdata4	= 0x0b, // A 4-byte signed value
-  DW_EH_PE_sdata8	= 0x0c, // An 8-byte signed value
+  internal_SWIPR_DW_EH_PE_omit		= 0xff,	// No value is present
+  internal_SWIPR_DW_EH_PE_uleb128	= 0x01, // Unsigned value encoded using LEB128
+  internal_SWIPR_DW_EH_PE_udata2	= 0x02, // A 2-byte unsigned value
+  internal_SWIPR_DW_EH_PE_udata4	= 0x03, // A 4-byte unsigned value
+  internal_SWIPR_DW_EH_PE_udata8	= 0x04, // An 8-byte unsigned value
+  internal_SWIPR_DW_EH_PE_sleb128	= 0x09, // Signed value encoded using LEB128
+  internal_SWIPR_DW_EH_PE_sdata2	= 0x0a, // A 2-byte signed value
+  internal_SWIPR_DW_EH_PE_sdata4	= 0x0b, // A 4-byte signed value
+  internal_SWIPR_DW_EH_PE_sdata8	= 0x0c, // An 8-byte signed value
 
-  DW_EH_PE_absptr	= 0x00, // Absolute, used with no modification
-  DW_EH_PE_pcrel	= 0x10, // Relative to the current program counter
-  DW_EH_PE_datarel	= 0x30, // Relative to the beginning of the .eh_frame_hdr
+  internal_SWIPR_DW_EH_PE_absptr	= 0x00, // Absolute, used with no modification
+  internal_SWIPR_DW_EH_PE_pcrel	= 0x10, // Relative to the current program counter
+  internal_SWIPR_DW_EH_PE_datarel	= 0x30, // Relative to the beginning of the .eh_frame_hdr
 };
 
 #ifdef __cplusplus
-} // namespace runtime
-} // namespace swift
+} // namespace SWIPRruntime
+} // namespace SWIPRswift
 #endif
 
 #endif // SWIFT_EH_FRAME_HDR_H

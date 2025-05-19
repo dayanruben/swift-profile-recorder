@@ -50,6 +50,13 @@ cat > "$target_c_src/empty.c" <<"EOF"
 //
 //===----------------------------------------------------------------------===//
 EOF
+
+cp "$backtracing_root"/modules/ImageFormats/Elf/*.h "$target_c_src/include/"
+cp "$backtracing_root"/modules/ImageFormats/Dwarf/*.h "$target_c_src/include/"
+for f in "$target_c_src/include"/*.h; do
+    mv "$f" "$(dirname "$f")/swipr-$(basename "$f")"
+done
+
 cat > "$target_c_src/include/CProfileRecorderSwiftELF.h" <<"EOF"
 //===----------------------------------------------------------------------===//
 //
@@ -68,15 +75,12 @@ cat > "$target_c_src/include/CProfileRecorderSwiftELF.h" <<"EOF"
 #ifndef CProfileRecorderSWIFTELF_h
 #define CProfileRecorderSWIFTELF_h
 
-#include "elf.h"
-#include "eh_frame_hdr.h"
-#include "dwarf.h"
+#include "swipr-elf.h"
+#include "swipr-eh_frame_hdr.h"
+#include "swipr-dwarf.h"
 
 #endif
 EOF
-
-cp "$backtracing_root"/modules/ImageFormats/Elf/*.h "$target_c_src/include/"
-cp "$backtracing_root"/modules/ImageFormats/Dwarf/*.h "$target_c_src/include/"
 
 swift_files=(
     ByteSwapping.swift
@@ -113,10 +117,36 @@ vendored_file_text='//===-------------------------------------------------------
 find "$target_c_src" "$target_swift_src" \
     -type f \
     -exec gsed -ri \
+        -e "s/namespace ([A-Za-z0-9]+)/namespace ${prefix}\1/g" \
+        -e "s/\<elf_/${prefix}_elf_/g" \
         -e "s/\<Elf_/${prefix}_Elf_/g" \
+        -e "s/\<Elk_/${prefix}_Elk_/g" \
         -e "s/\<Elf64_/${prefix}_Elf64_/g" \
         -e "s/\<Elf32_/${prefix}_Elf32_/g" \
         -e "s/\<Dwarf_/${prefix}_Dwarf_/g" \
+        -e "s/\<Dwarf32_/${prefix}_Dwarf32_/g" \
+        -e "s/\<Dwarf64_/${prefix}_Dwarf64_/g" \
+        -e "s/\<DF_/internal_${prefix}_DF_/g" \
+        -e "s/\<DT_/internal_${prefix}_DT_/g" \
+        -e "s/\<DW_/internal_${prefix}_DW_/g" \
+        -e "s/\<DWARF_/internal_${prefix}_DWARF_/g" \
+        -e "s/\<EI_/internal_${prefix}_EI_/g" \
+        -e "s/\<ELFCOMPRESS_/internal_${prefix}_ELFCOMPRESS_/g" \
+        -e "s/\<ELFOSABI_/internal_${prefix}_ELFOSABI_/g" \
+        -e "s/\<EM_/internal_${prefix}_EM_/g" \
+        -e "s/\<ET_/internal_${prefix}_ET_/g" \
+        -e "s/\<EV_/internal_${prefix}_EV_/g" \
+        -e "s/\<GRP_/internal_${prefix}_GRP_/g" \
+        -e "s/\<NT_/internal_${prefix}_NT_/g" \
+        -e "s/\<PF_/internal_${prefix}_PF_/g" \
+        -e "s/\<PT_/internal_${prefix}_PT_/g" \
+        -e "s/\<SHF_/internal_${prefix}_SHF_/g" \
+        -e "s/\<SHN_/internal_${prefix}_SHN_/g" \
+        -e "s/\<SHT_/internal_${prefix}_SHT_/g" \
+        -e "s/\<STB_/internal_${prefix}_STB_/g" \
+        -e "s/\<STN_/internal_${prefix}_STN_/g" \
+        -e "s/\<STT_/internal_${prefix}_STT_/g" \
+        -e "s/\<STV_/internal_${prefix}_STV_/g" \
         -e "s/import Swift//g" \
         -e "s/^let ELF64_/nonisolated(unsafe) let ELF64_/g" \
         -e "s/^let ELF32_/nonisolated(unsafe) let ELF32_/g" \

@@ -78,16 +78,16 @@ typealias SWIPR_Elf_Ehdr_Type    = CProfileRecorderSwiftELF.SWIPR_Elf_Ehdr_Type
 typealias SWIPR_Elf_Ehdr_Machine = CProfileRecorderSwiftELF.SWIPR_Elf_Ehdr_Machine
 typealias SWIPR_Elf_Ehdr_Version = CProfileRecorderSwiftELF.SWIPR_Elf_Ehdr_Version
 
-let EI_MAG0       = CProfileRecorderSwiftELF.EI_MAG0
-let EI_MAG1       = CProfileRecorderSwiftELF.EI_MAG1
-let EI_MAG2       = CProfileRecorderSwiftELF.EI_MAG2
-let EI_MAG3       = CProfileRecorderSwiftELF.EI_MAG3
-let EI_CLASS      = CProfileRecorderSwiftELF.EI_CLASS
-let EI_DATA       = CProfileRecorderSwiftELF.EI_DATA
-let EI_VERSION    = CProfileRecorderSwiftELF.EI_VERSION
-let EI_OSABI      = CProfileRecorderSwiftELF.EI_OSABI
-let EI_ABIVERSION = CProfileRecorderSwiftELF.EI_ABIVERSION
-let EI_PAD        = CProfileRecorderSwiftELF.EI_PAD
+let internal_SWIPR_EI_MAG0       = CProfileRecorderSwiftELF.internal_SWIPR_EI_MAG0
+let internal_SWIPR_EI_MAG1       = CProfileRecorderSwiftELF.internal_SWIPR_EI_MAG1
+let internal_SWIPR_EI_MAG2       = CProfileRecorderSwiftELF.internal_SWIPR_EI_MAG2
+let internal_SWIPR_EI_MAG3       = CProfileRecorderSwiftELF.internal_SWIPR_EI_MAG3
+let internal_SWIPR_EI_CLASS      = CProfileRecorderSwiftELF.internal_SWIPR_EI_CLASS
+let internal_SWIPR_EI_DATA       = CProfileRecorderSwiftELF.internal_SWIPR_EI_DATA
+let internal_SWIPR_EI_VERSION    = CProfileRecorderSwiftELF.internal_SWIPR_EI_VERSION
+let internal_SWIPR_EI_OSABI      = CProfileRecorderSwiftELF.internal_SWIPR_EI_OSABI
+let internal_SWIPR_EI_ABIVERSION = CProfileRecorderSwiftELF.internal_SWIPR_EI_ABIVERSION
+let internal_SWIPR_EI_PAD        = CProfileRecorderSwiftELF.internal_SWIPR_EI_PAD
 
 let ELFMAG0 = CProfileRecorderSwiftELF.ELFMAG0
 let ELFMAG1 = CProfileRecorderSwiftELF.ELFMAG1
@@ -98,36 +98,36 @@ typealias SWIPR_Elf_Ehdr_Class = CProfileRecorderSwiftELF.SWIPR_Elf_Ehdr_Class
 typealias SWIPR_Elf_Ehdr_Data  = CProfileRecorderSwiftELF.SWIPR_Elf_Ehdr_Data
 typealias SWIPR_Elf_Ehdr_OsAbi = CProfileRecorderSwiftELF.SWIPR_Elf_Ehdr_OsAbi
 
-let SHN_UNDEF     = CProfileRecorderSwiftELF.SHN_UNDEF
-let SHN_LORESERVE = CProfileRecorderSwiftELF.SHN_LORESERVE
-let SHN_LOPROC    = CProfileRecorderSwiftELF.SHN_LOPROC
-let SHN_HIPROC    = CProfileRecorderSwiftELF.SHN_HIPROC
-let SHN_LOOS      = CProfileRecorderSwiftELF.SHN_LOOS
-let SHN_HIOS      = CProfileRecorderSwiftELF.SHN_HIOS
-let SHN_ABS       = CProfileRecorderSwiftELF.SHN_ABS
-let SHN_COMMON    = CProfileRecorderSwiftELF.SHN_COMMON
-let SHN_XINDEX    = CProfileRecorderSwiftELF.SHN_XINDEX
-let SHN_HIRESERVE = CProfileRecorderSwiftELF.SHN_HIRESERVE
+let internal_SWIPR_SHN_UNDEF     = CProfileRecorderSwiftELF.internal_SWIPR_SHN_UNDEF
+let internal_SWIPR_SHN_LORESERVE = CProfileRecorderSwiftELF.internal_SWIPR_SHN_LORESERVE
+let internal_SWIPR_SHN_LOPROC    = CProfileRecorderSwiftELF.internal_SWIPR_SHN_LOPROC
+let internal_SWIPR_SHN_HIPROC    = CProfileRecorderSwiftELF.internal_SWIPR_SHN_HIPROC
+let internal_SWIPR_SHN_LOOS      = CProfileRecorderSwiftELF.internal_SWIPR_SHN_LOOS
+let internal_SWIPR_SHN_HIOS      = CProfileRecorderSwiftELF.internal_SWIPR_SHN_HIOS
+let internal_SWIPR_SHN_ABS       = CProfileRecorderSwiftELF.internal_SWIPR_SHN_ABS
+let internal_SWIPR_SHN_COMMON    = CProfileRecorderSwiftELF.internal_SWIPR_SHN_COMMON
+let internal_SWIPR_SHN_XINDEX    = CProfileRecorderSwiftELF.internal_SWIPR_SHN_XINDEX
+let internal_SWIPR_SHN_HIRESERVE = CProfileRecorderSwiftELF.internal_SWIPR_SHN_HIRESERVE
 
 typealias SWIPR_Elf_Shdr_Type = CProfileRecorderSwiftELF.SWIPR_Elf_Shdr_Type
 
-let SHF_WRITE            = CProfileRecorderSwiftELF.SHF_WRITE
-let SHF_ALLOC            = CProfileRecorderSwiftELF.SHF_ALLOC
-let SHF_EXECINSTR        = CProfileRecorderSwiftELF.SHF_EXECINSTR
-let SHF_MERGE            = CProfileRecorderSwiftELF.SHF_MERGE
-let SHF_STRINGS          = CProfileRecorderSwiftELF.SHF_STRINGS
-let SHF_INFO_LINK        = CProfileRecorderSwiftELF.SHF_INFO_LINK
-let SHF_LINK_ORDER       = CProfileRecorderSwiftELF.SHF_LINK_ORDER
-let SHF_OS_NONCONFORMING = CProfileRecorderSwiftELF.SHF_OS_NONCONFORMING
-let SHF_GROUP            = CProfileRecorderSwiftELF.SHF_GROUP
-let SHF_TLS              = CProfileRecorderSwiftELF.SHF_TLS
-let SHF_COMPRESSED       = CProfileRecorderSwiftELF.SHF_COMPRESSED
-let SHF_MASKOS           = CProfileRecorderSwiftELF.SHF_MASKOS
-let SHF_MASKPROC         = CProfileRecorderSwiftELF.SHF_MASKPROC
+let internal_SWIPR_SHF_WRITE            = CProfileRecorderSwiftELF.internal_SWIPR_SHF_WRITE
+let internal_SWIPR_SHF_ALLOC            = CProfileRecorderSwiftELF.internal_SWIPR_SHF_ALLOC
+let internal_SWIPR_SHF_EXECINSTR        = CProfileRecorderSwiftELF.internal_SWIPR_SHF_EXECINSTR
+let internal_SWIPR_SHF_MERGE            = CProfileRecorderSwiftELF.internal_SWIPR_SHF_MERGE
+let internal_SWIPR_SHF_STRINGS          = CProfileRecorderSwiftELF.internal_SWIPR_SHF_STRINGS
+let internal_SWIPR_SHF_INFO_LINK        = CProfileRecorderSwiftELF.internal_SWIPR_SHF_INFO_LINK
+let internal_SWIPR_SHF_LINK_ORDER       = CProfileRecorderSwiftELF.internal_SWIPR_SHF_LINK_ORDER
+let internal_SWIPR_SHF_OS_NONCONFORMING = CProfileRecorderSwiftELF.internal_SWIPR_SHF_OS_NONCONFORMING
+let internal_SWIPR_SHF_GROUP            = CProfileRecorderSwiftELF.internal_SWIPR_SHF_GROUP
+let internal_SWIPR_SHF_TLS              = CProfileRecorderSwiftELF.internal_SWIPR_SHF_TLS
+let internal_SWIPR_SHF_COMPRESSED       = CProfileRecorderSwiftELF.internal_SWIPR_SHF_COMPRESSED
+let internal_SWIPR_SHF_MASKOS           = CProfileRecorderSwiftELF.internal_SWIPR_SHF_MASKOS
+let internal_SWIPR_SHF_MASKPROC         = CProfileRecorderSwiftELF.internal_SWIPR_SHF_MASKPROC
 
-let GRP_COMDAT   = CProfileRecorderSwiftELF.GRP_COMDAT
-let GRP_MASKOS   = CProfileRecorderSwiftELF.GRP_MASKOS
-let GRP_MASKPROC = CProfileRecorderSwiftELF.GRP_MASKPROC
+let internal_SWIPR_GRP_COMDAT   = CProfileRecorderSwiftELF.internal_SWIPR_GRP_COMDAT
+let internal_SWIPR_GRP_MASKOS   = CProfileRecorderSwiftELF.internal_SWIPR_GRP_MASKOS
+let internal_SWIPR_GRP_MASKPROC = CProfileRecorderSwiftELF.internal_SWIPR_GRP_MASKPROC
 
 typealias SWIPR_Elf_Chdr_Type = CProfileRecorderSwiftELF.SWIPR_Elf_Chdr_Type
 
@@ -138,63 +138,63 @@ typealias SWIPR_Elf_Sym_Visibility = CProfileRecorderSwiftELF.SWIPR_Elf_Sym_Visi
 typealias SWIPR_Elf_Phdr_Type  = CProfileRecorderSwiftELF.SWIPR_Elf_Phdr_Type
 typealias SWIPR_Elf_Phdr_Flags = CProfileRecorderSwiftELF.SWIPR_Elf_Phdr_Flags
 
-let PF_X = CProfileRecorderSwiftELF.PF_X
-let PF_W = CProfileRecorderSwiftELF.PF_W
-let PF_R = CProfileRecorderSwiftELF.PF_R
+let internal_SWIPR_PF_X = CProfileRecorderSwiftELF.internal_SWIPR_PF_X
+let internal_SWIPR_PF_W = CProfileRecorderSwiftELF.internal_SWIPR_PF_W
+let internal_SWIPR_PF_R = CProfileRecorderSwiftELF.internal_SWIPR_PF_R
 
-let PF_MASKOS   = CProfileRecorderSwiftELF.PF_MASKOS
-let PF_MASKPROC = CProfileRecorderSwiftELF.PF_MASKPROC
+let internal_SWIPR_PF_MASKOS   = CProfileRecorderSwiftELF.internal_SWIPR_PF_MASKOS
+let internal_SWIPR_PF_MASKPROC = CProfileRecorderSwiftELF.internal_SWIPR_PF_MASKPROC
 
-let DT_NULL            = CProfileRecorderSwiftELF.DT_NULL
-let DT_NEEDED          = CProfileRecorderSwiftELF.DT_NEEDED
-let DT_PLTRELSZ        = CProfileRecorderSwiftELF.DT_PLTRELSZ
-let DT_PLTGOT          = CProfileRecorderSwiftELF.DT_PLTGOT
-let DT_HASH            = CProfileRecorderSwiftELF.DT_HASH
-let DT_STRTAB          = CProfileRecorderSwiftELF.DT_STRTAB
-let DT_SYMTAB          = CProfileRecorderSwiftELF.DT_SYMTAB
-let DT_RELA            = CProfileRecorderSwiftELF.DT_RELA
-let DT_RELASZ          = CProfileRecorderSwiftELF.DT_RELASZ
-let DT_RELAENT         = CProfileRecorderSwiftELF.DT_RELAENT
-let DT_STRSZ           = CProfileRecorderSwiftELF.DT_STRSZ
-let DT_SYMENT          = CProfileRecorderSwiftELF.DT_SYMENT
-let DT_INIT            = CProfileRecorderSwiftELF.DT_INIT
-let DT_FINI            = CProfileRecorderSwiftELF.DT_FINI
-let DT_SONAME          = CProfileRecorderSwiftELF.DT_SONAME
-let DT_RPATH           = CProfileRecorderSwiftELF.DT_RPATH
-let DT_SYMBOLIC        = CProfileRecorderSwiftELF.DT_SYMBOLIC
-let DT_REL             = CProfileRecorderSwiftELF.DT_REL
-let DT_RELSZ           = CProfileRecorderSwiftELF.DT_RELSZ
-let DT_RELENT          = CProfileRecorderSwiftELF.DT_RELENT
-let DT_PLTREL          = CProfileRecorderSwiftELF.DT_PLTREL
-let DT_DEBUG           = CProfileRecorderSwiftELF.DT_DEBUG
-let DT_TEXTREL         = CProfileRecorderSwiftELF.DT_TEXTREL
-let DT_JMPREL          = CProfileRecorderSwiftELF.DT_JMPREL
-let DT_BIND_NOW        = CProfileRecorderSwiftELF.DT_BIND_NOW
-let DT_INIT_ARRAY      = CProfileRecorderSwiftELF.DT_INIT_ARRAY
-let DT_FINI_ARRAY      = CProfileRecorderSwiftELF.DT_FINI_ARRAY
-let DT_INIT_ARRAYSZ    = CProfileRecorderSwiftELF.DT_INIT_ARRAYSZ
-let DT_FINI_ARRAYSZ    = CProfileRecorderSwiftELF.DT_FINI_ARRAYSZ
-let DT_RUNPATH         = CProfileRecorderSwiftELF.DT_RUNPATH
-let DT_FLAGS           = CProfileRecorderSwiftELF.DT_FLAGS
-let DT_ENCODING        = CProfileRecorderSwiftELF.DT_ENCODING
-let DT_PREINIT_ARRAY   = CProfileRecorderSwiftELF.DT_PREINIT_ARRAY
-let DT_PREINIT_ARRAYSZ = CProfileRecorderSwiftELF.DT_PREINIT_ARRAYSZ
-let DT_LOOS            = CProfileRecorderSwiftELF.DT_LOOS
-let DT_HIOS            = CProfileRecorderSwiftELF.DT_HIOS
-let DT_LOPROC          = CProfileRecorderSwiftELF.DT_LOPROC
-let DT_HIPROC          = CProfileRecorderSwiftELF.DT_HIPROC
+let internal_SWIPR_DT_NULL            = CProfileRecorderSwiftELF.internal_SWIPR_DT_NULL
+let internal_SWIPR_DT_NEEDED          = CProfileRecorderSwiftELF.internal_SWIPR_DT_NEEDED
+let internal_SWIPR_DT_PLTRELSZ        = CProfileRecorderSwiftELF.internal_SWIPR_DT_PLTRELSZ
+let internal_SWIPR_DT_PLTGOT          = CProfileRecorderSwiftELF.internal_SWIPR_DT_PLTGOT
+let internal_SWIPR_DT_HASH            = CProfileRecorderSwiftELF.internal_SWIPR_DT_HASH
+let internal_SWIPR_DT_STRTAB          = CProfileRecorderSwiftELF.internal_SWIPR_DT_STRTAB
+let internal_SWIPR_DT_SYMTAB          = CProfileRecorderSwiftELF.internal_SWIPR_DT_SYMTAB
+let internal_SWIPR_DT_RELA            = CProfileRecorderSwiftELF.internal_SWIPR_DT_RELA
+let internal_SWIPR_DT_RELASZ          = CProfileRecorderSwiftELF.internal_SWIPR_DT_RELASZ
+let internal_SWIPR_DT_RELAENT         = CProfileRecorderSwiftELF.internal_SWIPR_DT_RELAENT
+let internal_SWIPR_DT_STRSZ           = CProfileRecorderSwiftELF.internal_SWIPR_DT_STRSZ
+let internal_SWIPR_DT_SYMENT          = CProfileRecorderSwiftELF.internal_SWIPR_DT_SYMENT
+let internal_SWIPR_DT_INIT            = CProfileRecorderSwiftELF.internal_SWIPR_DT_INIT
+let internal_SWIPR_DT_FINI            = CProfileRecorderSwiftELF.internal_SWIPR_DT_FINI
+let internal_SWIPR_DT_SONAME          = CProfileRecorderSwiftELF.internal_SWIPR_DT_SONAME
+let internal_SWIPR_DT_RPATH           = CProfileRecorderSwiftELF.internal_SWIPR_DT_RPATH
+let internal_SWIPR_DT_SYMBOLIC        = CProfileRecorderSwiftELF.internal_SWIPR_DT_SYMBOLIC
+let internal_SWIPR_DT_REL             = CProfileRecorderSwiftELF.internal_SWIPR_DT_REL
+let internal_SWIPR_DT_RELSZ           = CProfileRecorderSwiftELF.internal_SWIPR_DT_RELSZ
+let internal_SWIPR_DT_RELENT          = CProfileRecorderSwiftELF.internal_SWIPR_DT_RELENT
+let internal_SWIPR_DT_PLTREL          = CProfileRecorderSwiftELF.internal_SWIPR_DT_PLTREL
+let internal_SWIPR_DT_DEBUG           = CProfileRecorderSwiftELF.internal_SWIPR_DT_DEBUG
+let internal_SWIPR_DT_TEXTREL         = CProfileRecorderSwiftELF.internal_SWIPR_DT_TEXTREL
+let internal_SWIPR_DT_JMPREL          = CProfileRecorderSwiftELF.internal_SWIPR_DT_JMPREL
+let internal_SWIPR_DT_BIND_NOW        = CProfileRecorderSwiftELF.internal_SWIPR_DT_BIND_NOW
+let internal_SWIPR_DT_INIT_ARRAY      = CProfileRecorderSwiftELF.internal_SWIPR_DT_INIT_ARRAY
+let internal_SWIPR_DT_FINI_ARRAY      = CProfileRecorderSwiftELF.internal_SWIPR_DT_FINI_ARRAY
+let internal_SWIPR_DT_INIT_ARRAYSZ    = CProfileRecorderSwiftELF.internal_SWIPR_DT_INIT_ARRAYSZ
+let internal_SWIPR_DT_FINI_ARRAYSZ    = CProfileRecorderSwiftELF.internal_SWIPR_DT_FINI_ARRAYSZ
+let internal_SWIPR_DT_RUNPATH         = CProfileRecorderSwiftELF.internal_SWIPR_DT_RUNPATH
+let internal_SWIPR_DT_FLAGS           = CProfileRecorderSwiftELF.internal_SWIPR_DT_FLAGS
+let internal_SWIPR_DT_ENCODING        = CProfileRecorderSwiftELF.internal_SWIPR_DT_ENCODING
+let internal_SWIPR_DT_PREINIT_ARRAY   = CProfileRecorderSwiftELF.internal_SWIPR_DT_PREINIT_ARRAY
+let internal_SWIPR_DT_PREINIT_ARRAYSZ = CProfileRecorderSwiftELF.internal_SWIPR_DT_PREINIT_ARRAYSZ
+let internal_SWIPR_DT_LOOS            = CProfileRecorderSwiftELF.internal_SWIPR_DT_LOOS
+let internal_SWIPR_DT_HIOS            = CProfileRecorderSwiftELF.internal_SWIPR_DT_HIOS
+let internal_SWIPR_DT_LOPROC          = CProfileRecorderSwiftELF.internal_SWIPR_DT_LOPROC
+let internal_SWIPR_DT_HIPROC          = CProfileRecorderSwiftELF.internal_SWIPR_DT_HIPROC
 
-let DF_ORIGIN     = CProfileRecorderSwiftELF.DF_ORIGIN
-let DF_SYMBOLIC   = CProfileRecorderSwiftELF.DF_SYMBOLIC
-let DF_TEXTREL    = CProfileRecorderSwiftELF.DF_TEXTREL
-let DF_BIND_NOW   = CProfileRecorderSwiftELF.DF_BIND_NOW
-let DF_STATIC_TLS = CProfileRecorderSwiftELF.DF_STATIC_TLS
+let internal_SWIPR_DF_ORIGIN     = CProfileRecorderSwiftELF.internal_SWIPR_DF_ORIGIN
+let internal_SWIPR_DF_SYMBOLIC   = CProfileRecorderSwiftELF.internal_SWIPR_DF_SYMBOLIC
+let internal_SWIPR_DF_TEXTREL    = CProfileRecorderSwiftELF.internal_SWIPR_DF_TEXTREL
+let internal_SWIPR_DF_BIND_NOW   = CProfileRecorderSwiftELF.internal_SWIPR_DF_BIND_NOW
+let internal_SWIPR_DF_STATIC_TLS = CProfileRecorderSwiftELF.internal_SWIPR_DF_STATIC_TLS
 
-let NT_GNU_ABI_TAG         = CProfileRecorderSwiftELF.NT_GNU_ABI_TAG
-let NT_GNU_HWCAP           = CProfileRecorderSwiftELF.NT_GNU_HWCAP
-let NT_GNU_BUILD_ID        = CProfileRecorderSwiftELF.NT_GNU_BUILD_ID
-let NT_GNU_GOLD_VERSION    = CProfileRecorderSwiftELF.NT_GNU_GOLD_VERSION
-let NT_GNU_PROPERTY_TYPE_0 = CProfileRecorderSwiftELF.NT_GNU_PROPERTY_TYPE_0
+let internal_SWIPR_NT_GNU_ABI_TAG         = CProfileRecorderSwiftELF.internal_SWIPR_NT_GNU_ABI_TAG
+let internal_SWIPR_NT_GNU_HWCAP           = CProfileRecorderSwiftELF.internal_SWIPR_NT_GNU_HWCAP
+let internal_SWIPR_NT_GNU_BUILD_ID        = CProfileRecorderSwiftELF.internal_SWIPR_NT_GNU_BUILD_ID
+let internal_SWIPR_NT_GNU_GOLD_VERSION    = CProfileRecorderSwiftELF.internal_SWIPR_NT_GNU_GOLD_VERSION
+let internal_SWIPR_NT_GNU_PROPERTY_TYPE_0 = CProfileRecorderSwiftELF.internal_SWIPR_NT_GNU_PROPERTY_TYPE_0
 
 typealias SWIPR_Elf32_Ehdr = CProfileRecorderSwiftELF.SWIPR_Elf32_Ehdr
 typealias SWIPR_Elf64_Ehdr = CProfileRecorderSwiftELF.SWIPR_Elf64_Ehdr
@@ -208,7 +208,6 @@ typealias SWIPR_Elf64_Chdr = CProfileRecorderSwiftELF.SWIPR_Elf64_Chdr
 typealias SWIPR_Elf32_Sym = CProfileRecorderSwiftELF.SWIPR_Elf32_Sym
 typealias SWIPR_Elf64_Sym = CProfileRecorderSwiftELF.SWIPR_Elf64_Sym
 
-#if compiler(>=5.10)
 nonisolated(unsafe) let ELF32_ST_BIND       = CProfileRecorderSwiftELF.ELF32_ST_BIND
 nonisolated(unsafe) let ELF32_ST_TYPE       = CProfileRecorderSwiftELF.ELF32_ST_TYPE
 nonisolated(unsafe) let ELF32_ST_INFO       = CProfileRecorderSwiftELF.ELF32_ST_INFO
@@ -218,24 +217,12 @@ nonisolated(unsafe) let ELF64_ST_BIND       = CProfileRecorderSwiftELF.ELF64_ST_
 nonisolated(unsafe) let ELF64_ST_TYPE       = CProfileRecorderSwiftELF.ELF64_ST_TYPE
 nonisolated(unsafe) let ELF64_ST_INFO       = CProfileRecorderSwiftELF.ELF64_ST_INFO
 nonisolated(unsafe) let ELF64_ST_VISIBILITY = CProfileRecorderSwiftELF.ELF64_ST_VISIBILITY
-#else
-let ELF32_ST_BIND       = CProfileRecorderSwiftELF.ELF32_ST_BIND
-let ELF32_ST_TYPE       = CProfileRecorderSwiftELF.ELF32_ST_TYPE
-let ELF32_ST_INFO       = CProfileRecorderSwiftELF.ELF32_ST_INFO
-let ELF32_ST_VISIBILITY = CProfileRecorderSwiftELF.ELF32_ST_VISIBILITY
-
-let ELF64_ST_BIND       = CProfileRecorderSwiftELF.ELF64_ST_BIND
-let ELF64_ST_TYPE       = CProfileRecorderSwiftELF.ELF64_ST_TYPE
-let ELF64_ST_INFO       = CProfileRecorderSwiftELF.ELF64_ST_INFO
-let ELF64_ST_VISIBILITY = CProfileRecorderSwiftELF.ELF64_ST_VISIBILITY
-#endif
 
 typealias SWIPR_Elf32_Rel  = CProfileRecorderSwiftELF.SWIPR_Elf32_Rel
 typealias SWIPR_Elf32_Rela = CProfileRecorderSwiftELF.SWIPR_Elf32_Rela
 typealias SWIPR_Elf64_Rel  = CProfileRecorderSwiftELF.SWIPR_Elf64_Rel
 typealias SWIPR_Elf64_Rela = CProfileRecorderSwiftELF.SWIPR_Elf64_Rela
 
-#if compiler(>=5.10)
 nonisolated(unsafe) let ELF32_R_SYM  = CProfileRecorderSwiftELF.ELF32_R_SYM
 nonisolated(unsafe) let ELF32_R_TYPE = CProfileRecorderSwiftELF.ELF32_R_TYPE
 nonisolated(unsafe) let ELF32_R_INFO = CProfileRecorderSwiftELF.ELF32_R_INFO
@@ -243,15 +230,6 @@ nonisolated(unsafe) let ELF32_R_INFO = CProfileRecorderSwiftELF.ELF32_R_INFO
 nonisolated(unsafe) let ELF64_R_SYM  = CProfileRecorderSwiftELF.ELF64_R_SYM
 nonisolated(unsafe) let ELF64_R_TYPE = CProfileRecorderSwiftELF.ELF64_R_TYPE
 nonisolated(unsafe) let ELF64_R_INFO = CProfileRecorderSwiftELF.ELF64_R_INFO
-#else
-let ELF32_R_SYM  = CProfileRecorderSwiftELF.ELF32_R_SYM
-let ELF32_R_TYPE = CProfileRecorderSwiftELF.ELF32_R_TYPE
-let ELF32_R_INFO = CProfileRecorderSwiftELF.ELF32_R_INFO
-
-let ELF64_R_SYM  = CProfileRecorderSwiftELF.ELF64_R_SYM
-let ELF64_R_TYPE = CProfileRecorderSwiftELF.ELF64_R_TYPE
-let ELF64_R_INFO = CProfileRecorderSwiftELF.ELF64_R_INFO
-#endif
 
 typealias SWIPR_Elf32_Phdr = CProfileRecorderSwiftELF.SWIPR_Elf32_Phdr
 typealias SWIPR_Elf64_Phdr = CProfileRecorderSwiftELF.SWIPR_Elf64_Phdr
@@ -265,11 +243,7 @@ typealias SWIPR_Elf64_Dyn = CProfileRecorderSwiftELF.SWIPR_Elf64_Dyn
 typealias SWIPR_Elf32_Hash = CProfileRecorderSwiftELF.SWIPR_Elf32_Hash
 typealias SWIPR_Elf64_Hash = CProfileRecorderSwiftELF.SWIPR_Elf64_Hash
 
-#if compiler(>=5.10)
-nonisolated(unsafe) let elf_hash = CProfileRecorderSwiftELF.elf_hash
-#else
-let elf_hash = CProfileRecorderSwiftELF.elf_hash
-#endif
+let SWIPR_elf_hash = CProfileRecorderSwiftELF.SWIPR_elf_hash
 
 // .. Utilities ................................................................
 
@@ -1101,12 +1075,12 @@ struct ElfSymbolTable<SomeElfTraits: ElfTraits>: ElfSymbolTableProtocol {
     symtab.bytes.withMemoryRebound(to: Traits.Sym.self) { symbols in
       for symbol in symbols {
         // Ignore things that are not functions
-        if symbol.st_type != .STT_FUNC {
+        if symbol.st_type != .internal_SWIPR_STT_FUNC {
           continue
         }
 
         // Ignore anything undefined
-        if symbol.st_shndx == SHN_UNDEF {
+        if symbol.st_shndx == internal_SWIPR_SHN_UNDEF {
           continue
         }
 
@@ -1343,7 +1317,7 @@ final class ElfImage<SomeElfTraits: ElfTraits>
               if hdrNdx >= image.programHeaders.count {
                 return nil
               }
-            } while image.programHeaders[hdrNdx].p_type != .PT_NOTE
+            } while image.programHeaders[hdrNdx].p_type != .internal_SWIPR_PT_NOTE
             startHeader()
           }
 
@@ -1413,7 +1387,7 @@ final class ElfImage<SomeElfTraits: ElfTraits>
     }
 
     for note in notes {
-      if note.name == "GNU" && note.type == NT_GNU_BUILD_ID {
+      if note.name == "GNU" && note.type == internal_SWIPR_NT_GNU_BUILD_ID {
         _uuid = note.desc
         return _uuid
       }
@@ -1452,7 +1426,7 @@ final class ElfImage<SomeElfTraits: ElfTraits>
     var ehFrameInfo = EHFrameInfo()
 
     for phdr in programHeaders {
-      if phdr.p_type == .PT_GNU_EH_FRAME {
+      if phdr.p_type == .internal_SWIPR_PT_GNU_EH_FRAME {
         var ehFrameHdrRange: Range
         if source.isMappedImage {
           ehFrameHdrRange = Range(base: ImageSource.Address(phdr.p_vaddr),
@@ -1633,7 +1607,7 @@ final class ElfImage<SomeElfTraits: ElfTraits>
             let end = base + ImageSource.Size(shdr.sh_size)
             let subSource = source[base..<end]
 
-            if (shdr.sh_flags & Traits.Shdr.Flags(SHF_COMPRESSED)) != 0 {
+            if (shdr.sh_flags & Traits.Shdr.Flags(internal_SWIPR_SHF_COMPRESSED)) != 0 {
               () // compression unsupported
               //return try ImageSource(elfCompressedImageSource: subSource,
               //                       traits: Traits.self)
@@ -1957,16 +1931,16 @@ func getElfImageInfo<R: MemoryReader, Traits: ElfTraits>(
   var endOfText = address
   var uuid: [UInt8]? = nil
 
-  // Find the last loadable executable segment, and scan for PT_NOTE
+  // Find the last loadable executable segment, and scan for internal_SWIPR_PT_NOTE
   // segments that contain the UUID
   var phAddr = ImageSource.Address(address) + ImageSource.Size(header.e_phoff)
   for _ in 0..<header.e_phnum {
     let phdr = maybeSwap(try reader.fetch(from: phAddr, as: Traits.Phdr.self))
-    if phdr.p_type == .PT_LOAD && (phdr.p_flags & PF_X) != 0 {
+    if phdr.p_type == .internal_SWIPR_PT_LOAD && (phdr.p_flags & internal_SWIPR_PF_X) != 0 {
       endOfText = max(endOfText, address + ImageSource.Address(phdr.p_vaddr)
                                    + ImageSource.Size(phdr.p_memsz))
     }
-    if phdr.p_type == .PT_NOTE {
+    if phdr.p_type == .internal_SWIPR_PT_NOTE {
       var noteAddr = address + ImageSource.Address(phdr.p_vaddr)
       let noteEnd = noteAddr + ImageSource.Size(phdr.p_memsz)
 
@@ -1985,14 +1959,14 @@ func getElfImageInfo<R: MemoryReader, Traits: ElfTraits>(
         var isBuildId = false
         let nameLen = nhdr.n_namesz > 0 ? nhdr.n_namesz - 1 : 0
 
-        // Test if this is a "GNU" NT_GNU_BUILD_ID note
+        // Test if this is a "GNU" internal_SWIPR_NT_GNU_BUILD_ID note
         if nameLen == 3 {
           let byte0 = try reader.fetch(from: noteAddr, as: UInt8.self)
           let byte1 = try reader.fetch(from: noteAddr + 1, as: UInt8.self)
           let byte2 = try reader.fetch(from: noteAddr + 2, as: UInt8.self)
 
           if byte0 == 0x47 && byte1 == 0x4e && byte2 == 0x55 &&
-               UInt32(nhdr.n_type) == NT_GNU_BUILD_ID {
+               UInt32(nhdr.n_type) == internal_SWIPR_NT_GNU_BUILD_ID {
             isBuildId = true
           }
         }

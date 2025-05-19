@@ -37,9 +37,9 @@ import Darwin
 #elseif os(Windows)
 import ucrt
 #elseif canImport(Glibc)
-import Glibc
+@preconcurrency import Glibc
 #elseif canImport(Musl)
-import Musl
+@preconcurrency import Musl
 #endif
 
 #if os(macOS)
