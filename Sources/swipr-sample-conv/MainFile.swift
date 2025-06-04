@@ -16,7 +16,6 @@
 @preconcurrency import Glibc // Sendability of stdout/stderr/..., needs to be at the top of the file
 #endif
 import ArgumentParser
-
 import Foundation
 import NIO
 import Logging
@@ -27,7 +26,7 @@ import ProfileRecorderHelpers
 struct ProfileRecorderSampleConverterCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "swipr-sample-conv",
-        version: EmbeddedAppVersion().description
+        version: "1.0"
     )
 
     @Option(help: "Use llvm-symbolizer's JSON format instead of the text format?")

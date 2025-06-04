@@ -19,7 +19,6 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-log.git", from: "1.6.1"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.80.0"),
         .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.24.1"),
-    
         .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.28.2"),
     ],
     targets: [
@@ -63,7 +62,6 @@ let package = Package(
                 "ProfileRecorderHelpers",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Logging", package: "swift-log"),
-                
             ]),
 
         // MARK: - Library targets
