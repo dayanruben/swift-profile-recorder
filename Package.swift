@@ -108,28 +108,14 @@ let package = Package(
                 "PprofFormat",
             ]
         ),
-
-        .target(
-            name: "CProfileRecorderLibUnwind",
-            dependencies: [],
-            cSettings: [.define("_LIBUNWIND_IS_NATIVE_ONLY")],
-            cxxSettings: [.define("_LIBUNWIND_IS_NATIVE_ONLY")]
-        ),
         .target(
             name: "CProfileRecorderSwiftELF",
             dependencies: []
         ),
         .target(
             name: "CProfileRecorderSampler",
-            dependencies: [
-                .targetItem(
-                    name: "CProfileRecorderLibUnwind",
-                    // We currently only support Linux but we compile just fine on macOS too.
-                    // llvm unwind doesn't currently compile on watchOS, presumably because of arm64_32.
-                    // Let's be a little conservative and allow-list macOS & Linux.
-                    condition: .when(platforms: [.macOS, .linux])
-                ),
-            ]),
+            dependencies: []
+        ),
 
         // MARK: - Tests
         .testTarget(name: "ProfileRecorderTests",
