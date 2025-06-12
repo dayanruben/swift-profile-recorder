@@ -18,6 +18,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #define SWIPR_MAX_MUTATOR_THREADS 1024
 #define SWIPR_MAX_STACK_DEPTH 128

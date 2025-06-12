@@ -228,7 +228,7 @@ swipr_make_sample(struct swipr_minidump *minidumps,
         }
         struct swipr_fp_unwinder_cursor cursor = { 0 };
         swipr_fp_unwinder_init(&cursor, &g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context);
-        UNSAFE_DEBUG("[%d: %lu] " SWIPR_UNWIND_STR " starting unwind\n",
+        UNSAFE_DEBUG("[%d: %lu] starting unwind\n",
                      i,
                      (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id);
 
@@ -238,7 +238,7 @@ swipr_make_sample(struct swipr_minidump *minidumps,
             struct swipr_stackframe *stack_frame = &minidumps[i].md_stack[next_stack_frame_idx++];
             swipr_fp_unwinder_get_reg(&cursor, SWIPR_FP_UNWINDER_REG_IP, &stack_frame->sf_ip);
             swipr_fp_unwinder_get_reg(&cursor, SWIPR_FP_UNWINDER_REG_FP, &stack_frame->sf_sp);
-            UNSAFE_DEBUG("[%d: %lu] " SWIPR_UNWIND_STR " ip=%lx, sp=%lx, ret=%d\n",
+            UNSAFE_DEBUG("[%d: %lu] ip=%lx, sp=%lx, ret=%d\n",
                          i,
                          (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id,
                          stack_frame->sf_ip,
@@ -404,7 +404,7 @@ profiling_handler(int signo, siginfo_t *info, void *ucontext_untyped)
     int err = swipr_fp_unwinder_getcontext(&g_swipr_c2ms.c2ms_c2ms[my_idx].c2m_tiny_context, uc);
     
     swipr_precondition(err == 0);
-    UNSAFE_DEBUG("thread %lu: done collecting " SWIPR_UNWIND_STR " context\n", (uintptr_t)my_thread_id);
+    UNSAFE_DEBUG("thread %lu: done collecting context\n", (uintptr_t)my_thread_id);
 
     swipr_os_dep_sem_signal(g_swipr_c2ms.c2ms_c2ms[my_idx].m2c_proceed);
     UNSAFE_DEBUG("thread %lu: waiting for collector\n", (uintptr_t)my_thread_id);
