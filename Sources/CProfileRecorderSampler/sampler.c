@@ -298,7 +298,7 @@ swipr_request_sample(FILE *output,
     struct timespec current_time = swipr_get_current_time();
     struct swipr_minidump *minidumps = NULL;
 
-#if !defined(__linux__)
+#if !defined(__linux__) && !defined(SWIPR_MACOS_DEBUG)
     fprintf(output,
             "[SWIPR] MESG { \"message\": \"Unsupported OS, cannot generate samples yet.\", \"exit\": 1 }\n");
     return 1;

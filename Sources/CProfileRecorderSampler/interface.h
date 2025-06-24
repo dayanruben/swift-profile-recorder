@@ -18,7 +18,6 @@
 #include "common.h"
 #include "os_dep.h"
 #include "fp_unwinder.h"
-// FIXME: Proper import.
 
 enum swipr_c2ms_state {
     swipr_c2m_idle = 0,
