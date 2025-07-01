@@ -39,9 +39,9 @@ int swipr_os_dep_list_all_threads(struct thread_info *all_threads,
 
 struct swipr_dynamic_lib {
     char dl_name[1024];
-    uintptr_t dl_file_mapped_at;
-    uintptr_t dl_seg_start_addr;
-    uintptr_t dl_seg_end_addr;
+    uintptr_t dl_file_mapped_at; // the slide that points to the start of the address
+    uintptr_t dl_seg_start_addr; // dl_file_mapped_at + vmaddr
+    uintptr_t dl_seg_end_addr; // dl_seg_start_addr + vmsize
 };
 
 int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,

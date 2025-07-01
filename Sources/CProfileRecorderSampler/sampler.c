@@ -110,6 +110,7 @@ swipr_dump_shared_objs(FILE *output) {
                 all_libs[i].dl_name, all_libs[i].dl_file_mapped_at,
                 all_libs[i].dl_seg_start_addr, all_libs[i].dl_seg_end_addr);
     }
+    UNSAFE_DEBUG("Number of libraries mapped: %zu \n", all_libs_count);
     free(all_libs);
     return 0;
 }
