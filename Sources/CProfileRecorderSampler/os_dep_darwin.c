@@ -25,21 +25,22 @@
 #include "interface.h"
 #include "asserts.h"
 
-int swipr_os_dep_list_all_threads(struct thread_info *all_threads,
-                                  size_t all_threads_capacity,
-                                  size_t *all_threads_count) {
+struct thread_info *swipr_os_dep_create_thread_list(size_t *all_threads_count) {
     thread_array_t threads = NULL;
+    mach_msg_type_number_t flavor = THREAD_IDENTIFIER_INFO_COUNT;
     mach_msg_type_number_t threads_count = 0;
     kern_return_t kret = task_threads(mach_task_self(),
                                      &threads,
                                      &threads_count);
     if (kret) {
         *all_threads_count = 0;
-        return -1;
+        return NULL;
     }
-
     *all_threads_count = (size_t) threads_count;
-    mach_msg_type_number_t flavor = THREAD_IDENTIFIER_INFO_COUNT;
+    struct thread_info *all_threads = calloc(sizeof(struct thread_info), *all_threads_count);
+    if (!all_threads) {
+        return NULL;
+    }
     
     for (mach_msg_type_number_t i = 0; i < threads_count; i++) {
         pthread_t pthread = pthread_from_mach_thread_np(threads[i]);
@@ -52,6 +53,7 @@ int swipr_os_dep_list_all_threads(struct thread_info *all_threads,
         swipr_precondition(getname_ret == 0);
 
         all_threads[i].ti_id = tid_info.thread_id;
+        all_threads[i].ti_os_specific.mach_thread = threads[i];
         if (name[0] == 0) {
             strcpy(all_threads[i].ti_name, "<n/a>"); // some thread may have empty name
         } else {
@@ -59,18 +61,26 @@ int swipr_os_dep_list_all_threads(struct thread_info *all_threads,
             memcpy(all_threads[i].ti_name, name, sizeof(all_threads[i].ti_name));
         }
     }
-
-    // After careful analysis and examples from high profile codebases
-    // we decided to include this block to clean up port rights and memory
-    for (mach_msg_type_number_t i = 0; i < threads_count; i++) {
-        kret = mach_port_deallocate(mach_task_self(), threads[i]);
-        swipr_precondition(kret == KERN_SUCCESS);
-    }
     kret = vm_deallocate(mach_task_self(),
                        (vm_address_t)threads,
                         threads_count * sizeof(thread_t));
 
-    swipr_precondition (kret == KERN_SUCCESS);
+    swipr_precondition(kret == KERN_SUCCESS);
+    return all_threads;
+}
+
+int swipr_os_dep_destroy_thread_list(struct thread_info *thread_list) {
+    swipr_precondition(thread_list);
+    for (mach_msg_type_number_t i = 0; i < SWIPR_MAX_MUTATOR_THREADS; i++) {
+        if (thread_list[i].ti_os_specific.mach_thread == THREAD_NULL) {
+            // empty elem in thread_list, no need to deallocate from here
+            break;
+        } else {
+            kern_return_t kret = mach_port_deallocate(mach_task_self(), thread_list[i].ti_os_specific.mach_thread);
+            swipr_precondition(kret == KERN_SUCCESS || kret == KERN_TERMINATED);
+        }
+    }
+    free(thread_list);
     return 0;
 }
 

@@ -45,7 +45,7 @@ final internal class LLVMSymbolizerEncoderHandler: ChannelOutboundHandler {
             buffer.writeString("\" 0x")
             buffer.writeString(String(query.address, radix: 16))
         } else {
-            buffer.writeString("/ignore/errors/about/this 0x")
+            buffer.writeString("/file/not/found\(query.library.path) 0x")
             buffer.writeString(String(query.address, radix: 16))
         }
         buffer.writeString("\n")

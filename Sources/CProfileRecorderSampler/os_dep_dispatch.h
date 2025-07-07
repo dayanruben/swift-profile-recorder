@@ -21,6 +21,7 @@
 
 #include <dispatch/dispatch.h>
 #include "os_dep_darwin.h"
+#include "asserts.h"
 
 typedef dispatch_semaphore_t swipr_os_dep_sem;
 #define swipr_os_dep_sem_create dispatch_semaphore_create
@@ -45,7 +46,15 @@ swipr_os_dep_sem_wait_with_deadline(swipr_os_dep_sem sem, swipr_os_dep_deadline 
 
 static inline swipr_os_dep_thread_id
 swipr_os_dep_get_thread_id(void) {
-    return (swipr_os_dep_thread_id)pthread_self();
+    thread_identifier_info_data_t tid_info;
+    mach_msg_type_number_t flavor = THREAD_IDENTIFIER_INFO_COUNT;
+    
+    kern_return_t kret = thread_info(mach_thread_self(),
+                                     THREAD_IDENTIFIER_INFO,
+                                     (thread_info_t)&tid_info,
+                                     &flavor);
+    swipr_precondition(kret == KERN_SUCCESS);
+    return tid_info.thread_id;
 }
 
 #endif /* swipr_os_dep_macos_h */

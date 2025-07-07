@@ -38,9 +38,20 @@ struct collector_to_mutators {
     struct collector_to_mutator c2ms_c2ms[SWIPR_MAX_MUTATOR_THREADS];
 };
 
+#if defined(__APPLE__)
+struct os_dep_thread_info {
+    thread_t mach_thread; // send right to suspend/resume the mach thread
+};
+#else
+struct os_dep_thread_info {
+// empty for now
+};
+#endif
+
 struct thread_info {
     swipr_os_dep_thread_id ti_id;
     char ti_name[32];
+    struct os_dep_thread_info ti_os_specific;
 };
 
 #endif /* interface_h */

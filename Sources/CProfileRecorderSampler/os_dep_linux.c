@@ -29,16 +29,18 @@
 #include "interface.h"
 #include "common.h"
 
-int swipr_os_dep_list_all_threads(struct thread_info *all_threads,
-                            size_t all_threads_capacity,
-                            size_t *all_threads_count) {
+struct thread_info *swipr_os_dep_create_thread_list(size_t *all_threads_count) {
+    struct thread_info *all_threads = calloc(sizeof(struct thread_info), SWIPR_MAX_MUTATOR_THREADS);
+    if (!all_threads) {
+        return NULL;
+    }
     DIR *dir = opendir("/proc/self/task");
     if (!dir) {
-        return -errno;
+        goto error;
     }
     int next_index = 0;
     pid_t my_tid = swipr_os_dep_get_thread_id();
-
+    
     struct dirent *ent = NULL;
     while (true) {
         errno = 0;
@@ -56,34 +58,41 @@ int swipr_os_dep_list_all_threads(struct thread_info *all_threads,
                 continue;
             }
         }
-
+        
         pid_t tid = atol(ent->d_name);
         if (tid != 0 && tid != my_tid) {
             int idx = next_index++;
-            if (all_threads[idx].ti_id == tid && all_threads[idx].ti_name[0] != 0) {
-                // name is cached.
-            } else {
-                all_threads[idx].ti_id = tid;
-                char file_path[128] = {0};
-                snprintf(file_path, 128, "/proc/self/task/%d/comm", tid);
-                int fd = open(file_path, O_RDONLY);
-                if (fd >= 0) {
-                    int how_much = read(fd, all_threads[idx].ti_name, 32);
-                    all_threads[idx].ti_name[how_much > 0 ? how_much-1 : 0] = 0; // get rid of the \n
-                    close(fd);
+            all_threads[idx].ti_id = tid;
+            char file_path[128] = {0};
+            snprintf(file_path, 128, "/proc/self/task/%d/comm", tid);
+            int fd = open(file_path, O_RDONLY);
+            if (fd >= 0) {
+                int how_much = read(fd, all_threads[idx].ti_name, 32);
+                all_threads[idx].ti_name[how_much > 0 ? how_much-1 : 0] = 0; // get rid of the \n
+                int ret = close(fd);
+                // continue if close successful or failed due to interrupt
+                if (!(ret == 0 || (ret == -1 && errno == EINTR))) {
+                    goto error;
                 }
             }
         }
     }
-
+    
 out:
     closedir(dir);
     *all_threads_count = next_index;
-    return 0;
+    return all_threads;
 error:
     closedir(dir);
+    swipr_os_dep_destroy_thread_list(all_threads);
     *all_threads_count = 0;
-    return -errno;
+    return NULL;
+}
+
+int swipr_os_dep_destroy_thread_list(struct thread_info *thread_list) {
+    swipr_precondition(thread_list);
+    free(thread_list);
+    return 0;
 }
 
 struct dl_iterate_phdr_data {

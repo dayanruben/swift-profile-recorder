@@ -100,19 +100,15 @@ final internal class LLVMJSONOutputParserHandler: ChannelInboundHandler {
             return
         }
         guard let symbolList = decoded.Symbol, !symbolList.isEmpty else {
-            context.fireChannelRead(
-                Self.wrapInboundOut(
-                    SymbolisedStackFrame(
-                        allFrames: [SymbolisedStackFrame.SingleFrame(
-                            address: address,
-                            functionName: "<unknown-unset>",
-                            functionOffset: 0,
-                            library: decoded.ModuleName,
-                            vmap: nil,
-                            file: nil,
-                            line: nil
-                        )]
-                    )
+            outputFrames.append(
+                SymbolisedStackFrame.SingleFrame(
+                    address: address,
+                    functionName: "<unknown-unset>",
+                    functionOffset: 0,
+                    library: decoded.ModuleName,
+                    vmap: nil,
+                    file: nil,
+                    line: nil
                 )
             )
             return

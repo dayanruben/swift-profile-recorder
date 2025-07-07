@@ -33,9 +33,9 @@ struct thread_info;
 #  error "unsupported OS"
 #endif
 
-int swipr_os_dep_list_all_threads(struct thread_info *all_threads,
-                            size_t all_threads_capacity,
-                            size_t *all_threads_count);
+struct thread_info *swipr_os_dep_create_thread_list(size_t *all_threads_count);
+
+int swipr_os_dep_destroy_thread_list(struct thread_info *thread_list);
 
 struct swipr_dynamic_lib {
     char dl_name[1024];
@@ -45,8 +45,8 @@ struct swipr_dynamic_lib {
 };
 
 int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
-                                 size_t all_libs_capacity,
-                                 size_t *all_libs_count);
+                                       size_t all_libs_capacity,
+                                       size_t *all_libs_count);
 
 int swipr_os_dep_set_current_thread_name(const char *name);
 
