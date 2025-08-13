@@ -53,6 +53,17 @@ public final class ProfileRecorderSampler: Sendable {
         return false
         #endif
     }
+    
+    public static var _isSupportedPlatformForTesting: Bool{
+        if Self.isSupportedPlatform {
+            return true
+        }
+        #if os(macOS)
+        return true
+        #else
+        return false
+        #endif
+    }
 
     fileprivate init() {
         self.threadPool = NIOThreadPool(numberOfThreads: 1)

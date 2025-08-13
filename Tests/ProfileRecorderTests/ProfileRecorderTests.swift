@@ -27,7 +27,7 @@ final class ProfileRecorderTests: XCTestCase {
     var logger: Logger! = nil
 
     func testBasicJustRequestOneSample() throws {
-        guard ProfileRecorderSampler.isSupportedPlatform else {
+        guard ProfileRecorderSampler._isSupportedPlatformForTesting else {
             return
         }
 
@@ -39,7 +39,7 @@ final class ProfileRecorderTests: XCTestCase {
     }
 
     func testMultipleSamples() throws {
-        guard ProfileRecorderSampler.isSupportedPlatform else {
+        guard ProfileRecorderSampler._isSupportedPlatformForTesting else {
             return
         }
 
@@ -51,7 +51,7 @@ final class ProfileRecorderTests: XCTestCase {
     }
 
     func testSamplingWithALargeNumberOfThreads() throws {
-        guard ProfileRecorderSampler.isSupportedPlatform else {
+        guard ProfileRecorderSampler._isSupportedPlatformForTesting else {
             return
         }
 
@@ -69,7 +69,7 @@ final class ProfileRecorderTests: XCTestCase {
     }
 
     func testSamplingWhilstThreadsAreCreatedAndDying() throws {
-        guard ProfileRecorderSampler.isSupportedPlatform else {
+        guard ProfileRecorderSampler._isSupportedPlatformForTesting else {
             return
         }
 
@@ -89,7 +89,7 @@ final class ProfileRecorderTests: XCTestCase {
     }
 
     func testSymbolicatedSamplesWork() async throws {
-        guard ProfileRecorderSampler.isSupportedPlatform else {
+        guard ProfileRecorderSampler._isSupportedPlatformForTesting else {
             return
         }
 

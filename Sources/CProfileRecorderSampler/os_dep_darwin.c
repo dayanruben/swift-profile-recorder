@@ -37,44 +37,60 @@ struct thread_info *swipr_os_dep_create_thread_list(size_t *all_threads_count) {
         return NULL;
     }
     *all_threads_count = (size_t) threads_count;
-    struct thread_info *all_threads = calloc(sizeof(struct thread_info), *all_threads_count);
+    struct thread_info *all_threads = calloc(SWIPR_MAX_MUTATOR_THREADS, sizeof(struct thread_info));
     if (!all_threads) {
         return NULL;
     }
-    
-    for (mach_msg_type_number_t i = 0; i < threads_count; i++) {
+    memset(all_threads, 0, sizeof(*all_threads) * SWIPR_MAX_MUTATOR_THREADS);
+
+    for (int i = 0; i < threads_count; i++) {
         pthread_t pthread = pthread_from_mach_thread_np(threads[i]);
-        swipr_precondition(pthread);
+        if (pthread == NULL || threads[i] == mach_thread_self()) {
+            // skip controller and mach threads without corresponding pthreads
+            // set ti_id to 0 so they will be ignored
+            all_threads[i].ti_id = 0;
+            *all_threads_count--;
+            continue;
+        }
         char name[32] = {0};
         int getname_ret = pthread_getname_np(pthread, name, sizeof(name));
         
-        thread_identifier_info_data_t tid_info;
+        // ignore threads for which we can't get mach info
+        thread_identifier_info_data_t tid_info = {0};
         kern_return_t info_ret = thread_info(threads[i], THREAD_IDENTIFIER_INFO, (thread_info_t)&tid_info, &flavor);
-        swipr_precondition(getname_ret == 0);
+        if (info_ret != KERN_SUCCESS) {
+            UNSAFE_DEBUG("failed to get thread_info in create thread list for mach port %llu | %llx\n", threads[i], threads[i]);
+            all_threads[i].ti_id = 0;
+            *all_threads_count--;
+            continue;
+        }
 
         all_threads[i].ti_id = tid_info.thread_id;
         all_threads[i].ti_os_specific.mach_thread = threads[i];
         if (name[0] == 0) {
-            strcpy(all_threads[i].ti_name, "<n/a>"); // some thread may have empty name
+            strcpy(all_threads[i].ti_name, "<n/a>"); // threads may have empty names
         } else {
             _Static_assert(sizeof(all_threads[0].ti_name) >= sizeof(name), "destination too small for memcpy");
             memcpy(all_threads[i].ti_name, name, sizeof(all_threads[i].ti_name));
         }
     }
     kret = vm_deallocate(mach_task_self(),
-                       (vm_address_t)threads,
-                        threads_count * sizeof(thread_t));
+                         (vm_address_t)threads,
+                         threads_count * sizeof(thread_t));
 
     swipr_precondition(kret == KERN_SUCCESS);
+    swipr_precondition(all_threads_count >= 0);
     return all_threads;
 }
 
 int swipr_os_dep_destroy_thread_list(struct thread_info *thread_list) {
     swipr_precondition(thread_list);
-    for (mach_msg_type_number_t i = 0; i < SWIPR_MAX_MUTATOR_THREADS; i++) {
+    for (int i = 0; i < SWIPR_MAX_MUTATOR_THREADS; i++) {
         if (thread_list[i].ti_os_specific.mach_thread == THREAD_NULL) {
-            // empty elem in thread_list, no need to deallocate from here
-            break;
+            // Note that ti_id == 0 doesn't mean it wasn't allocated a port right
+            // E.g. thread might die in swipr_make_sample, where its id will be set to 0
+            // but we still allocated a port right in create_thread_listtgat needs to be deallocated
+            continue;
         } else {
             kern_return_t kret = mach_port_deallocate(mach_task_self(), thread_list[i].ti_os_specific.mach_thread);
             swipr_precondition(kret == KERN_SUCCESS || kret == KERN_TERMINATED);

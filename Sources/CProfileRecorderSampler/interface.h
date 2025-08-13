@@ -49,7 +49,7 @@ struct os_dep_thread_info {
 #endif
 
 struct thread_info {
-    swipr_os_dep_thread_id ti_id;
+    swipr_os_dep_thread_id ti_id; // ti_id == 0 means skip
     char ti_name[32];
     struct os_dep_thread_info ti_os_specific;
 };
