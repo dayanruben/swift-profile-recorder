@@ -32,6 +32,8 @@ struct thread_info;
 #else
 #  error "unsupported OS"
 #endif
+#include "common.h"
+#include "sampler.h"
 
 struct thread_info *swipr_os_dep_create_thread_list(size_t *all_threads_count);
 
@@ -51,5 +53,9 @@ int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
 int swipr_os_dep_set_current_thread_name(const char *name);
 
 int swipr_os_dep_get_current_thread_name(char *name, size_t len);
+
+int swipr_os_dep_sample_prepare(size_t num_threads, struct thread_info *all_threads, struct swipr_minidump *minidumps);
+void swipr_os_dep_suspend_threads(size_t num_threads, struct thread_info *all_threads);
+int swipr_os_dep_sample_cleanup(size_t num_threads, struct thread_info *all_threads);
 
 #endif /* swipr_os_dep_h */

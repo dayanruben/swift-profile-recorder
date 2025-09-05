@@ -16,6 +16,7 @@
 #define swipr_os_dep_dawin_h
 
 #import <pthread.h>
+#include <mach/mach.h>
 
 typedef intptr_t swipr_os_dep_thread_id;
 

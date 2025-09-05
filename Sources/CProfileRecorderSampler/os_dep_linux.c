@@ -160,4 +160,105 @@ int swipr_os_dep_get_current_thread_name(char *name, size_t len) {
 #endif
 }
 
+int swipr_os_dep_sample_prepare(size_t num_threads, struct thread_info *all_threads, struct swipr_minidump *minidumps) {
+    for (int i=0; i<num_threads; i++) {
+        swipr_precondition(all_threads[i].ti_id != 0);
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = all_threads[i].ti_id;
+        swipr_precondition(g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed == NULL);
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed = swipr_os_dep_sem_create(0);
+        swipr_precondition(g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed == NULL);
+        g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed = swipr_os_dep_sem_create(0);
+    }
+
+    // checks threads, if out of memory then free all
+    for (int i=0; i<num_threads; i++) {
+        if (g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed == NULL || g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed == NULL) {
+            // out of memory.
+
+            for (int j=0; j<num_threads; j++) {
+                if (g_swipr_c2ms.c2ms_c2ms[j].c2m_proceed) {
+                    swipr_os_dep_sem_free(g_swipr_c2ms.c2ms_c2ms[j].c2m_proceed);
+                    g_swipr_c2ms.c2ms_c2ms[j].c2m_proceed = NULL;
+                }
+                if (g_swipr_c2ms.c2ms_c2ms[j].m2c_proceed) {
+                    swipr_os_dep_sem_free(g_swipr_c2ms.c2ms_c2ms[j].m2c_proceed);
+                    g_swipr_c2ms.c2ms_c2ms[j].m2c_proceed = NULL;
+                }
+            }
+
+            return 1;
+        }
+    }
+
+    for (int i=0; i<num_threads; i++) {
+        minidumps[i] = (typeof(minidumps[i])){ 0 };
+    }
+    return 0;
+}
+
+void swipr_os_dep_suspend_threads(size_t num_threads, struct thread_info *all_threads) {
+    int err;
+    for (int i=0; i<num_threads; i++) {
+        swipr_precondition(all_threads[i].ti_id != 0);
+        UNSAFE_DEBUG("signalling thread %lu\n", (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id);
+        err = swipr_os_dep_kill(all_threads[i].ti_id, SIGPROF);
+        if (err != 0) {
+            UNSAFE_DEBUG("couldn't signal thread %lu\n", (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id);
+            // thread dead, let's not wait for it later.
+            g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
+        }
+    }
+
+    swipr_os_dep_deadline deadline = swipr_os_dep_create_deadline(SWIPR_NSEC_PER_SEC);
+
+    for (int i=0; i<num_threads; i++) {
+        swipr_os_dep_thread_id thread_id = g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id;
+        if (thread_id > 0) {
+            err = swipr_os_dep_sem_wait_with_deadline(g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed, deadline);
+            if (err) {
+                if (swipr_os_dep_kill(thread_id, 0) == -1 && errno == ESRCH) {
+                    UNSAFE_DEBUG("thread %d/%ld died, that's probably okay\n",
+                                 i, (long)thread_id);
+                    g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
+                } else {
+                    UNSAFE_DEBUG("OUCH, timeout, thread still alive but no response %d/%d of %zu\n",
+                                 i, thread_id, num_threads);
+                    // FIXME: We can't just continue here...
+                    g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
+                }
+            }
+        }
+    }
+}
+
+int swipr_os_dep_sample_cleanup(size_t num_threads, struct thread_info *all_threads) {
+    for (int i=0; i<num_threads; i++) {
+        if (g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id > 0) {
+            swipr_os_dep_sem_signal(g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed);
+        }
+    }
+    int err;
+    for (int i=0; i<num_threads; i++) {
+        swipr_os_dep_thread_id thread_id = g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id;
+        if (thread_id > 0) {
+            swipr_os_dep_deadline deadline = swipr_os_dep_create_deadline(100 * SWIPR_NSEC_PER_MSEC);
+            err = swipr_os_dep_sem_wait_with_deadline(g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed, deadline);
+            if (err) {
+                UNSAFE_DEBUG("OUTCH, timeout (B), thread %d/%ld of %zu\n",
+                             i, (long)thread_id, num_threads);
+                // FIXME: Continuing here is unsafe, the tests might still exist, and below, we'll free the semaphore.
+                // Probably best to leak it or so.
+            }
+        }
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
+        swipr_os_dep_sem_free(g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed);
+        swipr_os_dep_sem_free(g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed);
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed = NULL;
+        g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed = NULL;
+    }
+    err = swipr_os_dep_destroy_thread_list(all_threads);
+    return err;
+}
+
+
 #endif

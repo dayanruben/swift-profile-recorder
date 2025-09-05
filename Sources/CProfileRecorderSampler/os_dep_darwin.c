@@ -15,14 +15,12 @@
 #if __APPLE__
 
 #include <pthread.h>
-#include <mach/mach.h>
 #include <mach/thread_info.h>
 #include <mach-o/dyld.h>
 #include <string.h>
 #include <stdio.h>
 
 #include "os_dep.h"
-#include "interface.h"
 #include "asserts.h"
 
 struct thread_info *swipr_os_dep_create_thread_list(size_t *all_threads_count) {
@@ -85,19 +83,18 @@ struct thread_info *swipr_os_dep_create_thread_list(size_t *all_threads_count) {
 
 int swipr_os_dep_destroy_thread_list(struct thread_info *thread_list) {
     swipr_precondition(thread_list);
+    int err = 0;
     for (int i = 0; i < SWIPR_MAX_MUTATOR_THREADS; i++) {
         if (thread_list[i].ti_os_specific.mach_thread == THREAD_NULL) {
-            // Note that ti_id == 0 doesn't mean it wasn't allocated a port right
-            // E.g. thread might die in swipr_make_sample, where its id will be set to 0
-            // but we still allocated a port right in create_thread_listtgat needs to be deallocated
+            // wasn't allocated a port right
             continue;
         } else {
             kern_return_t kret = mach_port_deallocate(mach_task_self(), thread_list[i].ti_os_specific.mach_thread);
-            swipr_precondition(kret == KERN_SUCCESS || kret == KERN_TERMINATED);
+            swipr_precondition(kret == KERN_SUCCESS);
         }
     }
     free(thread_list);
-    return 0;
+    return err;
 }
 
 int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
@@ -171,5 +168,124 @@ int swipr_os_dep_get_current_thread_name(char *name, size_t len) {
     }
     return 0;
 }
+
+static int swipr_wait_for_thread_suspend(thread_act_t thread) {
+    kern_return_t kr;
+    thread_basic_info_data_t info;
+    mach_msg_type_number_t count = THREAD_BASIC_INFO_COUNT;
+    struct timespec start_time = swipr_sampler_get_current_time();
+    useconds_t sleep_time = 1;
+    float sleep_mult = 1.3;
+    
+    while (true) {
+        count = THREAD_BASIC_INFO_COUNT;
+        kr = thread_info(thread,
+                         THREAD_BASIC_INFO,
+                         (thread_info_t)&info,
+                         &count);
+        if (kr != KERN_SUCCESS) {
+            return 1;
+        }
+        
+        if (info.run_state == TH_STATE_WAITING) {
+            return 0;
+        }
+        // abort incase thread is uninterruptable
+        if (info.run_state == TH_STATE_UNINTERRUPTIBLE) {
+            thread_abort(thread);
+            continue;
+        }
+        usleep(sleep_time);
+        struct timespec current_time = swipr_sampler_get_current_time();
+        float duration = (current_time.tv_sec - start_time.tv_sec) +
+                         (current_time.tv_nsec - start_time.tv_nsec) / 1e9f;
+        
+        if (duration > SWIPR_NSEC_PER_SEC) {
+            // abandon thread
+            UNSAFE_DEBUG("Thread timed out during suspension \n");
+            return 1;
+        }
+        
+        // update sleep_time
+        sleep_time = (useconds_t) sleep_time * sleep_mult;
+    }
+    return 0;
+}
+
+int swipr_os_dep_sample_prepare(size_t num_threads, struct thread_info *all_threads, struct swipr_minidump *minidumps) {
+    for (int i=0; i<num_threads; i++) {
+        minidumps[i] = (typeof(minidumps[i])){ 0 };
+    }
+    return 0;
+}
+
+void swipr_os_dep_suspend_threads(size_t num_threads, struct thread_info *all_threads) {
+    // For Darwin - controller thread suspends and resumes each mutator
+    // We ignore thread iff ti_id == 0
+    
+    for (mach_msg_type_number_t i=0; i<num_threads; i++) {
+        // ignore and mark unwanted threads
+        if (all_threads[i].ti_id == 0) {
+            continue;
+        }
+
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = all_threads[i].ti_id;
+        kern_return_t kret = thread_suspend(all_threads[i].ti_os_specific.mach_thread);
+        if (kret != KERN_SUCCESS) {
+            // if thread is dead then ignore error and mark ignore
+            all_threads[i].ti_id = 0;
+            continue;
+        }
+        
+        // skip thread if it died during wait
+        int has_suspended = swipr_wait_for_thread_suspend(all_threads[i].ti_os_specific.mach_thread);
+        if (has_suspended != 0) {
+            all_threads[i].ti_id = 0;
+            continue;
+        }
+        
+#if defined(__x86_64__)
+        x86_thread_state64_t state;
+        mach_msg_type_number_t count = x86_THREAD_STATE64_COUNT;
+        thread_state_flavor_t flavor = x86_THREAD_STATE64;
+        
+        kret = thread_get_state(all_threads[i].ti_os_specific.mach_thread, flavor, (thread_state_t)&state, &count);
+        swipr_precondition(kret == KERN_SUCCESS);
+
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_fp = state.__rbp;
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_sp = state.__rsp;
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_ip = state.__rip;
+#elif defined(__aarch64__)
+        arm_thread_state64_t state;
+        mach_msg_type_number_t count = ARM_THREAD_STATE64_COUNT;
+        thread_state_flavor_t flavor = ARM_THREAD_STATE64;
+
+        kret = thread_get_state(all_threads[i].ti_os_specific.mach_thread, flavor, (thread_state_t)&state, &count);
+        swipr_precondition(kret == KERN_SUCCESS);
+        
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_fp = state.__fp;
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_sp = state.__sp;
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_ip = state.__pc;
+#else
+#warning unknown OS/arch combination
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_fp = 0;
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_sp = 0;
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_ip = 0;
+#endif
+    }
+}
+
+int swipr_os_dep_sample_cleanup(size_t num_threads, struct thread_info *all_threads) {
+    for (mach_msg_type_number_t i=0; i<num_threads; i++) {
+        if (all_threads[i].ti_id == 0) {
+            continue;
+        }
+        kern_return_t kret = thread_resume(all_threads[i].ti_os_specific.mach_thread);
+        swipr_precondition(kret == KERN_SUCCESS);
+    }
+    int err = swipr_os_dep_destroy_thread_list(all_threads);
+    return err;
+}
+
 
 #endif

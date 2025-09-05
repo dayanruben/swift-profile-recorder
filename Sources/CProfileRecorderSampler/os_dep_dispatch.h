@@ -23,6 +23,7 @@
 #include "os_dep_darwin.h"
 #include "asserts.h"
 
+
 typedef dispatch_semaphore_t swipr_os_dep_sem;
 #define swipr_os_dep_sem_create dispatch_semaphore_create
 #define swipr_os_dep_sem_free dispatch_release

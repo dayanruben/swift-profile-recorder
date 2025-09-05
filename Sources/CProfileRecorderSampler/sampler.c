@@ -18,12 +18,8 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <stdbool.h>
-#include <sys/time.h>
 #include <string.h>
 #include <sys/errno.h>
-#if __APPLE__
-#   include <mach/mach.h>
-#endif
 
 #include "os_dep.h"
 #include "interface.h"
@@ -49,8 +45,8 @@ swipr_state_start_sampling(void) {
     bool success = atomic_compare_exchange_strong_explicit(&g_swipr_c2ms.c2ms_state,
                                                            &expected,
                                                            swipr_c2m_sampling,
-                                                           memory_order_release,
-                                                           memory_order_release);
+                                                           memory_order_seq_cst,
+                                                           memory_order_seq_cst);
     swipr_precondition(success);
 }
 
@@ -76,21 +72,17 @@ swipr_state_finish_processing(void) {
     swipr_precondition(success);
 }
 
-struct swipr_stackframe {
-    uintptr_t sf_ip;
-    uintptr_t sf_sp;
-};
 
-struct swipr_minidump {
-    pid_t md_pid;
-    swipr_os_dep_thread_id md_tid;
-
-    struct timespec md_time;
-
-    size_t md_stack_depth;
-    char md_thread_name[32];
-    struct swipr_stackframe md_stack[SWIPR_MAX_STACK_DEPTH];
-};
+static inline void
+swipr_state_abort_preparing(void) {
+    enum swipr_c2ms_state expected = swipr_c2m_preparing;
+    bool success = atomic_compare_exchange_strong_explicit(&g_swipr_c2ms.c2ms_state,
+                                                           &expected,
+                                                           swipr_c2m_idle,
+                                                           memory_order_seq_cst,
+                                                           memory_order_seq_cst);
+    swipr_precondition(success);
+}
 
 static int
 swipr_dump_shared_objs(FILE *output) {
@@ -129,60 +121,6 @@ swipr_initialise_c2ms(FILE *output) {
     return swipr_dump_shared_objs(output);
 }
 
-static struct timespec
-swipr_get_current_time(void) {
-    struct timeval tv;
-    struct timespec ts;
-    gettimeofday(&tv, NULL);
-    ts.tv_sec = tv.tv_sec + 0;
-    ts.tv_nsec = ((typeof(ts.tv_nsec))tv.tv_usec) * SWIPR_NSEC_PER_USEC;
-
-    return ts;
-}
-#if defined(__APPLE__)
-int swipr_wait_for_thread_suspend(thread_act_t thread) {
-    kern_return_t kr;
-    thread_basic_info_data_t info;
-    mach_msg_type_number_t count = THREAD_BASIC_INFO_COUNT;
-    struct timespec start_time = swipr_get_current_time();
-    useconds_t sleep_time = 1;
-    float sleep_mult = 1.3;
-    
-    while (true) {
-        count = THREAD_BASIC_INFO_COUNT;
-        kr = thread_info(thread,
-                         THREAD_BASIC_INFO,
-                         (thread_info_t)&info,
-                         &count);
-        if (kr != KERN_SUCCESS) {
-            return 1;
-        }
-        
-        if (info.run_state == TH_STATE_WAITING) {
-            return 0;
-        }
-        // abort incase thread is uninterruptable
-        if (info.run_state == TH_STATE_UNINTERRUPTIBLE) {
-            thread_abort(thread);
-            continue;
-        }
-        usleep(sleep_time);
-        struct timespec current_time = swipr_get_current_time();
-        float duration = (current_time.tv_sec - start_time.tv_sec) +
-                         (current_time.tv_nsec - start_time.tv_nsec) / 1e9f;
-        
-        if (duration > SWIPR_NSEC_PER_SEC) {
-            // abandon thread
-            UNSAFE_DEBUG("Thread timed out during suspension \n");
-            return 1;
-        }
-        
-        // update sleep_time
-        sleep_time = (useconds_t) sleep_time * sleep_mult;
-    }
-    return 0;
-}
-#endif
 static int
 swipr_make_sample(struct swipr_minidump *minidumps,
                  size_t minidumps_capacity,
@@ -193,145 +131,25 @@ swipr_make_sample(struct swipr_minidump *minidumps,
     int err;
     struct thread_info *all_threads = swipr_os_dep_create_thread_list(&num_threads);
     if (all_threads == NULL) {
+        swipr_state_abort_preparing();
+        return 1;
+    }
+    
+    *minidumps_count_ptr = num_threads;
+    UNSAFE_DEBUG("sampling %lu threads (controller is %lu)\n", num_threads, (uintptr_t)swipr_os_dep_get_thread_id());
+    
+    err = swipr_os_dep_sample_prepare(num_threads, all_threads, minidumps);
+    if (err != 0) {
+        swipr_os_dep_destroy_thread_list(all_threads);
+        swipr_state_abort_preparing();
         return 1;
     }
 
-    *minidumps_count_ptr = num_threads;
-    UNSAFE_DEBUG("sampling %lu threads (controller is %lu)\n", num_threads, (uintptr_t)swipr_os_dep_get_thread_id());
-#if !defined(__APPLE__)
-    // For Linux - controller thread triggers signal handlers in mutator threads
-    for (int i=0; i<num_threads; i++) {
-        swipr_precondition(all_threads[i].ti_id != 0);
-        g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = all_threads[i].ti_id;
-        swipr_precondition(g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed == NULL);
-        g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed = swipr_os_dep_sem_create(0);
-        swipr_precondition(g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed == NULL);
-        g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed = swipr_os_dep_sem_create(0);
-    }
-
-    // checks threads, if out of memory then free all
-    for (int i=0; i<num_threads; i++) {
-        if (g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed == NULL || g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed == NULL) {
-            // out of memory.
-
-            for (int j=0; j<num_threads; j++) {
-                if (g_swipr_c2ms.c2ms_c2ms[j].c2m_proceed) {
-                    swipr_os_dep_sem_free(g_swipr_c2ms.c2ms_c2ms[j].c2m_proceed);
-                    g_swipr_c2ms.c2ms_c2ms[j].c2m_proceed = NULL;
-                }
-                if (g_swipr_c2ms.c2ms_c2ms[j].m2c_proceed) {
-                    swipr_os_dep_sem_free(g_swipr_c2ms.c2ms_c2ms[j].m2c_proceed);
-                    g_swipr_c2ms.c2ms_c2ms[j].m2c_proceed = NULL;
-                }
-            }
-
-            return 1;
-        }
-    }
-
-    for (int i=0; i<num_threads; i++) {
-        minidumps[i] = (typeof(minidumps[i])){ 0 };
-    }
-
     swipr_state_start_sampling();
-
-    struct timespec start_time = swipr_get_current_time();
-
-    for (int i=0; i<num_threads; i++) {
-        swipr_precondition(all_threads[i].ti_id != 0);
-        UNSAFE_DEBUG("signalling thread %lu\n", (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id);
-        err = swipr_os_dep_kill(all_threads[i].ti_id, SIGPROF);
-        if (err != 0) {
-            UNSAFE_DEBUG("couldn't signal thread %lu\n", (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id);
-            // thread dead, let's not wait for it later.
-            g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
-        }
-    }
-
-    swipr_os_dep_deadline deadline = swipr_os_dep_create_deadline(SWIPR_NSEC_PER_SEC);
-
-    for (int i=0; i<num_threads; i++) {
-        swipr_os_dep_thread_id thread_id = g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id;
-        if (thread_id > 0) {
-            err = swipr_os_dep_sem_wait_with_deadline(g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed, deadline);
-            if (err) {
-                if (swipr_os_dep_kill(thread_id, 0) == -1 && errno == ESRCH) {
-                    UNSAFE_DEBUG("thread %d/%ld died, that's probably okay\n",
-                                 i, (long)thread_id);
-                    g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
-                } else {
-                    UNSAFE_DEBUG("OUCH, timeout, thread still alive but no response %d/%d of %zu\n",
-                                 i, thread_id, num_threads);
-                    // FIXME: We can't just continue here...
-                    g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
-                }
-            }
-        }
-    }
-#else
-    // For Darwin - controller thread suspends and resumes each mutator
-    // We ignore thread iff ti_id == 0
-    for (int i=0; i<num_threads; i++) {
-        minidumps[i] = (typeof(minidumps[i])){ 0 };
-    }
-    
-    swipr_state_start_sampling();
-    struct timespec start_time = swipr_get_current_time();
-
-    for (int i=0; i<num_threads; i++) {
-        // ignore and mark unwanted threads
-        if (all_threads[i].ti_id == 0) {
-            continue;
-        }
-
-        g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = all_threads[i].ti_id;
-        kern_return_t kret = thread_suspend(all_threads[i].ti_os_specific.mach_thread);
-        if (kret != KERN_SUCCESS) {
-            // if thread is dead then ignore error and mark ignore
-            all_threads[i].ti_id = 0;
-            continue;
-        }
-        
-        // skip thread if it died during wait
-        int has_suspended = swipr_wait_for_thread_suspend(all_threads[i].ti_os_specific.mach_thread);
-        if (has_suspended != 0) {
-            all_threads[i].ti_id = 0;
-            continue;
-        }
-        
-#if defined(__x86_64__)
-        x86_thread_state64_t state;
-        mach_msg_type_number_t count = x86_THREAD_STATE64_COUNT;
-        thread_state_flavor_t flavor = x86_THREAD_STATE64;
-        
-        kret = thread_get_state(all_threads[i].thread, flavor, (thread_state_t)&state, &count);
-        swipr_precondition(kret == KERN_SUCCESS);
-
-        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_fp = state.__rbp;
-        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_sp = state.__rsp;
-        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_ip = state.__rip;
-#elif defined(__aarch64__)
-        arm_thread_state64_t state;
-        mach_msg_type_number_t count = ARM_THREAD_STATE64_COUNT;
-        thread_state_flavor_t flavor = ARM_THREAD_STATE64;
-
-        kret = thread_get_state(all_threads[i].ti_os_specific.mach_thread, flavor, (thread_state_t)&state, &count);
-        swipr_precondition(kret == KERN_SUCCESS);
-        
-        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_fp = state.__fp;
-        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_sp = state.__sp;
-        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_ip = state.__pc;
-#else
-#warning unknown OS/arch combination
-        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_fp = 0;
-        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_sp = 0;
-        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_ip = 0;
-#endif
-    }
-#endif
+    struct timespec start_time = swipr_sampler_get_current_time();
+    swipr_os_dep_suspend_threads(num_threads, all_threads);
     
     swipr_state_start_processing();
-
     for (int i=0; i<num_threads; i++) {
         if (g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id == 0 || all_threads[i].ti_id == 0) {
             continue;
@@ -369,42 +187,8 @@ swipr_make_sample(struct swipr_minidump *minidumps,
 
     swipr_state_finish_processing();
     
-#if !defined(__APPLE__)
-    for (int i=0; i<num_threads; i++) {
-        if (g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id > 0) {
-            swipr_os_dep_sem_signal(g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed);
-        }
-    }
-
-    for (int i=0; i<num_threads; i++) {
-        swipr_os_dep_thread_id thread_id = g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id;
-        if (thread_id > 0) {
-            deadline = swipr_os_dep_create_deadline(100 * SWIPR_NSEC_PER_MSEC);
-            err = swipr_os_dep_sem_wait_with_deadline(g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed, deadline);
-            if (err) {
-                UNSAFE_DEBUG("OUTCH, timeout (B), thread %d/%ld of %zu\n",
-                             i, (long)thread_id, num_threads);
-                // FIXME: Continuing here is unsafe, the tests might still exist, and below, we'll free the semaphore.
-                // Probably best to leak it or so.
-            }
-        }
-        g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
-        swipr_os_dep_sem_free(g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed);
-        swipr_os_dep_sem_free(g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed);
-        g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed = NULL;
-        g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed = NULL;
-    }
-#else
-    for (mach_msg_type_number_t i=0; i<num_threads; i++) {
-        if (all_threads[i].ti_id == 0) {
-            continue;
-        }
-        kern_return_t kret = thread_resume(all_threads[i].ti_os_specific.mach_thread);
-        swipr_precondition(kret == KERN_SUCCESS);
-    }
-#endif
-    swipr_os_dep_destroy_thread_list(all_threads);
-    return 0;
+    err = swipr_os_dep_sample_cleanup(num_threads, all_threads);
+    return err;
 }
 
 int
@@ -414,9 +198,8 @@ swipr_request_sample(FILE *output,
     size_t num_minidumps = 0;
     char old_thread_name[128] = {0};
     swipr_os_dep_get_current_thread_name(old_thread_name, sizeof(old_thread_name));
-    struct timespec current_time = swipr_get_current_time();
+    struct timespec current_time = swipr_sampler_get_current_time();
     struct swipr_minidump *minidumps = NULL;
-
 
 #if !defined(__linux__) && !defined(SWIPR_MACOS_DEBUG)
     fprintf(output,
