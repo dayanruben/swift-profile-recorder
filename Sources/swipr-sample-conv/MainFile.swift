@@ -85,7 +85,11 @@ struct ProfileRecorderSampleConverterCommand: AsyncParsableCommand {
         let symboliser: any Symbolizer
         switch (self.useNativeSymbolizer, self.useFakeSymbolizer) {
         case (true, false):
+            #if os(macOS)
+            symboliser = CoreSymbolicationSymboliser()
+            #else
             symboliser = NativeSymboliser()
+            #endif
         case (false, false):
             symboliser = LLVMSymboliser(
                 config: llvmSymbolizerConfig,
