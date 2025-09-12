@@ -38,6 +38,26 @@ final class ProfileRecorderServerTests: XCTestCase {
         }
     }
 
+    func testSampleRouteWorks() async throws {
+        let server = ProfileRecorderServer(
+            configuration: try ProfileRecorderServerConfiguration.makeTCPListener(host: "127.0.0.1", port: 0)
+        )
+        try await server.withSamplingServer(logger: Logger(label: "")) { server in
+            guard case .successful(let serverAddress) = server.startResult else {
+                XCTFail("failed to start server")
+                return
+            }
+
+            let response1 = try await HTTPClient.shared.post(
+                url: "http://127.0.0.1:\(serverAddress.port!)/sample",
+                body: .string(#"{"numberOfSamples":1,"timeInterval":"10 ms"}"#)
+            ).get()
+            XCTAssertEqual(.ok, response1.status)
+            let body = response1.body.map { String(buffer: $0) }
+            XCTAssert(body?.contains("NIO") ?? false, "\(body.debugDescription)")
+        }
+    }
+
     func testUserExtraHandlerBasic() async throws {
         let server = ProfileRecorderServer(
             configuration: try ProfileRecorderServerConfiguration.makeTCPListener(host: "127.0.0.1", port: 0)

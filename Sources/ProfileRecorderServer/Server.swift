@@ -510,7 +510,7 @@ public struct ProfileRecorderServer: Sendable {
                     symbolizer: symbolizerKind
                 )
             case (.POST, .some(let decodedURI)) where decodedURI.components.isEmpty || decodedURI.components.matches(
-                prefix: self.configuration.pprofRootSlug,
+                prefix: [],
                 oneOfPaths: [["sample"], ["samples"]]
             ) != nil:
                 // Native Swift Profile Recorder Sampling server
