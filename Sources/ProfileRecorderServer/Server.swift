@@ -509,6 +509,12 @@ public struct ProfileRecorderServer: Sendable {
                     format: .pprofSymbolized,
                     symbolizer: symbolizerKind
                 )
+            case (.POST, .some(let decodedURI)) where decodedURI.components.isEmpty || decodedURI.components.matches(
+                prefix: self.configuration.pprofRootSlug,
+                oneOfPaths: [["sample"], ["samples"]]
+            ) != nil:
+                // Native Swift Profile Recorder Sampling server
+                sampleRequest = try JSONDecoder().decode(SampleRequest.self, from: request.body ?? ByteBuffer())
             case (let verb, .some(let decodedURI)):
                 let extraRouteHandlers = self.state.withLockedValue { state in
                     state.extraRouteHandlers
@@ -532,9 +538,6 @@ public struct ProfileRecorderServer: Sendable {
                 }
                 try await self.sendNotFoundErrorWithExplainer(outbound)
                 return
-            case (.POST, _):
-                // Native Swift Profile Recorder Sampling server
-                sampleRequest = try JSONDecoder().decode(SampleRequest.self, from: request.body ?? ByteBuffer())
             default:
                 try await self.sendNotFoundErrorWithExplainer(outbound)
                 return
