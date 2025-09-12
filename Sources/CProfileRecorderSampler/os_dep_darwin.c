@@ -102,6 +102,7 @@ int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
                                        size_t *all_libs_count) {
     int img_count = _dyld_image_count();
     int libs_count = 0;
+    uint arch_size = sizeof(all_libs[0].dl_arch);
     for (int i = 0; i < img_count; i++) {
         const struct mach_header *header = _dyld_get_image_header(i);
         intptr_t slide             = _dyld_get_image_vmaddr_slide(i);
@@ -112,6 +113,8 @@ int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
         const uint8_t *ld_cmd_ptr = (const uint8_t *)header
                               + (is64 ? sizeof(struct mach_header_64)
                                      : sizeof(struct mach_header));
+        cpu_type_t type = header->cputype;
+        cpu_subtype_t subtype = header->cpusubtype & ~CPU_SUBTYPE_MASK;
 
         // we iterate over load commands and finds __TEXT segments.
         // Note: vmaddr is the intended load address of the Mach-O binary, 
@@ -130,6 +133,15 @@ int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
                     all_libs[libs_count].dl_file_mapped_at = slide;
                     all_libs[libs_count].dl_seg_start_addr = start;
                     all_libs[libs_count].dl_seg_end_addr = end;
+                    
+                    if (type == CPU_TYPE_I386) {
+                        strlcpy(all_libs[libs_count].dl_arch, "i386", arch_size);
+                    } else if (type == CPU_TYPE_ARM) {
+                        strlcpy(all_libs[libs_count].dl_arch, "arm", arch_size);
+                    } else {
+                        strlcpy(all_libs[libs_count].dl_arch, "unknown", arch_size);
+                    }
+                    
                     libs_count++;
                 }
             }
@@ -144,6 +156,21 @@ int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
                     all_libs[libs_count].dl_file_mapped_at = slide;
                     all_libs[libs_count].dl_seg_start_addr = start;
                     all_libs[libs_count].dl_seg_end_addr = end;
+                    
+                    if (type == CPU_TYPE_X86) {
+                        strlcpy(all_libs[libs_count].dl_arch, "x86_64", arch_size);
+                    } else if (type == CPU_TYPE_ARM64_32) {
+                        strlcpy(all_libs[libs_count].dl_arch, "arm64_32", arch_size);
+                    } else if (type == CPU_TYPE_ARM64) {
+                        if (subtype == CPU_SUBTYPE_ARM64E) {
+                            strlcpy(all_libs[libs_count].dl_arch, "arm64e", arch_size);
+                        } else {
+                            strlcpy(all_libs[libs_count].dl_arch, "arm64", arch_size);
+                        }
+                    } else {
+                        strlcpy(all_libs[libs_count].dl_arch, "unknown", arch_size);
+                    }
+                    
                     libs_count++;
                 }
             }

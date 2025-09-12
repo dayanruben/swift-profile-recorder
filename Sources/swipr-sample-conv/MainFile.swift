@@ -195,6 +195,7 @@ struct ProfileRecorderSampleConverterCommand: AsyncParsableCommand {
                 relativeIP: address,
                 library: DynamicLibMapping(
                     path: fileAddress.0,
+                    architecture: ProfileRecorderSystemInformation.defaultArchitecture,
                     fileMappedAddress: 0,
                     segmentStartAddress: 0,
                     segmentEndAddress: .max

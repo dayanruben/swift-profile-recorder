@@ -91,8 +91,8 @@ private enum Sym {
       @convention(c) (CSSymbolicatorRef, CSMachineTime, @convention(block) (CSSymbolOwnerRef) -> Void) -> UInt =
         symbol(coreSymbolicationHandle, "CSSymbolicatorForeachSymbolOwnerAtTime")
     static let CSSymbolicatorGetSymbolOwner:
-      @convention(c) (CSSymbolOwnerRef) -> CSSymbolOwnerRef =
-        symbol(coreSymbolicationHandle, "CSSymbolOwnerGetSymbolOwner")
+      @convention(c) (CSSymbolicatorRef) -> CSSymbolOwnerRef =
+        symbol(coreSymbolicationHandle, "CSSymbolicatorGetSymbolOwner")
     static let CSSymbolicatorGetSymbolWithAddressAtTime:
       @convention(c) (CSSymbolicatorRef, vm_address_t, CSMachineTime) -> CSSymbolRef =
         symbol(coreSymbolicationHandle, "CSSymbolicatorGetSymbolWithAddressAtTime")
@@ -245,12 +245,15 @@ struct BinaryImageInformation {
 }
 
 func SymbolicatorCreateWithDynamicLibMapping(
-    _ library: DynamicLibMapping) -> CSSymbolicatorRef
+    _ library: DynamicLibMapping
+) -> CSSymbolicatorRef
 {
-    return Sym.CSSymbolicatorCreateWithPathAndArchitecture(
-        library.path.withCString { $0 },
-        Sym.CSArchitectureGetArchitectureForName("arm64e".withCString { $0 })
-    );
+    return library.path.withCString { path in
+        library.architecture.withCString { arch in
+            let CSarch = Sym.CSArchitectureGetArchitectureForName(arch)
+            return Sym.CSSymbolicatorCreateWithPathAndArchitecture(path, CSarch)
+        }
+    }
 }
 
 func CSSymbolicatorGetSymbolOwnerWithAddress(

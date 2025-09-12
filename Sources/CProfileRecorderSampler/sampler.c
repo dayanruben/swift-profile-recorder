@@ -98,11 +98,12 @@ swipr_dump_shared_objs(FILE *output) {
         fprintf(output,
                 "[SWIPR] VMAP {"
                 "\"path\": \"%s\", "
+                "\"architecture\": \"%s\", "
                 "\"fileMappedAddress\": \"0x%lx\", "
                 "\"segmentStartAddress\": \"0x%lx\", "
                 "\"segmentEndAddress\": \"0x%lx\""
                 "}\n",
-                all_libs[i].dl_name, all_libs[i].dl_file_mapped_at,
+                all_libs[i].dl_name, all_libs[i].dl_arch, all_libs[i].dl_file_mapped_at,
                 all_libs[i].dl_seg_start_addr, all_libs[i].dl_seg_end_addr);
     }
     UNSAFE_DEBUG("Number of libraries mapped: %zu \n", all_libs_count);
@@ -201,7 +202,7 @@ swipr_request_sample(FILE *output,
     struct timespec current_time = swipr_sampler_get_current_time();
     struct swipr_minidump *minidumps = NULL;
 
-#if !defined(__linux__) && !defined(SWIPR_MACOS_DEBUG)
+#if !defined(__linux__) && !defined(__APPLE__)
     fprintf(output,
             "[SWIPR] MESG { \"message\": \"Unsupported OS, cannot generate samples yet.\", \"exit\": 1 }\n");
     return 1;

@@ -34,6 +34,7 @@ final class CachedSymbolizerTests: XCTestCase {
                     library: "libfoo",
                     vmap: DynamicLibMapping(
                         path: "/lib/libfoo.so",
+                        architecture: "arm64",
                         fileMappedAddress: 0x1000,
                         segmentStartAddress: 0x2000,
                         segmentEndAddress: 0x3000
@@ -71,6 +72,7 @@ final class CachedSymbolizerTests: XCTestCase {
             dynamicLibraryMappings: [
                 DynamicLibMapping(
                     path: "/lib/libfoo.so",
+                    architecture: "arm64",
                     fileMappedAddress: 0x1000,
                     segmentStartAddress: 0x2000,
                     segmentEndAddress: 0x3000

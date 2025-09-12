@@ -41,6 +41,7 @@ int swipr_os_dep_destroy_thread_list(struct thread_info *thread_list);
 
 struct swipr_dynamic_lib {
     char dl_name[1024];
+    char dl_arch[16];
     uintptr_t dl_file_mapped_at; // the slide that points to the start of the address
     uintptr_t dl_seg_start_addr; // dl_file_mapped_at + vmaddr
     uintptr_t dl_seg_end_addr; // dl_seg_start_addr + vmsize

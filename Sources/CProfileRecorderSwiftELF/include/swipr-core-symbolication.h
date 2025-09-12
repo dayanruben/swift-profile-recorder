@@ -197,11 +197,6 @@ typedef uint32_t CFStringEncoding;
 typedef enum __attribute__((enum_extensibility(open)))
   CFStringBuiltInEncodings : CFStringEncoding CFStringBuiltInEncodings;
 
-enum CFStringBuiltInEncodings: CFStringEncoding {
-  kCFStringEncodingASCII = 0x0600,
-  kCFStringEncodingUTF8 = 0x08000100,
-};
-
 // .. CoreSymbolication SPI ....................................................
 
 typedef int32_t cpu_type_t;

@@ -63,12 +63,11 @@ public final class CoreSymbolicationSymboliser: Symbolizer & Sendable {
             return CSRetain(sym) // in case another thread releases sym
         }
         
-        defer {
-            CSRelease(symbolicator)
-        }
-        
         if CSIsNull(symbolicator){
             return makeFailed("-symbolicator")
+        }
+        defer {
+            CSRelease(symbolicator)
         }
         
         let symbolOwner = CSSymbolicatorGetSymbolOwner(symbolicator)
@@ -78,9 +77,9 @@ public final class CoreSymbolicationSymboliser: Symbolizer & Sendable {
 
         // CS expects offset into library + base address from CS
         let baseAddress = CSSymbolOwnerGetBaseAddress(symbolOwner)
-        let expectedIP = vm_address_t(relativeIP
-                                      + library.fileMappedAddress
-                                      - library.segmentStartAddress) + baseAddress
+        let offset = relativeIP + library.fileMappedAddress - library.segmentStartAddress
+        
+        let expectedIP = vm_address_t(offset) + baseAddress
 
         let symbol = CSSymbolicatorGetSymbolWithAddressAtTime(symbolicator, expectedIP)
         if CSIsNull(symbol){
@@ -90,9 +89,9 @@ public final class CoreSymbolicationSymboliser: Symbolizer & Sendable {
 
         return SymbolisedStackFrame(
             allFrames: [SymbolisedStackFrame.SingleFrame(
-                address: expectedIP,
+                address: relativeIP,
                 functionName: name,
-                functionOffset: relativeIP,
+                functionOffset: offset,
                 library: nil,
                 vmap: library,
                 file: nil,

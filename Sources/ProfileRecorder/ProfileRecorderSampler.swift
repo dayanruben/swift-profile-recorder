@@ -47,7 +47,9 @@ public final class ProfileRecorderSampler: Sendable {
     }
 
     public static var isSupportedPlatform: Bool {
-        #if os(Linux) // Only Linux supported at the moment
+        #if os(Linux)
+        return true
+        #elseif os(macOS)
         return true
         #else
         return false
@@ -58,7 +60,7 @@ public final class ProfileRecorderSampler: Sendable {
         if Self.isSupportedPlatform {
             return true
         }
-        #if os(macOS)
+        #if os(iOS)
         return true
         #else
         return false

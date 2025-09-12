@@ -33,17 +33,20 @@ public struct SampleConfig: Codable & Hashable & Sendable {
 public struct DynamicLibMapping: Decodable & Sendable & CustomStringConvertible & Hashable & Comparable {
     enum CodingKeys: CodingKey {
         case path
+        case architecture
         case fileMappedAddress
         case segmentStartAddress
         case segmentEndAddress
     }
     public var path: String
+    public var architecture: String
     public var fileMappedAddress: UInt
     public var segmentStartAddress: UInt
     public var segmentEndAddress: UInt
 
-    public init(path: String, fileMappedAddress: UInt, segmentStartAddress: UInt, segmentEndAddress: UInt) {
+    public init(path: String, architecture: String, fileMappedAddress: UInt, segmentStartAddress: UInt, segmentEndAddress: UInt) {
         self.path = path
+        self.architecture = architecture
         self.fileMappedAddress = fileMappedAddress
         self.segmentStartAddress = segmentStartAddress
         self.segmentEndAddress = segmentEndAddress
@@ -54,6 +57,7 @@ public struct DynamicLibMapping: Decodable & Sendable & CustomStringConvertible 
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.path = try container.decode(String.self, forKey: .path)
+        self.architecture = try container.decode(String.self, forKey: .architecture)
         if let fileMappedAddress = UInt(try container.decode(String.self, forKey: .fileMappedAddress).dropFirst(2), radix: 16) {
             self.fileMappedAddress = fileMappedAddress
         } else {
@@ -78,7 +82,7 @@ public struct DynamicLibMapping: Decodable & Sendable & CustomStringConvertible 
     public var description: String {
         return """
                DynamicLibMapping {\
-                path: '\(self.path)',\
+                path: '\(self.path)' (\(self.architecture)),\
                 fileMapped: 0x\(String(self.fileMappedAddress, radix: 16)),\
                 segmentStart: 0x\(String(self.segmentStartAddress, radix: 16)),\
                 segmentEnd: 0x\(String(self.segmentEndAddress, radix: 16))\

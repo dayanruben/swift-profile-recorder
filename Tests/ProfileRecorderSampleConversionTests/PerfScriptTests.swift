@@ -122,6 +122,7 @@ final class PerfScriptTests: XCTestCase {
             dynamicLibraryMappings: [
                 DynamicLibMapping(
                     path: "/lib/libfoo.so",
+                    architecture: "arm64",
                     fileMappedAddress: 0x1000,
                     segmentStartAddress: 0x2000,
                     segmentEndAddress: 0x3000
