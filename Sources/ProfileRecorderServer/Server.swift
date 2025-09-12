@@ -20,7 +20,60 @@ import ProfileRecorderHelpers
 import _NIOFileSystem
 import Foundation
 import NIOFoundationCompat
+import NIOConcurrencyHelpers
 import Logging
+
+typealias ProfileRecorderServerRouteHandler = _ProfileRecorderServerRouteHandler
+
+public struct _ProfileRecorderServerRouteHandler: Sendable {
+    public struct Context: Sendable {
+        public var symbolizer: (any Symbolizer)
+        public var logger: Logger
+    }
+
+    enum UnderlyingHandler: Sendable {
+        case simple(@Sendable (NIOHTTPServerRequestFull, Context) async -> NIOHTTPClientResponseFull?)
+    }
+
+    var underlyingHandler: UnderlyingHandler
+
+    public static func makeSimple(
+        _ handler: @Sendable @escaping (NIOHTTPServerRequestFull, Context) async -> NIOHTTPClientResponseFull?
+    ) -> Self {
+        return Self(underlyingHandler: .simple(handler))
+    }
+
+    func handle(
+        request: NIOHTTPServerRequestFull,
+        responseWriter: NIOAsyncChannelOutboundWriter<HTTPPart<HTTPResponseHead, ByteBuffer>>,
+        symbolizer: any Symbolizer,
+        logger: Logger
+    ) async throws -> Bool {
+        let context = Context(symbolizer: symbolizer, logger: logger)
+
+        switch self.underlyingHandler {
+        case .simple(let handler):
+            if var response = await handler(request, context) {
+                response.head.headers.replaceOrAdd(name: "connection", value: "close")
+                try await responseWriter.write(.head(response.head))
+                if let body = response.body {
+                    try await responseWriter.write(.body(body))
+                }
+                try await responseWriter.write(.end(nil))
+                return true
+            } else {
+                return false
+            }
+        }
+    }
+}
+
+internal struct ServerRouteHandler: Sendable {
+    var uuid: UUID
+    var verb: HTTPMethod
+    var userHandler: ProfileRecorderServerRouteHandler
+    var matchingRoutes: [[String]]
+}
 
 public struct ProfileRecorderServerConfiguration: Sendable {
     public var group: MultiThreadedEventLoopGroup
@@ -32,6 +85,18 @@ public struct ProfileRecorderServerConfiguration: Sendable {
         return ProfileRecorderServerConfiguration(
             group: .singletonMultiThreadedEventLoopGroup,
             bindTarget: nil,
+            unixDomainSocketPath: nil
+        )
+    }
+
+    public static func makeTCPListener(
+        host: String,
+        port: Int,
+        group: MultiThreadedEventLoopGroup = .singletonMultiThreadedEventLoopGroup
+    ) throws -> Self {
+        return Self(
+            group: group,
+            bindTarget: try SocketAddress(ipAddress: host, port: port),
             unixDomainSocketPath: nil
         )
     }
@@ -79,6 +144,11 @@ public struct ProfileRecorderServer: Sendable {
     typealias Outbound = NIOAsyncChannelOutboundWriter<HTTPPart<HTTPResponseHead, ByteBuffer>>
 
     public let configuration: ProfileRecorderServerConfiguration
+    private let state: NIOLockedValueBox<State> = NIOLockedValueBox(State())
+
+    struct State: Sendable {
+        var extraRouteHandlers: [(UUID, ServerRouteHandler)] = []
+    }
 
     public struct Error: Swift.Error {
         var message: String
@@ -95,6 +165,37 @@ public struct ProfileRecorderServer: Sendable {
 
     public init(configuration: ProfileRecorderServerConfiguration) {
         self.configuration = configuration
+    }
+
+    @discardableResult
+    public func _registerExtraRouteHandler(
+        verb: HTTPMethod,
+        matchingSlugs: [[String]],
+        _ handler: _ProfileRecorderServerRouteHandler
+    ) -> UUID {
+        return self.state.withLockedValue { state in
+            let uuid = UUID()
+            state.extraRouteHandlers.append(
+                (
+                    uuid,
+                    ServerRouteHandler(
+                        uuid: uuid,
+                        verb: verb,
+                        userHandler: handler,
+                        matchingRoutes: matchingSlugs
+                    )
+                )
+            )
+            return uuid
+        }
+    }
+
+    @discardableResult
+    public func _deregisterExtraRouteHandler(uuid: UUID) -> Bool {
+        self.state.withLockedValue { state in
+            state.extraRouteHandlers.removeAll { $0.0 == uuid }
+        }
+        return true
     }
 
     public func run(logger: Logger) async throws {
@@ -242,7 +343,15 @@ public struct ProfileRecorderServer: Sendable {
     }
 
     func respondWithFailure(string: String, code: HTTPResponseStatus, _ outbound: Outbound) async throws {
-        try await outbound.write(.head(HTTPResponseHead(version: .http1_1, status: code)))
+        try await outbound.write(
+            .head(
+                HTTPResponseHead(
+                    version: .http1_1,
+                    status: code,
+                    headers: ["connection": "close"]
+                )
+            )
+        )
         try await outbound.write(.body(ByteBuffer(string: string)))
         try await outbound.write(.body(ByteBuffer(string: "\n")))
         try await outbound.write(.end(nil))
@@ -381,9 +490,6 @@ public struct ProfileRecorderServer: Sendable {
         do {
             let sampleRequest: SampleRequest
             switch (request.head.method, self.decodeURI(request.head.uri)) {
-            case (.POST, _):
-                // Native Swift Profile Recorder Sampling server
-                sampleRequest = try JSONDecoder().decode(SampleRequest.self, from: request.body ?? ByteBuffer())
             case (.GET, .some(let decodedURI)) where decodedURI.components.matches(
                 prefix: self.configuration.pprofRootSlug,
                 oneOfPaths: [["pprof", "profile"], ["pprof", "symbolizer=fake", "profile"]]
@@ -403,6 +509,32 @@ public struct ProfileRecorderServer: Sendable {
                     format: .pprofSymbolized,
                     symbolizer: symbolizerKind
                 )
+            case (let verb, .some(let decodedURI)):
+                let extraRouteHandlers = self.state.withLockedValue { state in
+                    state.extraRouteHandlers
+                }
+
+                for (_, handler) in extraRouteHandlers {
+                    guard handler.verb == verb else {
+                        continue
+                    }
+                    if decodedURI.components.matches(oneOfPaths: handler.matchingRoutes) != nil {
+                        let handled = try await handler.userHandler.handle(
+                            request: request,
+                            responseWriter: outbound,
+                            symbolizer: symbolizer,
+                            logger: logger
+                        )
+                        if handled {
+                            return
+                        }
+                    }
+                }
+                try await self.sendNotFoundErrorWithExplainer(outbound)
+                return
+            case (.POST, _):
+                // Native Swift Profile Recorder Sampling server
+                sampleRequest = try JSONDecoder().decode(SampleRequest.self, from: request.body ?? ByteBuffer())
             default:
                 try await self.sendNotFoundErrorWithExplainer(outbound)
                 return
@@ -421,6 +553,7 @@ public struct ProfileRecorderServer: Sendable {
                                 version: .http1_1,
                                 status: .ok,
                                 headers: [
+                                    "connection": "close",
                                     "content-disposition": "filename=\"samples-\(getpid())-\(time(nil)).perf\"",
                                     "content-type": "application/octet-stream",
                                 ]

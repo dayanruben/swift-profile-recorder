@@ -20,6 +20,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.80.0"),
         .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.24.1"),
         .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.28.2"),
+        .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.25.2"),
     ],
     targets: [
         // MARK: - Executables
@@ -128,6 +129,19 @@ let package = Package(
                         .product(name: "Logging", package: "swift-log"),
                         .product(name: "_NIOFileSystem", package: "swift-nio"),
                     ]),
+        .testTarget(name: "ProfileRecorderServerTests",
+                    dependencies: [
+                        "ProfileRecorder",
+                        "ProfileRecorderServer",
+                        "ProfileRecorderSampleConversion",
+                        "ProfileRecorderHelpers",
+                        .product(name: "Atomics", package: "swift-atomics"),
+                        .product(name: "NIO", package: "swift-nio"),
+                        .product(name: "Logging", package: "swift-log"),
+                        .product(name: "_NIOFileSystem", package: "swift-nio"),
+                        .product(name: "AsyncHTTPClient", package: "async-http-client"),
+                    ]
+            ),
         .testTarget(name: "ProfileRecorderSampleConversionTests",
                     dependencies: [
                         "ProfileRecorder",
@@ -137,7 +151,8 @@ let package = Package(
                         .product(name: "NIO", package: "swift-nio"),
                         .product(name: "Logging", package: "swift-log"),
                         .product(name: "_NIOFileSystem", package: "swift-nio"),
-                    ]),
+                    ]
+                   ),
     ],
     cxxLanguageStandard: .cxx14
 )
