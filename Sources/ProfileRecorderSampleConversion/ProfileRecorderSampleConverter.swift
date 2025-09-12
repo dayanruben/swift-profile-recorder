@@ -173,7 +173,9 @@ public struct ProfileRecorderSampleConverter: Sendable {
             var vmapsRead = true
             var currentSample: Sample? = nil
             var bufferCapacity: ssize_t = 1024
-            var buffer: UnsafeMutablePointer<CChar>? = UnsafeMutablePointer<CChar>.allocate(capacity: Int(bufferCapacity))
+            var buffer: UnsafeMutablePointer<CChar>? = UnsafeMutablePointer<CChar>.allocate(
+                capacity: Int(bufferCapacity)
+            )
             defer {
                 buffer!.deallocate()
             }
@@ -197,14 +199,24 @@ public struct ProfileRecorderSampleConverter: Sendable {
                 }
             }
 
+            let messageHeaderPrefix = "[SWIPR] "
+            let messageHeaderPrefixLength = messageHeaderPrefix.count
+            let messageHeaderTypeLength = 4
+            let messageHeaderLength = messageHeaderPrefixLength + messageHeaderTypeLength + 1
+
             while getline(&buffer, &bufferCapacity, input) != -1 {
                 let line = String(cString: buffer!)
-                guard line.starts(with: "[SWIPR] ") else {
+                guard line.starts(with: messageHeaderPrefix) else {
                     continue
                 }
-                switch line.dropFirst(8).prefix(4) {
+                switch line
+                    .dropFirst(messageHeaderPrefixLength)
+                    .prefix(messageHeaderTypeLength) {
                 case "MESG":
-                    guard let message = try? decoder.decode(Message.self, from: Data(line.dropFirst(13).utf8)) else {
+                    guard let message = try? decoder.decode(
+                        Message.self,
+                        from: Data(line.dropFirst(messageHeaderLength).utf8)
+                    ) else {
                         continue
                     }
                     logger.info("\(message.message)")
@@ -212,12 +224,18 @@ public struct ProfileRecorderSampleConverter: Sendable {
                         throw Error(message: message.message)
                     }
                 case "CONF":
-                    guard let conf = try? decoder.decode(SampleConfig.self, from: Data(line.dropFirst(13).utf8)) else {
+                    guard let conf = try? decoder.decode(
+                        SampleConfig.self,
+                        from: Data(line.dropFirst(messageHeaderLength).utf8)
+                    ) else {
                         continue
                     }
                     sampleConfig = conf
                 case "VERS":
-                    guard let version = try? decoder.decode(Version.self, from: Data(line.dropFirst(13).utf8)) else {
+                    guard let version = try? decoder.decode(
+                        Version.self,
+                        from: Data(line.dropFirst(messageHeaderLength).utf8)
+                    ) else {
                         logger.error("Could not decode Swift Profile Recorder version", metadata: ["line": "\(line)"])
                         throw Error(message: "Could not decode Swift Profile Recorder version in '\(line)'")
                     }
@@ -229,7 +247,7 @@ public struct ProfileRecorderSampleConverter: Sendable {
                         throw Error(message: "Can only decode Swift Profile Recorder version 1 traces, this is \(version.version)")
                     }
                 case "VMAP":
-                    guard let mapping = try? decoder.decode(DynamicLibMapping.self, from: Data(line.dropFirst(13).utf8)) else {
+                    guard let mapping = try? decoder.decode(DynamicLibMapping.self, from: Data(line.dropFirst(messageHeaderLength).utf8)) else {
                         continue
                     }
 
@@ -250,14 +268,14 @@ public struct ProfileRecorderSampleConverter: Sendable {
                             logger: logger
                         )
                     }
-                    guard let header = try? decoder.decode(SampleHeader.self, from: Data(line.dropFirst(13).utf8)) else {
-                        logger.warning("failed to parse line, ignoring", metadata: ["line": "\(line.dropFirst(13)))"])
+                    guard let header = try? decoder.decode(SampleHeader.self, from: Data(line.dropFirst(messageHeaderLength).utf8)) else {
+                        logger.warning("failed to parse line, ignoring", metadata: ["line": "\(line.dropFirst(messageHeaderLength)))"])
                         continue
                     }
 
                     currentSample = Sample(sampleHeader: header, stack: [])
                 case "STCK":
-                    guard let stackFrame = try? decoder.decode(StackFrame.self, from: Data(line.dropFirst(13).utf8)) else {
+                    guard let stackFrame = try? decoder.decode(StackFrame.self, from: Data(line.dropFirst(messageHeaderLength).utf8)) else {
                         continue
                     }
                     currentSample?.stack.append(stackFrame)
@@ -266,9 +284,10 @@ public struct ProfileRecorderSampleConverter: Sendable {
                         do {
                             var sample = sample
                             sample.stack = sample.stack.dropFirst().map { frame in
-                                // We would have received the instruction pointer just _behind_ the actual instruction, so to accurately
-                                // get the right frame, we need to get the intruction prior. On ARM that's easy (subtract 4) but on Intel
-                                // that's impossible so we just subtract 1 instead.
+                                // We would have received the instruction pointer just _behind_ the actual instruction,
+                                // so to accurately get the right frame, we need to get the intruction prior. On ARM
+                                // that's easy (subtract 4) but on Intel that's impossible so we just subtract 1
+                                // instead.
                                 var fixedUpStackFrame = frame
                                 if fixedUpStackFrame.instructionPointer >= 4 {
                                     #if arch(arm) || arch(arm64)
@@ -295,7 +314,7 @@ public struct ProfileRecorderSampleConverter: Sendable {
                         }
                     }
                 default:
-                    logger.warning("unknown line, ignoring", metadata: ["line": "\(line.dropFirst(8).prefix(4)))"])
+                    logger.warning("unknown line, ignoring", metadata: ["line": "\(line.dropFirst(messageHeaderPrefixLength).prefix(messageHeaderTypeLength)))"])
                     continue
                 }
             }
