@@ -24,6 +24,17 @@ public struct Message: Decodable {
 }
 
 public struct SampleConfig: Codable & Hashable & Sendable {
+    public init(
+        currentTimeSeconds: Int,
+        currentTimeNanoseconds: Int,
+        microSecondsBetweenSamples: Int,
+        sampleCount: Int
+    ) {
+        self.currentTimeSeconds = currentTimeSeconds
+        self.currentTimeNanoseconds = currentTimeNanoseconds
+        self.microSecondsBetweenSamples = microSecondsBetweenSamples
+        self.sampleCount = sampleCount
+    }
     public var currentTimeSeconds: Int
     public var currentTimeNanoseconds: Int
     public var microSecondsBetweenSamples: Int
@@ -92,6 +103,19 @@ public struct DynamicLibMapping: Decodable & Sendable & CustomStringConvertible 
 }
 
 public struct SampleHeader: Codable {
+    public init(
+        pid: Int,
+        tid: Int,
+        name: String,
+        timeSec: Int,
+        timeNSec: Int
+    ) {
+        self.pid = pid
+        self.tid = tid
+        self.name = name
+        self.timeSec = timeSec
+        self.timeNSec = timeNSec
+    }
     var pid: Int
     var tid: Int
     var name: String
