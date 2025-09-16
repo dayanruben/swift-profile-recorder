@@ -45,27 +45,37 @@ public final class CoreSymbolicationSymboliser: Symbolizer & Sendable {
             )
         }
         
-        let symbolicator = self.cache.withLockedValue { cache in
-            let sym = {
-                if (cache[library.path] != nil) {
-                    return cache[library.path]!
+        var symbolicator: CSSymbolicatorRef
+        // acquire lock and check if symbolicator for this library is already cached
+        // if so increment ref count so it's unaffected by release else where
+        let cachedSymbolicator: CSSymbolicatorRef? = self.cache.withLockedValue { cache in
+            return cache[library.path].map { CSRetain($0) }
+        }
+        
+        if cachedSymbolicator != nil {
+            symbolicator = cachedSymbolicator!
+        } else {
+            // otherwise create new symbolicator
+            symbolicator = SymbolicatorCreateWithDynamicLibMapping(library)
+            self.cache.withLockedValue({ cache in
+                // if it is now cached we use that instead
+                if cache[library.path] != nil {
+                    CSRelease(symbolicator)
+                    symbolicator = CSRetain(cache[library.path]!)
                 } else {
-                    // TODO: refactor out symbolicator creation, reacquire the lock, and then store into cache
-                    let symbolicator = SymbolicatorCreateWithDynamicLibMapping(library)
-                    if cache.count > 1_000 {
+                    if cache.count > 1_000 { // free up cache if full
                         let old = cache.remove(at: cache.startIndex)
                         CSRelease(old.value)
                     }
-                    cache[library.path] = symbolicator
-                    return symbolicator
+                    cache[library.path] = CSRetain(symbolicator)
                 }
-            }()
-            return CSRetain(sym) // in case another thread releases sym
+            })
         }
         
         if CSIsNull(symbolicator){
             return makeFailed("-symbolicator")
         }
+        
         defer {
             CSRelease(symbolicator)
         }
