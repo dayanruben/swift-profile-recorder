@@ -27,6 +27,38 @@ public struct LLVMSymboliserConfig: Sendable {
     var unstuckerWorkaround: Bool
 }
 
+#if canImport(Darwin) && !os(macOS)
+// LLVMSymboliser is unsupported on i/watch/visionOS
+internal final class LLVMSymboliser: Symbolizer & Sendable {
+    struct UnsupportedOSError: Error {}
+
+    internal init(
+        config: LLVMSymboliserConfig,
+        group: EventLoopGroup,
+        logger: Logger
+    ) {}
+
+    func start() throws {
+        throw UnsupportedOSError()
+    }
+
+    internal func symbolise(
+        relativeIP: UInt,
+        library: DynamicLibMapping,
+        logger: Logger
+    ) throws -> SymbolisedStackFrame {
+        throw UnsupportedOSError()
+    }
+
+    func shutdown() throws {
+        throw UnsupportedOSError()
+    }
+
+    var description: String {
+        return "not supported on this OS"
+    }
+}
+#else
 /// Symbolises `StackFrame`s using `llvm-symbolizer`.
 internal final class LLVMSymboliser: Symbolizer & Sendable {
     private let group: EventLoopGroup
@@ -182,6 +214,7 @@ internal final class LLVMSymboliser: Symbolizer & Sendable {
         return "LLVMSymbolizer"
     }
 }
+#endif
 
 final class LogErrorHandler: ChannelInboundHandler {
     typealias InboundIn = NIOAny

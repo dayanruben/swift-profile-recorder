@@ -36,9 +36,6 @@
 #ifdef __APPLE__
 
 #include <mach/mach.h>
-#include <mach/mach_vm.h>
-
-#include <libproc.h>
 #include <stdint.h>
 
 #ifdef __cplusplus

@@ -25,15 +25,6 @@ let package = Package(
     targets: [
         // MARK: - Executables
         .executableTarget(
-            name: "swipr-demo",
-            dependencies: [
-                "ProfileRecorder",
-                "ProfileRecorderServer",
-                "ProfileRecorderHelpers",
-                .product(name: "NIO", package: "swift-nio"),
-                .product(name: "NIOHTTP1", package: "swift-nio"),
-            ]),
-        .executableTarget(
             name: "swipr-mini-demo",
             dependencies: [
                 "ProfileRecorder",

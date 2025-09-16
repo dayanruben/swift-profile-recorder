@@ -197,6 +197,7 @@ int swipr_os_dep_get_current_thread_name(char *name, size_t len) {
 }
 
 static int swipr_wait_for_thread_suspend(thread_act_t thread) {
+#if TARGET_OS_OSX || TARGET_OS_IOS
     kern_return_t kr;
     thread_basic_info_data_t info;
     mach_msg_type_number_t count = THREAD_BASIC_INFO_COUNT;
@@ -237,6 +238,9 @@ static int swipr_wait_for_thread_suspend(thread_act_t thread) {
         sleep_time = (useconds_t) sleep_time * sleep_mult;
     }
     return 0;
+#else
+    return 1;
+#endif
 }
 
 int swipr_os_dep_sample_prepare(size_t num_threads, struct thread_info *all_threads, struct swipr_minidump *minidumps) {
@@ -247,6 +251,7 @@ int swipr_os_dep_sample_prepare(size_t num_threads, struct thread_info *all_thre
 }
 
 void swipr_os_dep_suspend_threads(size_t num_threads, struct thread_info *all_threads) {
+#if TARGET_OS_OSX || TARGET_OS_IOS
     // For Darwin - controller thread suspends and resumes each mutator
     // We ignore thread iff ti_id == 0
     
@@ -300,9 +305,13 @@ void swipr_os_dep_suspend_threads(size_t num_threads, struct thread_info *all_th
         g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_ip = 0;
 #endif
     }
+#else
+    return 1; // unsupported OS
+#endif
 }
 
 int swipr_os_dep_sample_cleanup(size_t num_threads, struct thread_info *all_threads) {
+#if TARGET_OS_OSX || TARGET_OS_IOS
     for (mach_msg_type_number_t i=0; i<num_threads; i++) {
         if (all_threads[i].ti_id == 0) {
             continue;
@@ -312,7 +321,9 @@ int swipr_os_dep_sample_cleanup(size_t num_threads, struct thread_info *all_thre
     }
     int err = swipr_os_dep_destroy_thread_list(all_threads);
     return err;
+#else
+    return 1; // unsupported OS
+#endif
 }
-
 
 #endif
