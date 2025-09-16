@@ -347,6 +347,27 @@ public final class CachedSymbolizer: Sendable & CustomStringConvertible {
             )
         }
 
+        if (stackFrame.instructionPointer < matched.fileMappedAddress) {
+            self.logger.debug(
+                "Malformed input: filedMappedAddress greater than ip",
+                metadata: [
+                    "ip": "0x\(String(stackFrame.instructionPointer, radix: 16))",
+                    "fileMappedAddress": "0x\(String(matched.fileMappedAddress, radix: 16))"
+                ]
+            )
+            return SymbolisedStackFrame(
+                allFrames: [SymbolisedStackFrame.SingleFrame(
+                    address: stackFrame.instructionPointer,
+                    functionName: "malformed-input @ 0x\(String(stackFrame.instructionPointer, radix: 16))",
+                    functionOffset: 0,
+                    library: nil,
+                    vmap: nil,
+                    file: nil,
+                    line: nil
+                )]
+            )
+        }
+        
         let relativeIP = stackFrame.instructionPointer - matched.fileMappedAddress
         self.logger.debug(
             "matched stackframe",
