@@ -16,6 +16,7 @@
 
 #include <pthread.h>
 #include <mach/thread_info.h>
+#include <mach/machine/thread_status.h>
 #include <mach-o/dyld.h>
 #include <string.h>
 #include <stdio.h>
@@ -294,10 +295,11 @@ void swipr_os_dep_suspend_threads(size_t num_threads, struct thread_info *all_th
 
         kret = thread_get_state(all_threads[i].ti_os_specific.mach_thread, flavor, (thread_state_t)&state, &count);
         swipr_precondition(kret == KERN_SUCCESS);
-        
-        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_fp = state.__fp;
-        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_sp = state.__sp;
-        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_ip = state.__pc;
+
+
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_fp = arm_thread_state64_get_fp(state);
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_sp = arm_thread_state64_get_sp(state);
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_ip = arm_thread_state64_get_pc(state);
 #else
 #warning unknown OS/arch combination
         g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context.sfuctx_fp = 0;
