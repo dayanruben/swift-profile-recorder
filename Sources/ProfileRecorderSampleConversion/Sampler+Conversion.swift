@@ -95,7 +95,11 @@ extension ProfileRecorderSampler {
         logger: Logger,
         _ body: (String) async throws -> R
     ) async throws -> R {
+        #if os(Linux)
         let symbolizer = NativeSymboliser()
+        #elseif os(macOS)
+        let symbolizer = CoreSymbolicationSymboliser()
+        #endif
         try symbolizer.start()
         defer {
             try! symbolizer.shutdown()

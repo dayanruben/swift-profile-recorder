@@ -88,6 +88,8 @@ final class ProfileRecorderTests: XCTestCase {
         XCTAssertNoThrow(try samples.wait())
     }
 
+    // Experiencing issues due to the lack of frame pointers
+    // (https://github.com/swiftlang/swift-corelibs-libdispatch/issues/909)
     func testSymbolicatedSamplesWork() async throws {
         guard ProfileRecorderSampler._isSupportedPlatformForTesting else {
             return
@@ -136,6 +138,46 @@ final class ProfileRecorderTests: XCTestCase {
             XCTAssert(interestingLines[5].contains("RECGONISABLE_FUNCTION_FOO"), "\(interestingLines[5])")
         }
     }
+    
+    #if os(macOS)
+    func testSymbolsAreMangled() async throws {
+        guard ProfileRecorderSampler._isSupportedPlatformForTesting else {
+            return
+        }
+
+        let reachedQuuuxSem = DispatchSemaphore(value: 0)
+        let unblockSem = DispatchSemaphore(value: 0)
+        async let done: Void = NIOThreadPool.singleton.runIfActive {
+            RECGONISABLE_FUNCTION_FOO(reachedQuuuxSem: reachedQuuuxSem, unblockSem: unblockSem)
+        }
+        do {
+            defer {
+                unblockSem.signal()
+            }
+            self.logger.info("waiting for thread to be ready and stall in semaphore")
+            await withCheckedContinuation { cont in
+                DispatchQueue.global().async {
+                    reachedQuuuxSem.wait()
+                    cont.resume()
+                }
+            }
+            self.logger.info("thread is ready")
+            
+            let sampleBytes = try await ProfileRecorderSampler.sharedInstance.withSymbolizedSamplesInPerfScriptFormat(
+                sampleCount: 1,
+                timeBetweenSamples: .nanoseconds(0),
+                logger: self.logger
+            ) { file in
+                try await ByteBuffer(contentsOf: FilePath(file), maximumSizeAllowed: .mebibytes(16))
+            }
+            let samples = String(buffer: sampleBytes)
+            // could be missing the innermost function due to optimisations
+            XCTAssert((samples.contains("$s20ProfileRecorderTests27RECGONISABLE_FUNCTION_QUUUX") ||
+                      samples.contains("$s20ProfileRecorderTests26RECGONISABLE_FUNCTION_QUUX")), "\(samples)")
+        }
+        try await done
+    }
+    #endif
 
     // MARK: - Setup/teardown
     override func setUp() {

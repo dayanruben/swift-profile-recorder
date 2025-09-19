@@ -336,5 +336,9 @@ func CSSymbolGetName(_ symbol: CSSymbolRef) -> String? {
   return Sym.CSSymbolGetName(symbol).map{ String(cString: $0) }
 }
 
+func CSSymbolGetMangledName(_ symbol: CSSymbolRef) -> String? {
+  return Sym.CSSymbolGetMangledName(symbol).map { String(cString: $0) }
+}
+
 #endif
 

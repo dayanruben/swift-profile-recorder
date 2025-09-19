@@ -95,7 +95,7 @@ public final class CoreSymbolicationSymboliser: Symbolizer & Sendable {
         if CSIsNull(symbol){
             return makeFailed("-symbol")
         }
-        let name = CSSymbolGetName(symbol) ?? "unknown"
+        let name = CSSymbolGetMangledName(symbol) ?? "unknown"
 
         return SymbolisedStackFrame(
             allFrames: [SymbolisedStackFrame.SingleFrame(
