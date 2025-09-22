@@ -10,14 +10,15 @@ You can pull it in as a fully self-contained Swift Package Manger dependency and
 
 ### Supported OSes
 
-At the moment, it only supports Linux. This could totally also support macOS, iOS, and any other UNIX-like OS but it's not implemented at this point in time.
+At the moment, it only supports Linux and macOS.
+This could also support iOS and any other UNIX-like OS but it's not implemented at this point in time.
 
 ## How can I use it?
 
 ### Via Swift Profile Recorder Server
 
-The easiest way to use Swift Profile Recorder in your application is to make it run the Swift Profile Recorder Server. This will allow you
-to retrieve symbolicated samples with a single `curl` (or any other HTTP client) command.
+The easiest way to use Swift Profile Recorder in your application is to make it run the Swift Profile Recorder Server.
+This allows you to retrieve symbolicated samples with a single `curl` (or any other HTTP client) command.
 
 #### Using the Sampling Server
 
@@ -146,27 +147,28 @@ swipr-sample-conv < /tmp/samples | swift demangle --simplified > /tmp/stacks.per
 The resulting file, you can just drag into [Firefox Profiler](https://profiler.firefox.com)
 which is a client-side web app.
 
+### Want to see an example?
 
-
-
-
-
-
-
-
-### Want to try it out?
-
-After running the following commands, you'll have a web server running that can sample itself.
+The project includes a demo app that embeds a sampling server.
+Build and run it:
 
 ```bash
-docker build -t swipr Misc
-docker run -it --rm -p 8080:8080  -v "$PWD:$PWD" -w "$PWD" swipr swift run -c release -- swipr-demo 0.0.0.0 8080
+swift build -c release
+SWIPR_SAMPLING_SERVER_URL=unix:///tmp/swipr.sock \
+    .build/release/swipr-mini-demo \
+    --blocking --burn-cpu --array-appends \
+    --output "$output"/samples.swipr \
+    --iterations 10000 \
+    --sampling-server
 ```
 
-Then:
+In another terminal, retrieve the symbols:
 
-- Head to `http://localhost:8080/sample/10` in Safari, the request will "hang"
-- Whilst the sample is running (should be about 20 seconds) you should generate some load to `http://localhost:8080/dynamic/info` or so (for example using `wrk`) to make the sample more interesting.
-- Once your browser has downloaded the file, the sample is complete.
-- Head to https://profiler.firefox.com
-- Drag the downloaded file onto the Firefox Profiler.
+```bash
+curl -o /tmp/samples.perf \
+    -sd '{"timeInterval":"100 ms","numberOfSamples":100}' \
+    --unix-socket /tmp/swipr.sock http://localhost/sample
+```
+
+- Open https://profiler.firefox.com in your browser
+- Drag the file at `/tmp/samples.perf` onto the browser window to see the traces with the Firefox profiler app.

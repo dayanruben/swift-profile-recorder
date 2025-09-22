@@ -41,11 +41,13 @@ public final class ProfileRecorderSampler: Sendable {
     private let threadPool: NIOThreadPool
 
     internal struct UnsupportedOperation: Error {}
-
+    
+    /// A shared instance of a global in-process sampler.
     public static var sharedInstance: ProfileRecorderSampler {
         return globalProfileRecorder
     }
-
+    
+    /// A Boolean value that indicates whether this is a supported platform.
     public static var isSupportedPlatform: Bool {
         #if os(Linux)
         return true
@@ -88,7 +90,15 @@ public final class ProfileRecorderSampler: Sendable {
         return eventLoop.makeFailedFuture(UnsupportedOperation())
 #endif
     }
-
+    
+    /// Request and write samples to the output path you provide.
+    /// - Parameters:
+    ///   - outputFilePath: The output path for the raw samples.
+    ///   - failIfFileExists: A Boolean value that indicates whether the function should fail if the output path file you provided already exists.
+    ///   - count: The number of samples to capture.
+    ///   - timeBetweenSamples: The time between samples.
+    ///   - queue: The dispatch queue on which to run the sampler.
+    ///   - handler: A closure the library calls when the samples are ready, providing the results.
     public func requestSamples(outputFilePath: String,
                                failIfFileExists: Bool = true,
                                count: Int,
@@ -106,7 +116,14 @@ public final class ProfileRecorderSampler: Sendable {
             }
         }
     }
-
+    
+    /// Request and write samples to the output path you provide.
+    /// - Parameters:
+    ///   - outputFilePath: The output path for the raw samples.
+    ///   - failIfFileExists: A Boolean value that indicates whether the function should fail if the output path file you provided already exists.
+    ///   - count: The number of samples to capture.
+    ///   - timeBetweenSamples: The time between samples.
+    ///   - eventLoop: The event loop on which the sampler runs.
     public func requestSamples(outputFilePath: String,
                                failIfFileExists: Bool = true,
                                count: Int,

@@ -1,4 +1,4 @@
-FROM swift:5.4
+FROM swift:5.10
 
 RUN apt-get -y update \
  && apt-get -yy install llvm vim lsof valgrind linux-tools-generic siege curl strace \

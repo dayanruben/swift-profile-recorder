@@ -75,12 +75,16 @@ internal struct ServerRouteHandler: Sendable {
     var matchingRoutes: [[String]]
 }
 
+/// The configuration for the in-process sampling server.
 public struct ProfileRecorderServerConfiguration: Sendable {
+    /// The event loop group for the sampling server.
     public var group: MultiThreadedEventLoopGroup
+    /// The IP address and port bound for the sampling server.
     public var bindTarget: Optional<SocketAddress>
     internal var unixDomainSocketPath: Optional<String>
     internal let pprofRootSlug = ["debug"]
-
+    
+    /// The default configuration for a sampling server.
     public static var `default`: Self {
         return ProfileRecorderServerConfiguration(
             group: .singletonMultiThreadedEventLoopGroup,
@@ -88,7 +92,13 @@ public struct ProfileRecorderServerConfiguration: Sendable {
             unixDomainSocketPath: nil
         )
     }
-
+    
+    /// Creates a configuration
+    /// - Parameters:
+    ///   - host: The IP address to bind for providing traces.
+    ///   - port: The port to use for providing traces.
+    ///   - group: The event loop group to use for the sampling server.
+    /// - Returns: <#description#>
     public static func makeTCPListener(
         host: String,
         port: Int,
@@ -101,7 +111,10 @@ public struct ProfileRecorderServerConfiguration: Sendable {
         )
     }
 
-    /// Check the environment variable `SWIPR_SAMPLING_SERVER_URL` for the URL.
+    /// Returns the configuration parsed from environment variables.
+    ///
+    /// Checks for the environment variables `SWIPR_SAMPLING_SERVER_URL` for a URL with a socket and port,
+    /// or `SWIPR_SAMPLING_SERVER_URL_PATTERN` to provide a UNIX domain socket over which to read the samples.
     public static func parseFromEnvironment() async throws -> Self {
         let serverURLString: String
 
@@ -140,9 +153,11 @@ public struct ProfileRecorderServerConfiguration: Sendable {
     }
 }
 
+/// A sampling server that provides performance traces for your app.
 public struct ProfileRecorderServer: Sendable {
     typealias Outbound = NIOAsyncChannelOutboundWriter<HTTPPart<HTTPResponseHead, ByteBuffer>>
-
+    
+    /// The configuration for the sampling server.
     public let configuration: ProfileRecorderServerConfiguration
     private let state: NIOLockedValueBox<State> = NIOLockedValueBox(State())
 
@@ -150,19 +165,28 @@ public struct ProfileRecorderServer: Sendable {
         var extraRouteHandlers: [(UUID, ServerRouteHandler)] = []
     }
 
+    @_documentation(visibility: internal)
     public struct Error: Swift.Error {
         var message: String
     }
-
+    
+    /// The state of the sampling server.
     public struct ServerInfo: Sendable {
+        /// The result states from starting a sampling server.
         public enum ServerStartResult: Sendable {
+            /// The sampling server hasn't yet been started.
             case notAttemptedToStartSamplingServer
+            /// The service started.
             case successful(SocketAddress)
+            /// The service didn't start.
             case couldNotStart(any Swift.Error)
         }
+        /// The result of starting the sampling server.
         public var startResult: ServerStartResult
     }
-
+    
+    /// Creates a sampling server with the configuration you provide.
+    /// - Parameter configuration: <#configuration description#>
     public init(configuration: ProfileRecorderServerConfiguration) {
         self.configuration = configuration
     }
@@ -197,7 +221,9 @@ public struct ProfileRecorderServer: Sendable {
         }
         return true
     }
-
+    
+    /// Runs the sampling server.
+    /// - Parameter logger: The logger instance to use for log messages.
     public func run(logger: Logger) async throws {
         try await self.withSamplingServer(logger: logger) { info in
             switch info.startResult {
@@ -219,7 +245,12 @@ public struct ProfileRecorderServer: Sendable {
             }
         }
     }
-
+    
+    /// Starts the sampling server, providing a state of the server to the closure that you provide.
+    /// - Parameters:
+    ///   - logger: The logger instance to use for log messages.
+    ///   - body: A closure with access to the state of the sampling server.
+    /// - Returns: The result of the closure you provide.
     public func withSamplingServer<R: Sendable>(
         logger: Logger,
         _ body: @Sendable @escaping (ServerInfo) async throws -> R
