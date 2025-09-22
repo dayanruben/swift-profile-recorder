@@ -178,8 +178,8 @@ int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
             ld_cmd_ptr += ld_cmd->cmdsize;
         }
     }
-    swipr_precondition(libs_count <= all_libs_capacity);
-    *all_libs_count = libs_count;
+    // libs above capacity are ignored
+    *all_libs_count = SWIPR_MIN(all_libs_capacity, libs_count);
     return 0;
 }
 

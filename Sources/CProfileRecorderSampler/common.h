@@ -22,6 +22,7 @@
 
 #define SWIPR_MAX_MUTATOR_THREADS 1024
 #define SWIPR_MAX_STACK_DEPTH 128
+#define SWIPR_MAX_LIBS 16384
 
 #define SWIPR_NSEC_PER_USEC 1000ULL
 #define SWIPR_NSEC_PER_MSEC (1000ULL * SWIPR_NSEC_PER_USEC)
@@ -37,5 +38,7 @@
 #else
 #  define UNSAFE_DEBUG(...) do { } while (0)
 #endif
+
+#define SWIPR_MIN(a, b) ((a) < (b) ? (a) : (b))
 
 #endif /* common_h */

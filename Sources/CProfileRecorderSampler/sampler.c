@@ -91,7 +91,7 @@ swipr_dump_shared_objs(FILE *output) {
     if (!all_libs) {
         return 1;
     }
-    swipr_os_dep_list_all_dynamic_libs(all_libs, 1024, &all_libs_count);
+    swipr_os_dep_list_all_dynamic_libs(all_libs, SWIPR_MAX_LIBS, &all_libs_count);
 
     fprintf(output, "[SWIPR] VERS { \"version\": 1}\n");
     for (size_t i=0; i < all_libs_count; i++) {
