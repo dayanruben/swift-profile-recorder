@@ -20,6 +20,7 @@ import _NIOFileSystem
 public enum ProfileRecorderOutputFormat: String, Codable & Sendable {
     case perfSymbolized
     case pprofSymbolized
+    case flamegraphCollapsedSymbolized
     case raw
 }
 
@@ -50,6 +51,9 @@ extension ProfileRecorderSampler {
             case .pprofSymbolized:
                 symbolisedSamplesPath = tmpDirPath.appending("samples.pprof.pb")
                 logger[metadataKey: "symbolicated-samples-path"] = "\(symbolisedSamplesPath.string)"
+            case .flamegraphCollapsedSymbolized:
+                symbolisedSamplesPath = tmpDirPath.appending("samples.flamegraph.collapsed")
+                logger[metadataKey: "symbolicated-samples-path"] = "\(symbolisedSamplesPath.string)"
             case .raw:
                 symbolisedSamplesPath = tmpDirPath.appending("samples.raw")
             }
@@ -64,13 +68,15 @@ extension ProfileRecorderSampler {
             ).get()
             logger.info("raw samples complete")
             switch format {
-            case .perfSymbolized, .pprofSymbolized:
+            case .perfSymbolized, .pprofSymbolized, .flamegraphCollapsedSymbolized:
                 let renderer: any ProfileRecorderSampleConversionOutputRenderer
                 switch format {
                     case .perfSymbolized:
                     renderer = PerfScriptOutputRenderer()
                 case .pprofSymbolized:
                     renderer = PprofOutputRenderer()
+                case .flamegraphCollapsedSymbolized:
+                    renderer = FlamegraphCollapsedOutputRenderer()
                 case .raw:
                     fatalError("we shouldn't be here")
                 }

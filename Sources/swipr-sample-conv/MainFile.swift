@@ -50,6 +50,8 @@ struct ProfileRecorderSampleConverterCommand: AsyncParsableCommand {
             return .perfSymbolized
         case "pprof":
             return .pprofSymbolized
+        case "collapsed":
+            return .flamegraphCollapsedSymbolized
         case "raw":
             return .raw
         default:
@@ -120,6 +122,8 @@ struct ProfileRecorderSampleConverterCommand: AsyncParsableCommand {
                     renderer = PerfScriptOutputRenderer()
                 case .pprofSymbolized:
                     renderer = PprofOutputRenderer()
+                case .flamegraphCollapsedSymbolized:
+                    renderer = FlamegraphCollapsedOutputRenderer()
                 case .raw:
                     throw ValidationError("the input file is already in raw format")
                 }
