@@ -15,7 +15,6 @@
 #if canImport(Glibc)
 @preconcurrency import Glibc // Sendability of stdout/stderr/..., needs to be at the top of the file
 #endif
-import Foundation
 import NIO
 import _NIOFileSystem
 import Dispatch
@@ -67,17 +66,6 @@ public final class ProfileRecorderSampler: Sendable {
         return true
         #else
         return false
-        #endif
-    }
-
-    public static var _hasReliableFramePointers: Bool {
-        #if canImport(Darwin)
-        return true
-        #else
-        let reliableFP = ["1", "yes", "true"].contains(
-            (ProcessInfo.processInfo.environment["SWIPR_TESTS_RELIABLE_FRAMEPOINTER"] ?? "no").lowercased()
-        )
-        return reliableFP
         #endif
     }
 

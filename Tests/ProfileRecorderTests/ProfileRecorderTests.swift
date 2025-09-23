@@ -144,13 +144,7 @@ final class ProfileRecorderTests: XCTestCase {
                     return
                 }
 
-                if ProfileRecorderSampler._hasReliableFramePointers {
-                    XCTAssert(interestingLines[0].contains("RECGONISABLE_FUNCTION_QUUUX"), "\(interestingLines[0])")
-                } else {
-                    if !interestingLines[0].contains("RECGONISABLE_FUNCTION_QUUUX") {
-                        self.logger.warning("missing function in stack trace, continuing regardless because of potentially unreliable frame pointers on this platform")
-                    }
-                }
+                XCTAssert(interestingLines[0].contains("RECGONISABLE_FUNCTION_QUUUX"), "\(interestingLines[0])")
                 XCTAssert(interestingLines[1].contains("RECGONISABLE_FUNCTION_QUUX"), "\(interestingLines[1])")
                 XCTAssert(interestingLines[2].contains("RECGONISABLE_FUNCTION_QUX"), "\(interestingLines[2])")
                 XCTAssert(interestingLines[3].contains("RECGONISABLE_FUNCTION_BUZ"), "\(interestingLines[3])")
@@ -162,7 +156,6 @@ final class ProfileRecorderTests: XCTestCase {
         try await done
     }
     
-    //#if os(macOS)
     func testSymbolsAreMangled() async throws {
         guard ProfileRecorderSampler._isSupportedPlatformForTesting else {
             return
@@ -200,7 +193,6 @@ final class ProfileRecorderTests: XCTestCase {
         }
         try await done
     }
-    //#endif
 
     // MARK: - Setup/teardown
     override func setUp() {
