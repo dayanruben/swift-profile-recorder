@@ -21,6 +21,13 @@ import _NIOFileSystem
 @testable import ProfileRecorder
 import ProfileRecorderSampleConversion
 
+#if !canImport(Darwin)
+// We're using a terrible workaround to work around the lack of frame pointers
+// in libdispatch on non-Darwin.
+// (https://github.com/swiftlang/swift-corelibs-libdispatch/issues/909)
+typealias DispatchSemaphore = WorkaroundSemaphore
+#endif
+
 final class ProfileRecorderTests: XCTestCase {
     var tempDirectory: String! = nil
     var group: EventLoopGroup! = nil
@@ -97,49 +104,65 @@ final class ProfileRecorderTests: XCTestCase {
 
         let reachedQuuuxSem = DispatchSemaphore(value: 0)
         let unblockSem = DispatchSemaphore(value: 0)
-        self.logger.info("spawning thread")
-        Thread {
+        self.logger.info("spawning thread to be blocked")
+        async let done: () = NIOThreadPool.singleton.runIfActive {
             RECGONISABLE_FUNCTION_FOO(reachedQuuuxSem: reachedQuuuxSem, unblockSem: unblockSem)
-        }.start()
-        self.logger.info("waiting for conds")
-        await withCheckedContinuation { cont in
-            DispatchQueue.global().async {
-                reachedQuuuxSem.wait()
-                cont.resume()
-            }
         }
-        self.logger.info("done")
+        do {
+            defer {
+                unblockSem.signal() // unblock that thread
+            }
+            self.logger.info("waiting for conds")
+            await withCheckedContinuation { cont in
+                DispatchQueue.global().async {
+                    reachedQuuuxSem.wait()
+                    cont.resume()
+                }
+            }
+            self.logger.info("done")
 
-        // okay, we should have a thread blocked in RECGONISABLE_FUNCTION_QUUUX() now
+            // okay, we should have a thread blocked in RECGONISABLE_FUNCTION_QUUUX() now
 
-        let sampleBytes = try await ProfileRecorderSampler.sharedInstance.withSymbolizedSamplesInPerfScriptFormat(
-            sampleCount: 1,
-            timeBetweenSamples: .nanoseconds(0),
-            logger: self.logger
-        ) { file in
-            try await ByteBuffer(contentsOf: FilePath(file), maximumSizeAllowed: .unlimited)
-        }
-        let samples = String(buffer: sampleBytes).split(separator: "\n")
-        for index in samples.indices {
-            let currentLine = samples[index]
-            guard currentLine.contains("RECGONISABLE_FUNCTION_QUUUX") else {
-                continue
+            let sampleBytes = try await ProfileRecorderSampler.sharedInstance.withSymbolizedSamplesInPerfScriptFormat(
+                sampleCount: 1,
+                timeBetweenSamples: .nanoseconds(0),
+                logger: self.logger
+            ) { file in
+                try await ByteBuffer(contentsOf: FilePath(file), maximumSizeAllowed: .mebibytes(32))
             }
-            let interestingLines = Array(samples.dropFirst(index).prefix(6))
-            guard interestingLines.count == 6 else {
-                XCTFail("Expected 6 lines, got \(interestingLines.count) in \(interestingLines)")
-                return
+            let samples = String(buffer: sampleBytes).split(separator: "\n")
+            var found = false
+            for index in samples.indices {
+                let currentLine = samples[index]
+                guard currentLine.contains("RECGONISABLE_FUNCTION_QUUX") else {
+                    continue
+                }
+                found = true
+                let interestingLines = Array(samples.dropFirst(index - 1).prefix(6))
+                guard interestingLines.count == 6 else {
+                    XCTFail("Expected 6 lines, got \(interestingLines.count) in \(interestingLines)")
+                    return
+                }
+
+                if ProfileRecorderSampler._hasReliableFramePointers {
+                    XCTAssert(interestingLines[0].contains("RECGONISABLE_FUNCTION_QUUUX"), "\(interestingLines[0])")
+                } else {
+                    if !interestingLines[0].contains("RECGONISABLE_FUNCTION_QUUUX") {
+                        self.logger.warning("missing function in stack trace, continuing regardless because of potentially unreliable frame pointers on this platform")
+                    }
+                }
+                XCTAssert(interestingLines[1].contains("RECGONISABLE_FUNCTION_QUUX"), "\(interestingLines[1])")
+                XCTAssert(interestingLines[2].contains("RECGONISABLE_FUNCTION_QUX"), "\(interestingLines[2])")
+                XCTAssert(interestingLines[3].contains("RECGONISABLE_FUNCTION_BUZ"), "\(interestingLines[3])")
+                XCTAssert(interestingLines[4].contains("RECGONISABLE_FUNCTION_BAR"), "\(interestingLines[4])")
+                XCTAssert(interestingLines[5].contains("RECGONISABLE_FUNCTION_FOO"), "\(interestingLines[5])")
             }
-            XCTAssert(interestingLines[0].contains("RECGONISABLE_FUNCTION_QUUUX"), "\(interestingLines[0])")
-            XCTAssert(interestingLines[1].contains("RECGONISABLE_FUNCTION_QUUX"), "\(interestingLines[1])")
-            XCTAssert(interestingLines[2].contains("RECGONISABLE_FUNCTION_QUX"), "\(interestingLines[2])")
-            XCTAssert(interestingLines[3].contains("RECGONISABLE_FUNCTION_BUZ"), "\(interestingLines[3])")
-            XCTAssert(interestingLines[4].contains("RECGONISABLE_FUNCTION_BAR"), "\(interestingLines[4])")
-            XCTAssert(interestingLines[5].contains("RECGONISABLE_FUNCTION_FOO"), "\(interestingLines[5])")
+            XCTAssert(found, "\(samples.joined(separator: "\n"))")
         }
+        try await done
     }
     
-    #if os(macOS)
+    //#if os(macOS)
     func testSymbolsAreMangled() async throws {
         guard ProfileRecorderSampler._isSupportedPlatformForTesting else {
             return
@@ -171,13 +194,13 @@ final class ProfileRecorderTests: XCTestCase {
                 try await ByteBuffer(contentsOf: FilePath(file), maximumSizeAllowed: .mebibytes(16))
             }
             let samples = String(buffer: sampleBytes)
-            // could be missing the innermost function due to optimisations
-            XCTAssert((samples.contains("$s20ProfileRecorderTests27RECGONISABLE_FUNCTION_QUUUX") ||
-                      samples.contains("$s20ProfileRecorderTests26RECGONISABLE_FUNCTION_QUUX")), "\(samples)")
+            // We can only match the @inline(never) function FOO with mangling (the others might be inlined)
+            XCTAssert(samples.contains("s20ProfileRecorderTests25RECGONISABLE_FUNCTION_FOO"), "foo missing: \(samples)")
+            XCTAssert(samples.contains("RECGONISABLE_FUNCTION_QUUUX"), "quuux missing: \(samples)")
         }
         try await done
     }
-    #endif
+    //#endif
 
     // MARK: - Setup/teardown
     override func setUp() {
@@ -199,6 +222,7 @@ final class ProfileRecorderTests: XCTestCase {
     }
 }
 
+@inline(never)
 func RECGONISABLE_FUNCTION_FOO(reachedQuuuxSem: DispatchSemaphore, unblockSem: DispatchSemaphore) {
     RECGONISABLE_FUNCTION_BAR(reachedQuuuxSem: reachedQuuuxSem, unblockSem: unblockSem)
 }
@@ -222,4 +246,32 @@ func RECGONISABLE_FUNCTION_QUUX(reachedQuuuxSem: DispatchSemaphore, unblockSem: 
 func RECGONISABLE_FUNCTION_QUUUX(reachedQuuuxSem: DispatchSemaphore, unblockSem: DispatchSemaphore) {
     reachedQuuuxSem.signal()
     unblockSem.wait()
+}
+
+// We're using a terrible workaround to work around the lack of frame pointers
+// in libdispatch on non-Darwin.
+// (https://github.com/swiftlang/swift-corelibs-libdispatch/issues/909)
+final class WorkaroundSemaphore: Sendable {
+    let backing: ConditionLock<Int>
+
+    init(value: Int) {
+        precondition(value == 0, "this is not a proper semaphore, just a workaround")
+        self.backing = ConditionLock(value: 0)
+    }
+
+    @inline(never)
+    func signal() {
+        precondition(self.backing.value == 0, "signalled at least twice")
+        self.backing.lock(whenValue: 0)
+        self.backing.unlock(withValue: 1)
+    }
+
+    @inline(never)
+    func wait(crash: Bool = false) {
+        if crash {
+            fatalError()
+        }
+        self.backing.lock(whenValue: 1)
+        self.backing.unlock(withValue: 0)
+    }
 }

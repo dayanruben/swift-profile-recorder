@@ -82,7 +82,7 @@ public final class CoreSymbolicationSymboliser: Symbolizer & Sendable {
         
         let symbolOwner = CSSymbolicatorGetSymbolOwner(symbolicator)
         if CSIsNull(symbolOwner){
-            return makeFailed("-symbolOwner")
+            return makeFailed("-symbol-owner")
         }
 
         // CS expects offset into library + base address from CS

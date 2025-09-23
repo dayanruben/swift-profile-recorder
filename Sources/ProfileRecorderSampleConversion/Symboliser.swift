@@ -91,7 +91,7 @@ enum AnyElfImage {
                 return nil
             }
             var symbols: [ImageSymbol] = []
-            for inlineFrame in image.inlineCallSites(at: UInt32(truncatingIfNeeded: address)).reversed() {
+            for inlineFrame in image.inlineCallSites(at: UInt32(truncatingIfNeeded: address)) {
                 symbols.append(
                     ImageSymbol(
                         name: inlineFrame.name ?? "unknown in \(inlineFrame.filename)",
@@ -116,7 +116,7 @@ enum AnyElfImage {
             }
 
             var symbols: [ImageSymbol] = []
-            for inlineFrame in image.inlineCallSites(at: address).reversed() {
+            for inlineFrame in image.inlineCallSites(at: address) {
                 symbols.append(
                     ImageSymbol(
                         name: inlineFrame.name ?? "unknown in \(inlineFrame.filename)",

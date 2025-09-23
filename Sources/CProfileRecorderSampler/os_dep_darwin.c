@@ -145,8 +145,7 @@ int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
                     
                     libs_count++;
                 }
-            }
-            else if (ld_cmd->cmd == LC_SEGMENT_64) {
+            } else if (ld_cmd->cmd == LC_SEGMENT_64) {
                 const struct segment_command_64 *seg = (const struct segment_command_64 *)ld_cmd;
                 if (strcmp(seg->segname, "__TEXT") == 0) {
                     uintptr_t start = seg->vmaddr + slide;
@@ -158,7 +157,7 @@ int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
                     all_libs[libs_count].dl_seg_start_addr = start;
                     all_libs[libs_count].dl_seg_end_addr = end;
                     
-                    if (type == CPU_TYPE_X86) {
+                    if (type == CPU_TYPE_X86_64) {
                         strlcpy(all_libs[libs_count].dl_arch, "x86_64", arch_size);
                     } else if (type == CPU_TYPE_ARM64_32) {
                         strlcpy(all_libs[libs_count].dl_arch, "arm64_32", arch_size);
