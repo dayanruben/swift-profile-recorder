@@ -35,7 +35,6 @@ struct thread_info *swipr_os_dep_create_thread_list(size_t *all_threads_count) {
         *all_threads_count = 0;
         return NULL;
     }
-    *all_threads_count = (size_t) threads_count;
     struct thread_info *all_threads = calloc(SWIPR_MAX_MUTATOR_THREADS, sizeof(struct thread_info));
     if (!all_threads) {
         return NULL;
@@ -48,7 +47,7 @@ struct thread_info *swipr_os_dep_create_thread_list(size_t *all_threads_count) {
             // skip controller and mach threads without corresponding pthreads
             // set ti_id to 0 so they will be ignored
             all_threads[i].ti_id = 0;
-            *all_threads_count--;
+            threads_count--;
             continue;
         }
         char name[32] = {0};
@@ -60,7 +59,7 @@ struct thread_info *swipr_os_dep_create_thread_list(size_t *all_threads_count) {
         if (info_ret != KERN_SUCCESS) {
             UNSAFE_DEBUG("failed to get thread_info in create thread list for mach port %llu | %llx\n", threads[i], threads[i]);
             all_threads[i].ti_id = 0;
-            *all_threads_count--;
+            threads_count--;
             continue;
         }
 
@@ -78,7 +77,8 @@ struct thread_info *swipr_os_dep_create_thread_list(size_t *all_threads_count) {
                          threads_count * sizeof(thread_t));
 
     swipr_precondition(kret == KERN_SUCCESS);
-    swipr_precondition(all_threads_count >= 0);
+    swipr_precondition(threads_count >= 0);
+    *all_threads_count = (size_t) threads_count;
     return all_threads;
 }
 
