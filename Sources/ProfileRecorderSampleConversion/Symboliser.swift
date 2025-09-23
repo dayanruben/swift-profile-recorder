@@ -182,7 +182,7 @@ internal struct LockedELFSourceCacheReference: @unchecked /* the ElfImage types 
     }
 }
 
-public final class NativeSymboliser: Symbolizer & Sendable {
+public final class NativeELFSymboliser: Symbolizer & Sendable {
     private let elfSourceCache = LockedELFSourceCacheReference()
 
     public init() {}
@@ -239,7 +239,7 @@ public final class NativeSymboliser: Symbolizer & Sendable {
     public func shutdown() throws {}
 
     public var description: String {
-        return "NativeSymboliser(cachedELFs: \(self.elfSourceCache.count))"
+        return "NativeELFSymboliser(cachedELFs: \(self.elfSourceCache.count))"
     }
 }
 

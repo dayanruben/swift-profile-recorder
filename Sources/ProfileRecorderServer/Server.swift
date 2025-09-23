@@ -288,7 +288,7 @@ public struct ProfileRecorderServer: Sendable {
         #if canImport(Darwin)
         let symbolizer = CoreSymbolicationSymboliser()
         #else
-        let symbolizer = NativeSymboliser()
+        let symbolizer = NativeELFSymboliser()
         #endif
         try symbolizer.start()
         defer {

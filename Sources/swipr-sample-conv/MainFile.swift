@@ -90,7 +90,7 @@ struct ProfileRecorderSampleConverterCommand: AsyncParsableCommand {
             #if os(macOS)
             symboliser = CoreSymbolicationSymboliser()
             #else
-            symboliser = NativeSymboliser()
+            symboliser = NativeELFSymboliser()
             #endif
         case (false, false):
             symboliser = LLVMSymboliser(

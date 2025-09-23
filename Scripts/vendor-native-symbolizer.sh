@@ -29,7 +29,7 @@ echo "Using backtracing_root from $backtracing_root"
 test -d "$backtracing_root" || die "$backtracing_root: Not found"
 
 target_c_src="$here/../Sources/CProfileRecorderSwiftELF"
-target_swift_src="$here/../Sources/ProfileRecorderSampleConversion/NativeSymboliser"
+target_swift_src="$here/../Sources/ProfileRecorderSampleConversion/NativeELFSymboliser"
 desc=$(cd "$backtracing_root" && git describe --abbrev --dirty)
 
 rm -rf "$target_c_src" "$target_swift_src"

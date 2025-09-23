@@ -102,7 +102,7 @@ extension ProfileRecorderSampler {
         _ body: (String) async throws -> R
     ) async throws -> R {
         #if os(Linux)
-        let symbolizer = NativeSymboliser()
+        let symbolizer = NativeELFSymboliser()
         #elseif os(macOS)
         let symbolizer = CoreSymbolicationSymboliser()
         #endif
