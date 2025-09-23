@@ -63,9 +63,8 @@ extension ProfileRecorderSampler {
                 outputFilePath: rawSamplesPath.string,
                 failIfFileExists: true,
                 count: sampleCount,
-                timeBetweenSamples: timeBetweenSamples,
-                eventLoop: MultiThreadedEventLoopGroup.singleton.any()
-            ).get()
+                timeBetweenSamples: timeBetweenSamples
+            )
             logger.info("raw samples complete")
             switch format {
             case .perfSymbolized, .pprofSymbolized, .flamegraphCollapsedSymbolized:

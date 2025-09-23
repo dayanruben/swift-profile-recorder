@@ -91,7 +91,11 @@ public final class ProfileRecorderSampler: Sendable {
 #endif
     }
     
-    /// Request and write samples to the output path you provide.
+    /// Request and write the _raw_ samples to the output path you provide.
+    ///
+    /// - note: The samples will need to be symbolicated with `swipr-sample-conv`, alternatively use `ProfileRecorderServer` for automatically
+    ///         getting the samples in a symbolicated standard format.
+    ///
     /// - Parameters:
     ///   - outputFilePath: The output path for the raw samples.
     ///   - failIfFileExists: A Boolean value that indicates whether the function should fail if the output path file you provided already exists.
@@ -117,7 +121,11 @@ public final class ProfileRecorderSampler: Sendable {
         }
     }
     
-    /// Request and write samples to the output path you provide.
+    /// Request and write the _raw_ samples to the output path you provide.
+    ///
+    /// - note: The samples will need to be symbolicated with `swipr-sample-conv`, alternatively use `ProfileRecorderServer` for automatically
+    ///         getting the samples in a symbolicated standard format.
+    ///
     /// - Parameters:
     ///   - outputFilePath: The output path for the raw samples.
     ///   - failIfFileExists: A Boolean value that indicates whether the function should fail if the output path file you provided already exists.
@@ -145,6 +153,32 @@ public final class ProfileRecorderSampler: Sendable {
                 fclose(output.handle)
             }
         }
+    }
+
+    /// Request and write the _raw_ samples to the output path you provide.
+    ///
+    /// - note: The samples will need to be symbolicated with `swipr-sample-conv`, alternatively use `ProfileRecorderServer` for automatically
+    ///         getting the samples in a symbolicated standard format.
+    ///
+    /// - Parameters:
+    ///   - outputFilePath: The output path for the raw samples.
+    ///   - failIfFileExists: A Boolean value that indicates whether the function should fail if the output path file you provided already exists.
+    ///   - count: The number of samples to capture.
+    ///   - timeBetweenSamples: The time between samples.
+    ///   - eventLoop: The event loop on which the sampler runs.
+    public func requestSamples(
+        outputFilePath: String,
+        failIfFileExists: Bool = true,
+        count: Int,
+        timeBetweenSamples: TimeAmount
+    ) async throws {
+        return try await self.requestSamples(
+            outputFilePath: outputFilePath,
+            failIfFileExists: failIfFileExists,
+            count: count,
+            timeBetweenSamples: timeBetweenSamples,
+            eventLoop: .singletonMultiThreadedEventLoopGroup.any()
+        ).get()
     }
 }
 
