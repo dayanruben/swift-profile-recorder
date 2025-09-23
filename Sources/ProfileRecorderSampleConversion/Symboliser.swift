@@ -409,9 +409,6 @@ public final class CachedSymbolizer: Sendable & CustomStringConvertible {
     }
 }
 
-@available(*, unavailable, message: "not thread safe")
-extension CachedSymbolizer: Sendable {}
-
 internal enum BinarySearchOrder {
     case candidateIsTooLow
     case found

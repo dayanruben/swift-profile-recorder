@@ -243,7 +243,7 @@ typealias SWIPR_Elf64_Dyn = CProfileRecorderSwiftELF.SWIPR_Elf64_Dyn
 typealias SWIPR_Elf32_Hash = CProfileRecorderSwiftELF.SWIPR_Elf32_Hash
 typealias SWIPR_Elf64_Hash = CProfileRecorderSwiftELF.SWIPR_Elf64_Hash
 
-let SWIPR_elf_hash = CProfileRecorderSwiftELF.SWIPR_elf_hash
+nonisolated(unsafe) let SWIPR_elf_hash = CProfileRecorderSwiftELF.SWIPR_elf_hash
 
 // .. Utilities ................................................................
 

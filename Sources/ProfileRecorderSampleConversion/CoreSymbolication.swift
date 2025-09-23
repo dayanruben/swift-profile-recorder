@@ -43,11 +43,11 @@ import CProfileRecorderSwiftELF
 private let coreFoundationPath =
   "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation"
 
-private let coreFoundationHandle = dlopen(coreFoundationPath, RTLD_LAZY)!
+nonisolated(unsafe) private let coreFoundationHandle = dlopen(coreFoundationPath, RTLD_LAZY)!
 
 private let coreSymbolicationPath =
   "/System/Library/PrivateFrameworks/CoreSymbolication.framework/CoreSymbolication"
-private let coreSymbolicationHandle = dlopen(coreSymbolicationPath, RTLD_LAZY)!
+nonisolated(unsafe) private let coreSymbolicationHandle = dlopen(coreSymbolicationPath, RTLD_LAZY)!
 
 private func symbol<T>(_ handle: UnsafeMutableRawPointer, _ name: String) -> T {
   guard let result = dlsym(handle, name) else {
