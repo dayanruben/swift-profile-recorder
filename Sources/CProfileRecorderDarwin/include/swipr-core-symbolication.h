@@ -11,6 +11,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+// This file has been adjusted for ProfileRecorder, originally of the Swift.org open source project
 //===--- Darwin.h - Darwin specifics ----------------------------*- C++ -*-===//
 //
 // This source file is part of the Swift.org open source project
@@ -36,8 +37,9 @@
 #ifdef __APPLE__
 
 #include <mach/mach.h>
-#include <stdint.h>
 #include <stdbool.h>
+
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -195,14 +197,15 @@ typedef uint32_t CFStringEncoding;
 typedef enum __attribute__((enum_extensibility(open)))
   CFStringBuiltInEncodings : CFStringEncoding CFStringBuiltInEncodings;
 
+
 // .. CoreSymbolication SPI ....................................................
 
 typedef int32_t cpu_type_t;
 typedef int32_t cpu_subtype_t;
 
 struct _CSArchitecture {
-  cpu_type_t    cpu_type;
-  cpu_subtype_t    cpu_subtype;
+  cpu_type_t	cpu_type;
+  cpu_subtype_t	cpu_subtype;
 };
 
 typedef struct _CSArchitecture CSArchitecture;
@@ -285,8 +288,8 @@ typedef struct _CSNotificationData {
 typedef void (^CSNotificationBlock)(uint32_t type, CSNotificationData data);
 
 struct _CSRange {
-  vm_address_t    location;
-  vm_size_t    length;
+  vm_address_t	location;
+  vm_size_t	length;
 };
 
 typedef struct _CSRange CSRange;
@@ -305,5 +308,5 @@ enum {
 #endif
 
 #endif // __APPLE__
-#endif // SWIFT_BACKTRACING_DARWIN_H
+#endif // SWIPR_CORE_SYMBOLICATION_H
 

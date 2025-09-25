@@ -33,6 +33,5 @@
 #include "swipr-elf.h"
 #include "swipr-eh_frame_hdr.h"
 #include "swipr-dwarf.h"
-#include "swipr-core-symbolication.h"
 
 #endif

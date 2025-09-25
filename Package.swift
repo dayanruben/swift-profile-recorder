@@ -39,6 +39,7 @@ let package = Package(
             dependencies: [
                 "ProfileRecorder",
                 "CProfileRecorderSwiftELF",
+                "CProfileRecorderDarwin",
                 "PprofFormat",
                 "ProfileRecorderHelpers",
                 .product(name: "NIO", package: "swift-nio"),
@@ -102,6 +103,10 @@ let package = Package(
         ),
         .target(
             name: "CProfileRecorderSwiftELF",
+            dependencies: []
+        ),
+        .target(
+            name: "CProfileRecorderDarwin",
             dependencies: []
         ),
         .target(
