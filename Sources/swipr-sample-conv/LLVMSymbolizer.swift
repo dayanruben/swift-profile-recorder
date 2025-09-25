@@ -43,7 +43,7 @@ internal final class LLVMSymboliser: Symbolizer & Sendable {
     }
 
     internal func symbolise(
-        relativeIP: UInt,
+        fileVirtualAddressIP: UInt,
         library: DynamicLibMapping,
         logger: Logger
     ) throws -> SymbolisedStackFrame {
@@ -156,21 +156,21 @@ internal final class LLVMSymboliser: Symbolizer & Sendable {
 
     @available(*, noasync, message: "Blocks the calling thread")
     internal func symbolise(
-        relativeIP: UInt,
+        fileVirtualAddressIP: UInt,
         library: DynamicLibMapping,
         logger: Logger
     ) throws -> SymbolisedStackFrame {
         struct TimeoutError: Error {
-            var relativeIP: UInt
+            var fileVirtualAddressIP: UInt
             var library: DynamicLibMapping
         }
         let channel = self.state.withLockedValue { $0.channel }!
         let promise = channel.eventLoop.makePromise(of: SymbolisedStackFrame.self)
         let sched = promise.futureResult.eventLoop.scheduleTask(in: .seconds(10)) {
-            promise.fail(TimeoutError(relativeIP: relativeIP, library: library))
+            promise.fail(TimeoutError(fileVirtualAddressIP: fileVirtualAddressIP, library: library))
         }
         do {
-            let query = LLVMSymbolizerQuery(address: relativeIP, library: library)
+            let query = LLVMSymbolizerQuery(address: fileVirtualAddressIP, library: library)
             try channel.writeAndFlush((query, promise)).wait()
         } catch {
             self.logger.error("write to llvm-symbolizer pipe failed", metadata: ["error": "\(error)"])

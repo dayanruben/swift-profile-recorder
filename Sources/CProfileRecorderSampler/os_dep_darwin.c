@@ -104,10 +104,10 @@ int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
     int img_count = _dyld_image_count();
     int libs_count = 0;
     uint arch_size = sizeof(all_libs[0].dl_arch);
-    for (int i = 0; i < img_count; i++) {
-        const struct mach_header *header = _dyld_get_image_header(i);
-        intptr_t slide             = _dyld_get_image_vmaddr_slide(i);
-        const char *name           = _dyld_get_image_name(i);
+    for (int image_index = 0; image_index < img_count; image_index++) {
+        const struct mach_header *header = _dyld_get_image_header(image_index);
+        intptr_t slide             = _dyld_get_image_vmaddr_slide(image_index);
+        const char *name           = _dyld_get_image_name(image_index);
 
         // Move ptr over mach header, offset depends on header size
         bool is64 = (header->magic == MH_MAGIC_64 || header->magic == MH_CIGAM_64);
@@ -120,9 +120,9 @@ int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
         // we iterate over load commands and finds __TEXT segments.
         // Note: vmaddr is the intended load address of the Mach-O binary, 
         // it is adjusted by the ASLR slide to give the runtime address
-        for (int i = 0; i < header->ncmds; i++) {
+        for (int load_command_index = 0; load_command_index < header->ncmds; load_command_index++) {
             const struct load_command *ld_cmd = (const struct load_command *)ld_cmd_ptr;
-            
+
             if (ld_cmd->cmd == LC_SEGMENT) {
                 const struct segment_command *seg = (const struct segment_command *)ld_cmd;
                 if (strcmp(seg->segname, "__TEXT") == 0) {
@@ -131,7 +131,7 @@ int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
                     
                     memcpy(all_libs[libs_count].dl_name, name, sizeof(all_libs[libs_count].dl_name));
                     all_libs[libs_count].dl_name[sizeof(all_libs[libs_count].dl_name) - 1] = 0; //truncates string
-                    all_libs[libs_count].dl_file_mapped_at = slide;
+                    all_libs[libs_count].dl_seg_slide = slide;
                     all_libs[libs_count].dl_seg_start_addr = start;
                     all_libs[libs_count].dl_seg_end_addr = end;
                     
@@ -153,7 +153,7 @@ int swipr_os_dep_list_all_dynamic_libs(struct swipr_dynamic_lib *all_libs,
                     
                     memcpy(all_libs[libs_count].dl_name, name, sizeof(all_libs[libs_count].dl_name));
                     all_libs[libs_count].dl_name[sizeof(all_libs[libs_count].dl_name) - 1] = 0; //truncates string
-                    all_libs[libs_count].dl_file_mapped_at = slide;
+                    all_libs[libs_count].dl_seg_slide = slide;
                     all_libs[libs_count].dl_seg_start_addr = start;
                     all_libs[libs_count].dl_seg_end_addr = end;
                     

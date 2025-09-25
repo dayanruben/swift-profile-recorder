@@ -196,11 +196,11 @@ struct ProfileRecorderSampleConverterCommand: AsyncParsableCommand {
                 continue
             }
             let symd = try symbolizer.symbolise(
-                relativeIP: address,
+                fileVirtualAddressIP: address,
                 library: DynamicLibMapping(
                     path: fileAddress.0,
                     architecture: ProfileRecorderSystemInformation.defaultArchitecture,
-                    fileMappedAddress: 0,
+                    segmentSlide: 0,
                     segmentStartAddress: 0,
                     segmentEndAddress: .max
                 ),

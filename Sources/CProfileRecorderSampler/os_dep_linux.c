@@ -120,7 +120,7 @@ dl_iterate_phdr_cb(struct dl_phdr_info *info, size_t size, void *v_data) {
         }
         my_lib->dl_name[sizeof(my_lib->dl_name) - 1] = 0;
 
-        my_lib->dl_file_mapped_at = info->dlpi_addr;
+        my_lib->dl_seg_slide = info->dlpi_addr;
         my_lib->dl_seg_start_addr = info->dlpi_addr + phdr->p_vaddr;
         my_lib->dl_seg_end_addr = info->dlpi_addr + phdr->p_vaddr + phdr->p_memsz;
     }

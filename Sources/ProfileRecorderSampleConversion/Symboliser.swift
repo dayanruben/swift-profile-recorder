@@ -63,7 +63,7 @@ public protocol Symbolizer: Sendable {
     func start() throws
 
     @available(*, noasync, message: "blocks the calling thread")
-    func symbolise(relativeIP: UInt, library: DynamicLibMapping, logger: Logger) throws -> SymbolisedStackFrame
+    func symbolise(fileVirtualAddressIP: UInt, library: DynamicLibMapping, logger: Logger) throws -> SymbolisedStackFrame
 
     @available(*, noasync, message: "blocks the calling thread")
     func shutdown() throws
@@ -152,7 +152,7 @@ internal struct LockedELFSourceCacheReference: @unchecked /* the ElfImage types 
     }
 
     @available(*, noasync, message: "blocks the calling thread")
-    func lookup(library: DynamicLibMapping, relativeIP: UInt, logger: Logger) -> Result<[ImageSymbol], Error> {
+    func lookup(library: DynamicLibMapping, fileVirtualAddressIP: UInt, logger: Logger) -> Result<[ImageSymbol], Error> {
         return self.value.withLockedValue { elfSourceCache in
             var elfImage: AnyElfImage? = elfSourceCache[library.path]
             if elfImage == nil {
@@ -172,7 +172,7 @@ internal struct LockedELFSourceCacheReference: @unchecked /* the ElfImage types 
             }
 
             guard let results = elfImage.lookupRealAndInlinedFrames(
-                address: UInt64(relativeIP),
+                address: UInt64(fileVirtualAddressIP),
                 logger: logger
             ) else {
                 return .failure(.lookupFailed)
@@ -190,15 +190,15 @@ public final class NativeELFSymboliser: Symbolizer & Sendable {
     public func start() throws {}
 
     public func symbolise(
-        relativeIP: UInt,
+        fileVirtualAddressIP: UInt,
         library: DynamicLibMapping,
         logger: Logger
     ) throws -> SymbolisedStackFrame {
         func makeFailed(_ why: String = "") -> SymbolisedStackFrame {
             return SymbolisedStackFrame(
                 allFrames: [SymbolisedStackFrame.SingleFrame(
-                    address: relativeIP,
-                    functionName: "unknown\(why) @ 0x\(String(relativeIP, radix: 16))",
+                    address: fileVirtualAddressIP,
+                    functionName: "unknown\(why) @ 0x\(String(fileVirtualAddressIP, radix: 16))",
                     functionOffset: 0,
                     library: nil,
                     vmap: library,
@@ -209,7 +209,7 @@ public final class NativeELFSymboliser: Symbolizer & Sendable {
         }
 
         let results: [ImageSymbol]
-        switch self.elfSourceCache.lookup(library: library, relativeIP: relativeIP, logger: logger) {
+        switch self.elfSourceCache.lookup(library: library, fileVirtualAddressIP: fileVirtualAddressIP, logger: logger) {
         case .success(let success):
             results = success
         case .failure(let error):
@@ -224,7 +224,7 @@ public final class NativeELFSymboliser: Symbolizer & Sendable {
         return SymbolisedStackFrame(
             allFrames: results.map { result in
                 SymbolisedStackFrame.SingleFrame(
-                    address: relativeIP,
+                    address: fileVirtualAddressIP,
                     functionName: result.name,
                     functionOffset: UInt(exactly: result.offset) ?? 0,
                     library: nil,
@@ -347,12 +347,12 @@ public final class CachedSymbolizer: Sendable & CustomStringConvertible {
             )
         }
 
-        if (stackFrame.instructionPointer < matched.fileMappedAddress) {
+        if (stackFrame.instructionPointer < matched.segmentSlide) {
             self.logger.debug(
                 "Malformed input: filedMappedAddress greater than ip",
                 metadata: [
                     "ip": "0x\(String(stackFrame.instructionPointer, radix: 16))",
-                    "fileMappedAddress": "0x\(String(matched.fileMappedAddress, radix: 16))"
+                    "segmentSlide": "0x\(String(matched.segmentSlide, radix: 16))"
                 ]
             )
             return SymbolisedStackFrame(
@@ -368,17 +368,17 @@ public final class CachedSymbolizer: Sendable & CustomStringConvertible {
             )
         }
         
-        let relativeIP = stackFrame.instructionPointer - matched.fileMappedAddress
+        let fileVirtualAddressIP = stackFrame.instructionPointer - matched.segmentSlide
         self.logger.debug(
             "matched stackframe",
             metadata: [
                 "matched": "\(matched)",
                 "stack-frame": "\(stackFrame)",
-                "relative-ip": "0x\(String(relativeIP, radix: 16))"
+                "file-va-ip": "0x\(String(fileVirtualAddressIP, radix: 16))"
             ]
         )
 
-        return try self.symbolizer.symbolise(relativeIP: relativeIP, library: matched, logger: self.logger)
+        return try self.symbolizer.symbolise(fileVirtualAddressIP: fileVirtualAddressIP, library: matched, logger: self.logger)
     }
 
     public func symbolise(_ stackFrame: StackFrame) throws -> SymbolisedStackFrame {

@@ -23,16 +23,16 @@ public final class _ProfileRecorderFakeSymbolizer: Symbolizer {
     public func start() throws {}
 
     public func symbolise(
-        relativeIP: UInt,
+        fileVirtualAddressIP: UInt,
         library: DynamicLibMapping,
         logger: Logger
     ) throws -> SymbolisedStackFrame {
         return SymbolisedStackFrame(
             allFrames: [
                 SymbolisedStackFrame.SingleFrame(
-                    address: relativeIP,
-                    functionName: "FakeType.fakeFun\(relativeIP / 10000)()",
-                    functionOffset: relativeIP % 10000,
+                    address: fileVirtualAddressIP,
+                    functionName: "FakeType.fakeFun\(fileVirtualAddressIP / 10000)()",
+                    functionOffset: fileVirtualAddressIP % 10000,
                     library: nil,
                     vmap: library
                 )

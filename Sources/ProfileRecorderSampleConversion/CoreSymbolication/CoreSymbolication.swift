@@ -41,16 +41,16 @@ import CProfileRecorderDarwin
  let coreFoundationPath =
   "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation"
 
- let coreFoundationHandle = dlopen(coreFoundationPath, RTLD_LAZY)!
+nonisolated(unsafe) let coreFoundationHandle = dlopen(coreFoundationPath, RTLD_LAZY)!
 
  let coreSymbolicationPath =
   "/System/Library/PrivateFrameworks/CoreSymbolication.framework/CoreSymbolication"
- let coreSymbolicationHandle = dlopen(coreSymbolicationPath, RTLD_LAZY)!
+nonisolated(unsafe) let coreSymbolicationHandle = dlopen(coreSymbolicationPath, RTLD_LAZY)!
 
  let crashReporterSupportPath =
   "/System/Library/PrivateFrameworks/CrashReporterSupport.framework/CrashReporterSupport"
 
- let crashReporterSupportHandle
+nonisolated(unsafe) let crashReporterSupportHandle
   = dlopen(crashReporterSupportPath, RTLD_LAZY)!
 
  func symbol<T>(_ handle: UnsafeMutableRawPointer, _ name: String) -> T {

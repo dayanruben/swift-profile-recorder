@@ -90,7 +90,7 @@ public struct PprofOutputRenderer: ProfileRecorderSampleConversionOutputRenderer
                     $0.id = UInt64(index + 1)
                     $0.memoryStart = UInt64(vmap.segmentStartAddress)
                     $0.memoryLimit = UInt64(vmap.segmentEndAddress)
-                    $0.fileOffset = UInt64(vmap.fileMappedAddress)
+                    $0.fileOffset = UInt64(vmap.segmentSlide)
                 }
             }
              */

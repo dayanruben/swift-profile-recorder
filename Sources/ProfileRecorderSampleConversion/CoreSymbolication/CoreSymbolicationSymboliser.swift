@@ -26,7 +26,7 @@ public final class CoreSymbolicationSymboliser: Symbolizer & Sendable {
     public func start() throws {}
     
     public func symbolise(
-        relativeIP: UInt, // the offset to the instruction WITHOUT bass address
+        fileVirtualAddressIP: UInt, // the offset to the instruction WITHOUT bass address
         library: DynamicLibMapping,
         logger: Logging.Logger
     ) throws -> SymbolisedStackFrame {
@@ -34,8 +34,8 @@ public final class CoreSymbolicationSymboliser: Symbolizer & Sendable {
         func makeFailed(_ why: String = "") -> SymbolisedStackFrame {
             return SymbolisedStackFrame(
                 allFrames: [SymbolisedStackFrame.SingleFrame(
-                    address: relativeIP,
-                    functionName: "unknown-missing\(why) @ 0x\(String(relativeIP, radix: 16))",
+                    address: fileVirtualAddressIP,
+                    functionName: "unknown-missing\(why) @ 0x\(String(fileVirtualAddressIP, radix: 16))",
                     functionOffset: 0,
                     library: nil,
                     vmap: library,
@@ -87,7 +87,7 @@ public final class CoreSymbolicationSymboliser: Symbolizer & Sendable {
 
         // CS expects offset into library + base address from CS
         let baseAddress = CSSymbolOwnerGetBaseAddress(symbolOwner)
-        let offset = relativeIP + library.fileMappedAddress - library.segmentStartAddress
+        let offset = fileVirtualAddressIP + library.segmentSlide - library.segmentStartAddress
         
         let expectedIP = vm_address_t(offset) + baseAddress
 
@@ -99,9 +99,9 @@ public final class CoreSymbolicationSymboliser: Symbolizer & Sendable {
 
         return SymbolisedStackFrame(
             allFrames: [SymbolisedStackFrame.SingleFrame(
-                address: relativeIP,
+                address: fileVirtualAddressIP,
                 functionName: name,
-                functionOffset: offset,
+                functionOffset: expectedIP,
                 library: nil,
                 vmap: library,
                 file: nil,

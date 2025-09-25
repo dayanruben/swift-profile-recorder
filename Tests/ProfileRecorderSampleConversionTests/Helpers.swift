@@ -24,14 +24,14 @@ final class FakeSymbolizer: Symbolizer {
     }
 
     func symbolise(
-        relativeIP: UInt,
+        fileVirtualAddressIP: UInt,
         library: DynamicLibMapping,
         logger: Logger
     ) throws -> SymbolisedStackFrame {
         return SymbolisedStackFrame(
             allFrames: [
                 SymbolisedStackFrame.SingleFrame(
-                    address: relativeIP,
+                    address: fileVirtualAddressIP,
                     functionName: "fake",
                     functionOffset: 5,
                     library: "libfoo",

@@ -99,11 +99,11 @@ swipr_dump_shared_objs(FILE *output) {
                 "[SWIPR] VMAP {"
                 "\"path\": \"%s\", "
                 "\"architecture\": \"%s\", "
-                "\"fileMappedAddress\": \"0x%lx\", "
+                "\"segmentSlide\": \"0x%lx\", "
                 "\"segmentStartAddress\": \"0x%lx\", "
                 "\"segmentEndAddress\": \"0x%lx\""
                 "}\n",
-                all_libs[i].dl_name, all_libs[i].dl_arch, all_libs[i].dl_file_mapped_at,
+                all_libs[i].dl_name, all_libs[i].dl_arch, all_libs[i].dl_seg_slide,
                 all_libs[i].dl_seg_start_addr, all_libs[i].dl_seg_end_addr);
     }
     UNSAFE_DEBUG("Number of libraries mapped: %zu \n", all_libs_count);
