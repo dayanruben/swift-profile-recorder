@@ -27,8 +27,6 @@ jobs:
       linux_env_vars: |
         PROTOBUF_NO_PROTOC=true
         DEBIAN_FRONTEND=noninteractive
-      macos_env_vars: |
-        PROTOBUF_NO_PROTOC=true
 
   cxx-interop:
     name: Cxx interop
