@@ -24,8 +24,6 @@ jobs:
       linux_6_2_arguments_override: "--explicit-target-dependency-import-check error"
       linux_nightly_next_arguments_override: "--explicit-target-dependency-import-check error"
       linux_nightly_main_arguments_override: "--explicit-target-dependency-import-check error"
-      linux_pre_build_command: |
-        apt-get update
       linux_env_vars: |
         PROTOBUF_NO_PROTOC=true
         DEBIAN_FRONTEND=noninteractive
