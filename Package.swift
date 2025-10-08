@@ -19,6 +19,8 @@ let package = Package(
         .library(name: "ProfileRecorder", targets: ["ProfileRecorder"]),
         .library(name: "ProfileRecorderServer", targets: ["ProfileRecorderServer"]),
         .executable(name: "swipr-sample-conv", targets: ["swipr-sample-conv"]),
+        // _ProfileRecorderSampleConversion is not part of public API, internal benchmark use
+        .library(name: "_ProfileRecorderSampleConversion", targets: ["_ProfileRecorderSampleConversion"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.0.0"),
@@ -54,6 +56,12 @@ let package = Package(
                 .product(name: "NIOFoundationCompat", package: "swift-nio"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "NIOExtras", package: "swift-nio-extras"),
+            ]
+        ),
+        .target(
+            name: "_ProfileRecorderSampleConversion",
+            dependencies: [
+                "ProfileRecorderSampleConversion"
             ]
         ),
         .executableTarget(
