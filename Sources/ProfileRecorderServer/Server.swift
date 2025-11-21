@@ -585,6 +585,21 @@ public struct ProfileRecorderServer: Sendable {
                 ) != nil:
                 // Native Swift Profile Recorder Sampling server
                 sampleRequest = try JSONDecoder().decode(SampleRequest.self, from: request.body ?? ByteBuffer())
+            case (.GET, .some(let decodedURI))
+            where decodedURI.components.matches(prefix: [], oneOfPaths: [["health"]]) != nil:
+                // Health check endpoint
+                try await outbound.write(
+                    .head(
+                        HTTPResponseHead(
+                            version: .http1_1,
+                            status: .ok,
+                            headers: ["connection": "close"]
+                        )
+                    )
+                )
+                try await outbound.write(.body(ByteBuffer(string: "OK")))
+                try await outbound.write(.end(nil))
+                return
             case (let verb, .some(let decodedURI)):
                 let extraRouteHandlers = self.state.withLockedValue { state in
                     state.extraRouteHandlers
