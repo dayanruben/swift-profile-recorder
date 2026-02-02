@@ -76,6 +76,11 @@ int swipr_fp_unwinder_getcontext(struct swipr_fp_unwinder_context *context, ucon
     intptr_t reg_ip = uc->uc_mcontext.pc;
     intptr_t reg_fp = uc->uc_mcontext.regs[29];
     intptr_t reg_sp = uc->uc_mcontext.sp;
+#elif defined(__linux__) && defined(__arm__)
+    // ARM (32-bit) on Linux (e.g. ARMv6 and ARMv7)
+    intptr_t reg_ip = uc->uc_mcontext.arm_pc;
+    intptr_t reg_fp = uc->uc_mcontext.arm_fp;  // r11 is the frame pointer
+    intptr_t reg_sp = uc->uc_mcontext.arm_sp;  // r13 is the stack pointer
 #elif defined(__APPLE__) && defined(__x86_64__)
     intptr_t reg_ip = uc->uc_mcontext->__ss.__rip;
     intptr_t reg_fp = uc->uc_mcontext->__ss.__rbp;
