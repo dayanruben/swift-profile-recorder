@@ -6,9 +6,11 @@ permissions:
 on:
   pull_request:
     types: [labeled, unlabeled, opened, reopened, synchronize]
+  workflow_dispatch:
 
 jobs:
   semver-label-check:
+    if: github.event_name == 'pull_request'
     name: Semantic version label check
     runs-on: ubuntu-latest
     timeout-minutes: 1

@@ -6,9 +6,11 @@ permissions:
 on:
   pull_request:
     types: [opened, reopened, synchronize]
+  workflow_dispatch:
 
 jobs:
   soundness:
+    if: github.event_name == 'pull_request'
     name: Soundness
     uses: swiftlang/github-workflows/.github/workflows/soundness.yml@main
     with:
@@ -18,6 +20,7 @@ jobs:
       format_check_enabled: true
 
   swift-test:
+    if: github.event_name == 'pull_request'
     name: Run tests
     uses: swiftlang/github-workflows/.github/workflows/swift_package_test.yml@main
     with:
@@ -40,15 +43,18 @@ jobs:
       enable_windows_docker: false
 
   cxx-interop:
+    if: github.event_name == 'pull_request'
     name: Cxx interop
     uses: apple/swift-nio/.github/workflows/cxx_interop.yml@main
 
   static-sdk:
+    if: github.event_name == 'pull_request'
     name: Static SDK
     # Workaround https://github.com/nektos/act/issues/1875
     uses: apple/swift-nio/.github/workflows/static_sdk.yml@main
 
   macos-tests:
+    if: github.event_name == 'pull_request'
     name: macOS tests
     uses: apple/swift-nio/.github/workflows/macos_tests.yml@main
     with:
@@ -57,5 +63,6 @@ jobs:
       env_vars: "{\"PROTOBUF_NO_PROTOC\": \"true\"}"
 
   release-builds:
+    if: github.event_name == 'pull_request'
     name: Release builds
     uses: apple/swift-nio/.github/workflows/release_builds.yml@main
