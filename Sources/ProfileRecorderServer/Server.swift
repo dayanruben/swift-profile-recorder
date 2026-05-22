@@ -18,8 +18,12 @@ import ProfileRecorder
 import _ProfileRecorderSampleConversion
 import ProfileRecorderHelpers
 import _NIOFileSystem
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
-import NIOFoundationCompat
+#endif
+import NIOFoundationEssentialsCompat
 import NIOConcurrencyHelpers
 import Logging
 #if compiler(>=6.2)
