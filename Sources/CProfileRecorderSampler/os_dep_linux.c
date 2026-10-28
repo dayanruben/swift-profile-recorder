@@ -18,33 +18,31 @@
 #include <dirent.h>
 #include <sys/errno.h>
 #include <stdbool.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <link.h>
 #include <string.h>
 #include <fcntl.h>
+#include <sys/uio.h>
 
 #include "os_dep.h"
 #include "interface.h"
 #include "common.h"
 
-// Check if a specific signal is blocked for a given thread.
-// Returns: 1 if signal is blocked, 0 if not blocked, -1 on error.
-static int swipr_is_signal_blocked(swipr_os_dep_thread_id tid, int signum) {
-    if (signum < 1 || signum > 64) {
-        return -1;
-    }
-
+// Reads the name and whether SIGPROF is blocked from /proc/self/task/<tid>/stat, one file instead of status and comm.
+// Returns: 0 on success, -1 on error.
+static int swipr_read_thread_stat(swipr_os_dep_thread_id tid, char *name, size_t name_size, bool *sigprof_blocked) {
     char path[64];
-    snprintf(path, sizeof(path), "/proc/self/task/%d/status", tid);
+    snprintf(path, sizeof(path), "/proc/self/task/%d/stat", tid);
 
     int fd = open(path, O_RDONLY);
     if (fd < 0) {
         return -1;
     }
 
-    char buffer[4096];
+    char buffer[1024];
     ssize_t bytes_read = read(fd, buffer, sizeof(buffer) - 1);
     int close_result = close(fd);
     if (bytes_read <= 0 || (close_result != 0 && !(close_result == -1 && errno == EINTR))) {
@@ -52,29 +50,33 @@ static int swipr_is_signal_blocked(swipr_os_dep_thread_id tid, int signum) {
     }
     buffer[bytes_read] = '\0';
 
-    // Find the SigBlk line
-    const char *sigblk_line = strstr(buffer, "\nSigBlk:");
-    if (!sigblk_line) {
-        sigblk_line = strstr(buffer, "SigBlk:");
-        if (!sigblk_line) {
+    // Field 2 is the name in parentheses; it may itself contain ')', so the last one ends it.
+    const char *name_start = strchr(buffer, '(');
+    const char *name_end = strrchr(buffer, ')');
+    if (!name_start || !name_end || name_end < name_start) {
+        return -1;
+    }
+    name_start++;
+    size_t name_length = (size_t)(name_end - name_start);
+    if (name_length >= name_size) {
+        name_length = name_size - 1;
+    }
+
+    // Field 32 is the blocked mask in decimal; it covers signals 1-31 only, SIGPROF included.
+    const char *field = name_end + 2;
+    for (int field_number = 3; field_number < 32; field_number++) {
+        field = strchr(field, ' ');
+        if (!field) {
             return -1;
         }
-    } else {
-        sigblk_line++; // Skip the newline
+        field++;
     }
+    unsigned long long mask = strtoull(field, NULL, 10);
 
-    // Skip "SigBlk:" and whitespace
-    sigblk_line += 7;
-    while (*sigblk_line == ' ' || *sigblk_line == '\t') {
-        sigblk_line++;
-    }
-
-    // Parse the hexadecimal mask
-    unsigned long long mask = strtoull(sigblk_line, NULL, 16);
-
-    // Check if the signal bit is set (signals are 1-indexed)
-    int bit_position = signum - 1;
-    return (mask & (1ULL << bit_position)) ? 1 : 0;
+    memcpy(name, name_start, name_length);
+    name[name_length] = '\0';
+    *sigprof_blocked = (mask & (1ULL << (SIGPROF - 1))) != 0;
+    return 0;
 }
 
 struct thread_info *swipr_os_dep_create_thread_list(size_t *all_threads_count) {
@@ -109,27 +111,16 @@ struct thread_info *swipr_os_dep_create_thread_list(size_t *all_threads_count) {
         
         pid_t tid = atol(ent->d_name);
         if (tid != 0 && tid != my_tid) {
-            // Check if SIGPROF is blocked for this thread
-            int sigprof_blocked = swipr_is_signal_blocked(tid, SIGPROF);
-            if (sigprof_blocked > 0) {
+            struct thread_info *thread = &all_threads[next_index];
+            bool sigprof_blocked = false;
+            if (swipr_read_thread_stat(tid, thread->ti_name, sizeof(thread->ti_name), &sigprof_blocked) != 0) {
+                thread->ti_name[0] = '\0';
+            } else if (sigprof_blocked) {
                 // Skip threads that have SIGPROF blocked
                 continue;
             }
-
-            int idx = next_index++;
-            all_threads[idx].ti_id = tid;
-            char file_path[128] = {0};
-            snprintf(file_path, 128, "/proc/self/task/%d/comm", tid);
-            int fd = open(file_path, O_RDONLY);
-            if (fd >= 0) {
-                int how_much = read(fd, all_threads[idx].ti_name, 32);
-                all_threads[idx].ti_name[how_much > 0 ? how_much-1 : 0] = 0; // get rid of the \n
-                int ret = close(fd);
-                // continue if close successful or failed due to interrupt
-                if (!(ret == 0 || (ret == -1 && errno == EINTR))) {
-                    goto error;
-                }
-            }
+            next_index++;
+            thread->ti_id = tid;
         }
     }
     
@@ -217,7 +208,32 @@ int swipr_os_dep_get_current_thread_name(char *name, size_t len) {
 #endif
 }
 
+// Set per request: getpid is a syscall, and a forked child must not read its parent.
+static pid_t g_swipr_pid;
+
+// Set once seccomp or an old kernel refuses process_vm_readv.
+static _Atomic bool g_swipr_vm_readv_denied;
+
+bool swipr_os_dep_copy_memory(void *dst, uintptr_t src, size_t len) {
+    // A frame chain through code without frame pointers can point anywhere; the kernel copy fails with EFAULT instead.
+    if (!g_swipr_vm_readv_denied) {
+        struct iovec local = { .iov_base = dst, .iov_len = len };
+        struct iovec remote = { .iov_base = (void *)src, .iov_len = len };
+        if (process_vm_readv(g_swipr_pid, &local, 1, &remote, 1, 0) == (ssize_t)len) {
+            return true;
+        }
+        if (errno != EPERM && errno != ENOSYS) {
+            return false;
+        }
+        g_swipr_vm_readv_denied = true;
+    }
+    // The target is parked in its signal handler, so its stack stays mapped; only a garbage frame pointer can fault.
+    memcpy(dst, (const void *)src, len);
+    return true;
+}
+
 int swipr_os_dep_sample_prepare(size_t num_threads, struct thread_info *all_threads, struct swipr_minidump *minidumps) {
+    g_swipr_pid = getpid();
     for (int i=0; i<num_threads; i++) {
         swipr_precondition(all_threads[i].ti_id != 0);
         g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = all_threads[i].ti_id;
@@ -253,53 +269,68 @@ int swipr_os_dep_sample_prepare(size_t num_threads, struct thread_info *all_thre
     return 0;
 }
 
-void swipr_os_dep_suspend_threads(size_t num_threads, struct thread_info *all_threads) {
-    int err;
-    for (int i=0; i<num_threads; i++) {
-        swipr_precondition(all_threads[i].ti_id != 0);
-        UNSAFE_DEBUG("signalling thread %lu\n", (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id);
-        err = swipr_os_dep_kill(all_threads[i].ti_id, SIGPROF);
-        if (err != 0) {
-            UNSAFE_DEBUG("couldn't signal thread %lu\n", (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id);
-            // thread dead, let's not wait for it later.
-            g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
-        }
+static void swipr_signal_thread(int i, struct thread_info *all_threads, swipr_os_dep_deadline tick_deadline) {
+    swipr_precondition(all_threads[i].ti_id != 0);
+    swipr_os_dep_deadline now = swipr_os_dep_create_deadline(0);
+    if (now.tv_sec > tick_deadline.tv_sec
+        || (now.tv_sec == tick_deadline.tv_sec && now.tv_nsec >= tick_deadline.tv_nsec)) {
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
+        return;
     }
+    UNSAFE_DEBUG("signalling thread %lu\n", (uintptr_t)all_threads[i].ti_id);
+    if (swipr_os_dep_kill(all_threads[i].ti_id, SIGPROF) != 0) {
+        UNSAFE_DEBUG("couldn't signal thread %lu\n", (uintptr_t)all_threads[i].ti_id);
+        g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
+    }
+}
 
-    swipr_os_dep_deadline deadline = swipr_os_dep_create_deadline(SWIPR_NSEC_PER_SEC);
-
+void swipr_os_dep_sample_threads(size_t num_threads, struct thread_info *all_threads, struct swipr_minidump *minidumps,
+                                 struct timespec start_time) {
+    int err;
+    // Threads not signalled once a tick has spent this long are skipped, so stragglers can't stretch a tick to minutes.
+    swipr_os_dep_deadline tick_deadline = swipr_os_dep_create_deadline(SWIPR_NSEC_PER_SEC);
+    if (num_threads > 0) {
+        swipr_signal_thread(0, all_threads, tick_deadline);
+    }
     for (int i=0; i<num_threads; i++) {
         swipr_os_dep_thread_id thread_id = g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id;
-        if (thread_id > 0) {
+        if (thread_id != 0) {
+            // Kept long: a handler that answers after the timeout is not cancelled and is unsafe (see FIXME below).
+            swipr_os_dep_deadline deadline = swipr_os_dep_create_deadline(SWIPR_NSEC_PER_SEC);
             err = swipr_os_dep_sem_wait_with_deadline(g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed, deadline);
             if (err) {
                 if (swipr_os_dep_kill(thread_id, 0) == -1 && errno == ESRCH) {
-                    UNSAFE_DEBUG("thread %d/%ld died, that's probably okay\n",
-                                 i, (long)thread_id);
-                    g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
+                    UNSAFE_DEBUG("thread %d/%ld died, that's probably okay\n", i, (long)thread_id);
                 } else {
-                    UNSAFE_DEBUG("OUCH, timeout, thread still alive but no response %d/%d of %zu\n",
-                                 i, thread_id, num_threads);
+                    UNSAFE_DEBUG("OUCH, timeout, thread still alive but no response %d/%ld of %zu\n",
+                                 i, (long)thread_id, num_threads);
                     // FIXME: We can't just continue here...
-                    g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
                 }
+                g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
+                thread_id = 0;
             }
         }
+        // The next signal's delivery overlaps this unwind. Sent only once thread i is parked or skipped, and thread i
+        // is released before the next wait: a parked thread can hold a lock the next one needs to take the signal.
+        if (i + 1 < num_threads) {
+            swipr_signal_thread(i + 1, all_threads, tick_deadline);
+        }
+        if (thread_id == 0) {
+            continue;
+        }
+        swipr_sampler_unwind_thread(i, &minidumps[i], all_threads[i].ti_name, start_time);
+        // c2m_thread_id stays set, so cleanup waits for the handler's exit post before freeing the semaphores.
+        swipr_os_dep_sem_signal(g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed);
     }
 }
 
 int swipr_os_dep_sample_cleanup(size_t num_threads, struct thread_info *all_threads) {
     for (int i=0; i<num_threads; i++) {
-        if (g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id > 0) {
-            swipr_os_dep_sem_signal(g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed);
-        }
-    }
-    int err;
-    for (int i=0; i<num_threads; i++) {
+        // Released by swipr_os_dep_sample_threads; its handler posts m2c_proceed on its way out.
         swipr_os_dep_thread_id thread_id = g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id;
         if (thread_id > 0) {
             swipr_os_dep_deadline deadline = swipr_os_dep_create_deadline(100 * SWIPR_NSEC_PER_MSEC);
-            err = swipr_os_dep_sem_wait_with_deadline(g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed, deadline);
+            int err = swipr_os_dep_sem_wait_with_deadline(g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed, deadline);
             if (err) {
                 UNSAFE_DEBUG("OUTCH, timeout (B), thread %d/%ld of %zu\n",
                              i, (long)thread_id, num_threads);
@@ -313,8 +344,7 @@ int swipr_os_dep_sample_cleanup(size_t num_threads, struct thread_info *all_thre
         g_swipr_c2ms.c2ms_c2ms[i].c2m_proceed = NULL;
         g_swipr_c2ms.c2ms_c2ms[i].m2c_proceed = NULL;
     }
-    err = swipr_os_dep_destroy_thread_list(all_threads);
-    return err;
+    return swipr_os_dep_destroy_thread_list(all_threads);
 }
 
 

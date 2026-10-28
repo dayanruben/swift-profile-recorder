@@ -19,6 +19,12 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <string.h>
+#include <limits.h>
+#if __has_include(<ptrcheck.h>)
+#include <ptrcheck.h>
+#else
+#define __counted_by(N)
+#endif
 #include <sys/errno.h>
 
 #include "os_dep.h"
@@ -122,6 +128,40 @@ swipr_initialise_c2ms(FILE *output) {
     return swipr_dump_shared_objs(output);
 }
 
+void
+swipr_sampler_unwind_thread(int i, struct swipr_minidump *minidump, const char *thread_name, struct timespec time) {
+    // Static: the cursor holds a 16k stack copy and only one sampler runs at a time; init sets all but the copy.
+    static struct swipr_fp_unwinder_cursor cursor;
+    swipr_fp_unwinder_init(&cursor, &g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context);
+    UNSAFE_DEBUG("[%d: %lu] starting unwind\n",
+                 i,
+                 (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id);
+
+    int ret = -1;
+    size_t next_stack_frame_idx = 0;
+    while (next_stack_frame_idx < SWIPR_MAX_STACK_DEPTH && (ret = swipr_fp_unwinder_step(&cursor)) > 0) {
+        struct swipr_stackframe *stack_frame = &minidump->md_stack[next_stack_frame_idx++];
+        swipr_fp_unwinder_get_reg(&cursor, SWIPR_FP_UNWINDER_REG_IP, &stack_frame->sf_ip);
+        swipr_fp_unwinder_get_reg(&cursor, SWIPR_FP_UNWINDER_REG_FP, &stack_frame->sf_sp);
+        UNSAFE_DEBUG("[%d: %lu] ip=%lx, sp=%lx, ret=%d\n",
+                     i,
+                     (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id,
+                     stack_frame->sf_ip,
+                     stack_frame->sf_sp,
+                     ret);
+    }
+
+    UNSAFE_DEBUG("[%d: %lu] unwind done, ret=%d\n",
+                 i,
+                 (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id,
+                 ret);
+    minidump->md_stack_depth = next_stack_frame_idx;
+    minidump->md_time = time;
+    minidump->md_pid = getpid();
+    minidump->md_tid = g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id;
+    strcpy(minidump->md_thread_name, thread_name);
+}
+
 static int
 swipr_make_sample(struct swipr_minidump *minidumps,
                  size_t minidumps_capacity,
@@ -148,48 +188,74 @@ swipr_make_sample(struct swipr_minidump *minidumps,
 
     swipr_state_start_sampling();
     struct timespec start_time = swipr_sampler_get_current_time();
-    swipr_os_dep_suspend_threads(num_threads, all_threads);
+    swipr_os_dep_sample_threads(num_threads, all_threads, minidumps, start_time);
     
     swipr_state_start_processing();
-    for (int i=0; i<num_threads; i++) {
-        if (g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id == 0 || all_threads[i].ti_id == 0) {
-            continue;
-        }
-        struct swipr_fp_unwinder_cursor cursor = { 0 };
-        swipr_fp_unwinder_init(&cursor, &g_swipr_c2ms.c2ms_c2ms[i].c2m_tiny_context);
-        UNSAFE_DEBUG("[%d: %lu] starting unwind\n",
-                     i,
-                     (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id);
-
-        int ret = -1;
-        size_t next_stack_frame_idx = 0;
-        while ((ret = swipr_fp_unwinder_step(&cursor)) > 0 && next_stack_frame_idx < SWIPR_MAX_STACK_DEPTH) {
-            struct swipr_stackframe *stack_frame = &minidumps[i].md_stack[next_stack_frame_idx++];
-            swipr_fp_unwinder_get_reg(&cursor, SWIPR_FP_UNWINDER_REG_IP, &stack_frame->sf_ip);
-            swipr_fp_unwinder_get_reg(&cursor, SWIPR_FP_UNWINDER_REG_FP, &stack_frame->sf_sp);
-            UNSAFE_DEBUG("[%d: %lu] ip=%lx, sp=%lx, ret=%d\n",
-                         i,
-                         (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id,
-                         stack_frame->sf_ip,
-                         stack_frame->sf_sp,
-                         ret);
-        }
-
-        UNSAFE_DEBUG("[%d: %lu] unwind done, ret=%d\n",
-                     i,
-                     (uintptr_t)g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id,
-                     ret);
-        minidumps[i].md_stack_depth = next_stack_frame_idx;
-        minidumps[i].md_time = start_time;
-        minidumps[i].md_pid = getpid();
-        minidumps[i].md_tid = g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id;
-        strcpy(minidumps[i].md_thread_name, all_threads[i].ti_name);
-    }
-
     swipr_state_finish_processing();
     
     err = swipr_os_dep_sample_cleanup(num_threads, all_threads);
     return err;
+}
+
+#define SWIPR_STACK_JSON_PRE_IP "[SWIPR] STCK {\"ip\": \"0x"
+#define SWIPR_STACK_JSON_PRE_SP "\", \"sp\": \"0x"
+#define SWIPR_STACK_JSON_END "\"}\n"
+// `"" s` rejects a pointer variable, so `sizeof` is the literal's size.
+#define SWIPR_LIT_LENGTH_WITHOUT_NUL(s) (sizeof("" s) - 1)
+#define SWIPR_HEX_MAX (2 * sizeof(uintptr_t))
+enum {
+    SWIPR_STACK_JSON_MAX = SWIPR_LIT_LENGTH_WITHOUT_NUL(SWIPR_STACK_JSON_PRE_IP)
+        + SWIPR_LIT_LENGTH_WITHOUT_NUL(SWIPR_STACK_JSON_PRE_SP)
+        + SWIPR_LIT_LENGTH_WITHOUT_NUL(SWIPR_STACK_JSON_END)
+        + 2 * SWIPR_HEX_MAX
+};
+_Static_assert(sizeof(uintptr_t) != 8 || SWIPR_STACK_JSON_MAX == 70, "unexpected stack line size");
+_Static_assert(sizeof(uintptr_t) == sizeof(unsigned long), "__builtin_clzl must count uintptr_t bits");
+// Each fwrite stays within PIPE_BUF and ends at a line end, so on unbuffered stderr each write(2) of lines is atomic on a pipe.
+#define SWIPR_STACK_BUF_SIZE PIPE_BUF
+_Static_assert(SWIPR_STACK_BUF_SIZE >= SWIPR_STACK_JSON_MAX, "a stack line must fit in one write");
+
+#define SWIPR_PUT_LITERAL(out, len, s) \
+    (memcpy((out) + (len), (s), SWIPR_LIT_LENGTH_WITHOUT_NUL(s)), (len) += SWIPR_LIT_LENGTH_WITHOUT_NUL(s))
+
+// Same digits as printf's %lx. Returns: the number of chars written.
+static size_t
+swipr_put_hex(char *__counted_by(SWIPR_HEX_MAX) out, uintptr_t value) {
+    size_t n = (8 * sizeof(value) - __builtin_clzl(value | 1) + 3) / 4;
+    for (size_t i = n; i > 0; i--) {
+        out[i - 1] = "0123456789abcdef"[value & 0xf];
+        value >>= 4;
+    }
+    return n;
+}
+
+// Every piece has a compile-time maximum; a new piece must be added to SWIPR_STACK_JSON_MAX. Writes no NUL.
+static size_t
+swipr_write_stack_json(char *__counted_by(SWIPR_STACK_JSON_MAX) out, uintptr_t ip, uintptr_t sp) {
+    size_t len = 0;
+    SWIPR_PUT_LITERAL(out, len, SWIPR_STACK_JSON_PRE_IP);
+    len += swipr_put_hex(out + len, ip);
+    SWIPR_PUT_LITERAL(out, len, SWIPR_STACK_JSON_PRE_SP);
+    len += swipr_put_hex(out + len, sp);
+    SWIPR_PUT_LITERAL(out, len, SWIPR_STACK_JSON_END);
+    return len;
+}
+
+// printf's formatter dominated the sampler's time with deep stacks on macOS, so the hex is written by hand.
+static void
+swipr_write_stack(FILE *output, const struct swipr_minidump *minidump, char *__counted_by(buf_size) buf, size_t buf_size) {
+    swipr_precondition(buf_size >= SWIPR_STACK_JSON_MAX);
+    size_t pos = 0;
+    for (size_t s=0; s<minidump->md_stack_depth; s++) {
+        if (buf_size - pos < SWIPR_STACK_JSON_MAX) {
+            fwrite(buf, 1, pos, output);
+            pos = 0;
+        }
+        size_t len = swipr_write_stack_json(buf + pos, minidump->md_stack[s].sf_ip, minidump->md_stack[s].sf_sp);
+        swipr_precondition(len <= SWIPR_STACK_JSON_MAX);
+        pos += len;
+    }
+    fwrite(buf, 1, pos, output);
 }
 
 int
@@ -201,6 +267,7 @@ swipr_request_sample(FILE *output,
     swipr_os_dep_get_current_thread_name(old_thread_name, sizeof(old_thread_name));
     struct timespec current_time = swipr_sampler_get_current_time();
     struct swipr_minidump *minidumps = NULL;
+    char *stack_buf = NULL;
 
 #if !defined(__linux__) && !defined(__APPLE__)
     fprintf(output,
@@ -209,9 +276,12 @@ swipr_request_sample(FILE *output,
 #endif
 
     minidumps = calloc(SWIPR_MAX_MUTATOR_THREADS, sizeof(*minidumps));
-    if (!minidumps) {
+    stack_buf = malloc(SWIPR_STACK_BUF_SIZE);
+    if (!minidumps || !stack_buf) {
+        free(minidumps);
+        free(stack_buf);
         fprintf(output,
-                "[SWIPR] MESG { \"message\": \"ProfileRecorder could not allocate memory to collect minidumps.\", \"exit\": 1 }\n");
+                "[SWIPR] MESG { \"message\": \"ProfileRecorder could not allocate memory for sampling.\", \"exit\": 1 }\n");
         return 1;
     }
 
@@ -222,6 +292,7 @@ swipr_request_sample(FILE *output,
                 err);
         free(minidumps);
         minidumps = NULL;
+        free(stack_buf);
         return err;
     }
 
@@ -249,6 +320,9 @@ swipr_request_sample(FILE *output,
 
         for (size_t t=0; t<num_minidumps; t++) {
             struct swipr_minidump *minidump = &minidumps[t];
+            if (minidump->md_tid == 0) {
+                continue; // not sampled this tick
+            }
             fprintf(output,
                     "[SWIPR] SMPL {"
                     "\"pid\": %d, "
@@ -264,16 +338,7 @@ swipr_request_sample(FILE *output,
                     minidump->md_time.tv_nsec
                     );
 
-            for (size_t s=0; s<minidump->md_stack_depth; s++) {
-                fprintf(output,
-                        "[SWIPR] STCK {"
-                        "\"ip\": \"0x%lx\", "
-                        "\"sp\": \"0x%lx\""
-                        "}\n",
-                        minidump->md_stack[s].sf_ip,
-                        minidump->md_stack[s].sf_sp
-                        );
-            }
+            swipr_write_stack(output, minidump, stack_buf, SWIPR_STACK_BUF_SIZE);
 
             fprintf(output, "[SWIPR] DONE\n");
         }
@@ -284,6 +349,7 @@ swipr_request_sample(FILE *output,
 
     free(minidumps);
     minidumps = NULL;
+    free(stack_buf);
     return 0;
 }
 
