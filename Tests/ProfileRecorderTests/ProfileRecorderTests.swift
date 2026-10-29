@@ -126,7 +126,7 @@ final class ProfileRecorderTests: XCTestCase {
         let state = ConditionLock(value: 0)
         for i in 0..<threadCount {
             Thread {
-                Thread.current.name = "swipr-idle-\(i)"
+                setCurrentThreadName("swipr-idle-\(i)")
                 state.lock(whenValue: i)
                 state.unlock(withValue: i + 1)
                 state.lock(whenValue: -1)
@@ -262,7 +262,7 @@ final class ProfileRecorderTests: XCTestCase {
                 var round = 0
                 while keepRunning.load(ordering: .relaxed) {
                     round += 1
-                    Thread.current.name = "swipr-run-\(index)-\(round % 3)"
+                    setCurrentThreadName("swipr-run-\(index)-\(round % 3)")
                     _ = SWIPR_DEEP_STACK(20 + (index * 7 + round) % 200) {
                         SWIPR_BURST_SPIN(microseconds: 200)
                         usleep(UInt32(100 + round % 500))
@@ -295,7 +295,8 @@ final class ProfileRecorderTests: XCTestCase {
                 outputFilePath: "\(self.tempDirectory!)/long-run.samples",
                 failIfFileExists: false,
                 count: 50 + requests % 150,
-                timeBetweenSamples: .microseconds(Int64(requests % 3) * 500)
+                timeBetweenSamples: .microseconds(Int64(requests % 3) * 500),
+                mode: requests % 2 == 0 ? .wallTime : .cpuTime
             )
             longest = max(longest, DispatchTime.now().uptimeNanoseconds - start)
             requests += 1
@@ -319,7 +320,7 @@ final class ProfileRecorderTests: XCTestCase {
         for _ in 0..<threadCount {
             // 2000 frames of ~300 bytes: far past the unwinder's 128 frame and 128 KiB limits, across many pages.
             let thread = Thread {
-                Thread.current.name = "swipr-deep"
+                setCurrentThreadName("swipr-deep")
                 _ = SWIPR_DEEP_STACK(2000) {
                     ready.wrappingIncrement(ordering: .relaxed)
                     release.lock(whenValue: 1)
@@ -419,14 +420,16 @@ final class ProfileRecorderTests: XCTestCase {
             stage.unlock(withValue: 2)
         }
         Thread.detachNewThread {
-            Thread.current.name = "swipr-mover"
+            setCurrentThreadName("swipr-mover")
             SWIPR_WAIT_A(stage)
             SWIPR_WAIT_B(stage)
         }
 
         let path = "\(self.tempDirectory!)/samples.samples"
         func moverStacks() throws -> [[Substring]] {
-            let text = (try? String(contentsOfFile: path, encoding: .utf8)) ?? ""
+            // String(contentsOfFile:) on Linux can trap reading a file the sampler is still appending to.
+            let data = FileHandle(forReadingAtPath: path)?.readDataToEndOfFile() ?? Data()
+            let text = String(decoding: data, as: UTF8.self)
             var stacks: [[Substring]] = []
             var current: [Substring]? = nil
             for line in text.split(separator: "\n") {
@@ -465,6 +468,111 @@ final class ProfileRecorderTests: XCTestCase {
 
         let stacks = try moverStacks()
         XCTAssertNotEqual(stacks.first, stacks.last, "the stack after the move repeats the one before")
+    }
+
+    func testCPUModeSkipsWaitingThreads() async throws {
+        guard ProfileRecorderSampler.isSupportedPlatform else {
+            return
+        }
+
+        let idleThreads = NIOThreadPool(numberOfThreads: 32)
+        idleThreads.start()
+        defer {
+            XCTAssertNoThrow(try idleThreads.syncShutdownGracefully())
+        }
+        let keepSpinning = ManagedAtomic<Bool>(true)
+        defer {
+            keepSpinning.store(false, ordering: .relaxed)
+        }
+        Thread.detachNewThread {
+            while keepSpinning.load(ordering: .relaxed) {}
+        }
+
+        func sampleLines(mode: ProfileRecorderSamplingMode) async throws -> [Substring] {
+            let path = "\(self.tempDirectory!)/samples-\(mode.name).samples"
+            try await ProfileRecorderSampler.sharedInstance.requestSamples(
+                outputFilePath: path,
+                count: 20,
+                timeBetweenSamples: .nanoseconds(0),
+                mode: mode
+            )
+            let data = try await ByteBuffer(contentsOf: FilePath(path), maximumSizeAllowed: .mebibytes(32))
+            return String(buffer: data).split(separator: "\n")
+        }
+
+        let wall = try await sampleLines(mode: .wallTime)
+        let cpu = try await sampleLines(mode: .cpuTime)
+        XCTAssertTrue(cpu.contains { $0.hasPrefix("[SWIPR] CONF") && $0.contains(#""mode": "cpu""#) })
+        let wallSamples = wall.filter { $0.hasPrefix("[SWIPR] SMPL") }.count
+        let cpuSamples = cpu.filter { $0.hasPrefix("[SWIPR] SMPL") }.count
+        XCTAssertGreaterThanOrEqual(wallSamples, 20 * 33, "every thread, every sample")
+        XCTAssertGreaterThanOrEqual(cpuSamples, 1, "the spinning thread")
+        XCTAssertLessThan(cpuSamples, wallSamples / 4, "the 32 idle threads are skipped")
+    }
+
+    func testCPUModeSamplesBurstyThreadsWhileTheySpin() async throws {
+        guard ProfileRecorderSampler.isSupportedPlatform else {
+            return
+        }
+
+        let symbolizer = ProfileRecorderSampler._makeDefaultSymbolizer()
+        try await NIOThreadPool.singleton.runIfActive { try symbolizer.start() }
+        defer {
+            XCTAssertNoThrow(try symbolizer.shutdown())
+        }
+        let threadCount = 4
+        let ticks = 200
+        // Burst threads alternate a spin of `work` and a sleep of `sleep` microseconds; idle threads lengthen
+        // the thread list, so a state read taken while listing goes stale before the thread is sampled.
+        for (work, sleep, idle) in [(200, 50, 0), (200, 50, 500), (2_000, 500, 500)] {
+            let idleThreads = NIOThreadPool(numberOfThreads: idle)
+            idleThreads.start()
+            defer {
+                XCTAssertNoThrow(try idleThreads.syncShutdownGracefully())
+            }
+            let keepRunning = ManagedAtomic<Bool>(true)
+            defer {
+                keepRunning.store(false, ordering: .relaxed)
+            }
+            let stopped = ManagedAtomic<Int>(0)
+            for _ in 0..<threadCount {
+                Thread.detachNewThread {
+                    setCurrentThreadName("swipr-burst")
+                    while keepRunning.load(ordering: .relaxed) {
+                        SWIPR_BURST_SPIN(microseconds: work)
+                        usleep(UInt32(sleep))
+                    }
+                    stopped.wrappingIncrement(ordering: .relaxed)
+                }
+            }
+
+            let samples = try await ProfileRecorderSampler.sharedInstance._withSamples(
+                sampleCount: ticks,
+                timeBetweenSamples: .milliseconds(1),
+                mode: .cpuTime,
+                format: .perfSymbolized,
+                symbolizer: symbolizer,
+                logger: self.logger
+            ) { file in
+                String(buffer: try await ByteBuffer(contentsOf: FilePath(file), maximumSizeAllowed: .mebibytes(64)))
+            }
+            keepRunning.store(false, ordering: .relaxed)
+            while stopped.load(ordering: .relaxed) < threadCount {
+                try await Task.sleep(nanoseconds: 1_000_000)
+            }
+
+            let burstSamples = samples.components(separatedBy: "\n\n").filter { $0.hasPrefix("swipr-burst") }
+            let spinning = burstSamples.filter { $0.contains("SWIPR_BURST_SPIN") }.count
+            let spinningShare = Double(spinning) / Double(max(burstSamples.count, 1))
+            XCTAssertGreaterThan(burstSamples.count, 0, "\(work)us work / \(sleep)us sleep, \(idle) idle threads")
+            // Scheduling-dependent: a thread seen running can enter usleep before it is stopped. Measured 0.94-0.97, and
+            // 0.71 once under load; the state read at listing time scored 0.80-0.83.
+            XCTAssertGreaterThan(
+                spinningShare,
+                0.6,
+                "\(work)us work / \(sleep)us sleep, \(idle) idle threads: \(spinning) of \(burstSamples.count) spinning"
+            )
+        }
     }
 
     // Experiencing issues due to the lack of frame pointers
@@ -711,7 +819,16 @@ func SWIPR_DEEP_STACK(_ depth: Int, _ body: () -> Void) -> UInt8 {
 @inline(never)
 func SWIPR_BURST_SPIN(microseconds: Int) {
     let end = DispatchTime.now().uptimeNanoseconds + UInt64(microseconds) * 1_000
-    while DispatchTime.now().uptimeNanoseconds < end {}
+    // No calls in the loop: on x86_64 a sample in a frameless callee unwinds past this function.
+    var sum = 0
+    repeat {
+        var i = 0
+        while i < 10_000 {
+            sum &+= i
+            i &+= 1
+        }
+    } while DispatchTime.now().uptimeNanoseconds < end
+    withExtendedLifetime(sum) {}
 }
 
 @inline(never)
@@ -724,4 +841,9 @@ func SWIPR_WAIT_A(_ stage: ConditionLock<Int>) {
 func SWIPR_WAIT_B(_ stage: ConditionLock<Int>) {
     stage.lock(whenValue: 2)
     stage.unlock()
+}
+
+// corelibs Foundation drops a `Thread.current.name` set before `Thread.start()` has stored the new pthread.
+func setCurrentThreadName(_ name: String) {
+    repeat { Thread.current.name = name } while Thread.current.name != name
 }

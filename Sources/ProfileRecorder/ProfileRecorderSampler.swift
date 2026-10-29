@@ -32,6 +32,69 @@ private let globalProfileRecorder: ProfileRecorderSampler = {
     return ProfileRecorderSampler()
 }()
 
+/// Which threads the sampler records.
+public struct ProfileRecorderSamplingMode: Codable & Hashable & Sendable & CustomStringConvertible {
+    // Raw values are the wire names: raw file CONF line, `mode` query parameter, pprof period type.
+    internal enum SupportedSamplingMode: String, Hashable & Sendable {
+        case wallTime = "wall"
+        case cpuTime = "cpu"
+    }
+
+    internal let supportedSamplingMode: SupportedSamplingMode
+
+    /// All threads, running or waiting.
+    public static let wallTime = Self(.wallTime)
+    /// Only threads the scheduler reports as running or runnable just before each is sampled.
+    public static let cpuTime = Self(.cpuTime)
+
+    private init(_ supportedSamplingMode: SupportedSamplingMode) {
+        self.supportedSamplingMode = supportedSamplingMode
+    }
+
+    package init?(name: String) {
+        guard let supportedSamplingMode = SupportedSamplingMode(rawValue: name) else {
+            return nil
+        }
+        self.supportedSamplingMode = supportedSamplingMode
+    }
+
+    package var name: String {
+        self.supportedSamplingMode.rawValue
+    }
+
+    public var description: String {
+        self.name
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let name = try container.decode(String.self)
+        guard let mode = Self(name: name) else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "unknown sampling mode '\(name)'"
+            )
+        }
+        self = mode
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(self.name)
+    }
+}
+
+#if canImport(CProfileRecorderSampler) // only on macOS & Linux
+extension ProfileRecorderSamplingMode {
+    fileprivate var swiprSamplingMode: swipr_sampling_mode {
+        switch self.supportedSamplingMode {
+        case .wallTime: SWIPR_SAMPLING_WALL
+        case .cpuTime: SWIPR_SAMPLING_CPU
+        }
+    }
+}
+#endif
+
 struct CouldNotOpenFileError: Error {
     var path: String
 }
@@ -70,11 +133,17 @@ public final class ProfileRecorderSampler: Sendable {
         output: CFilePointer,
         count: Int,
         timeBetweenSamples: TimeAmount,
+        mode: ProfileRecorderSamplingMode,
         eventLoop: EventLoop
     ) -> EventLoopFuture<Void> {
         #if canImport(CProfileRecorderSampler) // only on macOS & Linux
         return self.threadPool.runIfActive(eventLoop: eventLoop) {
-            let ret = swipr_request_sample(output.handle, .init(count), .init(timeBetweenSamples.nanoseconds / 1000))
+            let ret = swipr_request_sample(
+                output.handle,
+                .init(count),
+                .init(timeBetweenSamples.nanoseconds / 1000),
+                mode.swiprSamplingMode
+            )
             fflush(output.handle)
             guard ret == 0 else {
                 throw ProfileRecorderSamplerError(code: ret)
@@ -95,6 +164,7 @@ public final class ProfileRecorderSampler: Sendable {
     ///   - failIfFileExists: A Boolean value that indicates whether the function should fail if the output path file you provided already exists.
     ///   - count: The number of samples to capture.
     ///   - timeBetweenSamples: The time between samples.
+    ///   - mode: Which threads to record.
     ///   - queue: The dispatch queue on which to run the sampler.
     ///   - handler: A closure the library calls when the samples are ready, providing the results.
     public func requestSamples(
@@ -102,6 +172,7 @@ public final class ProfileRecorderSampler: Sendable {
         failIfFileExists: Bool = true,
         count: Int,
         timeBetweenSamples: TimeAmount,
+        mode: ProfileRecorderSamplingMode = .wallTime,
         queue: DispatchQueue,
         _ handler: @Sendable @escaping (Result<String, Error>) -> Void
     ) {
@@ -110,6 +181,7 @@ public final class ProfileRecorderSampler: Sendable {
             failIfFileExists: failIfFileExists,
             count: count,
             timeBetweenSamples: timeBetweenSamples,
+            mode: mode,
             eventLoop: MultiThreadedEventLoopGroup.singleton.any()
         ).whenComplete { result in
             queue.async {
@@ -128,12 +200,14 @@ public final class ProfileRecorderSampler: Sendable {
     ///   - failIfFileExists: A Boolean value that indicates whether the function should fail if the output path file you provided already exists.
     ///   - count: The number of samples to capture.
     ///   - timeBetweenSamples: The time between samples.
+    ///   - mode: Which threads to record.
     ///   - eventLoop: The event loop on which the sampler runs.
     public func requestSamples(
         outputFilePath: String,
         failIfFileExists: Bool = true,
         count: Int,
         timeBetweenSamples: TimeAmount,
+        mode: ProfileRecorderSamplingMode = .wallTime,
         eventLoop: EventLoop
     ) -> EventLoopFuture<Void> {
         if outputFilePath == "-" {
@@ -141,6 +215,7 @@ public final class ProfileRecorderSampler: Sendable {
                 output: CFilePointer(stderr),
                 count: count,
                 timeBetweenSamples: timeBetweenSamples,
+                mode: mode,
                 eventLoop: eventLoop
             )
         } else {
@@ -158,6 +233,7 @@ public final class ProfileRecorderSampler: Sendable {
                 output: output,
                 count: count,
                 timeBetweenSamples: timeBetweenSamples,
+                mode: mode,
                 eventLoop: eventLoop
             ).always { _ in
                 fclose(output.handle)
@@ -176,18 +252,20 @@ public final class ProfileRecorderSampler: Sendable {
     ///   - failIfFileExists: A Boolean value that indicates whether the function should fail if the output path file you provided already exists.
     ///   - count: The number of samples to capture.
     ///   - timeBetweenSamples: The time between samples.
-    ///   - eventLoop: The event loop on which the sampler runs.
+    ///   - mode: Which threads to record.
     public func requestSamples(
         outputFilePath: String,
         failIfFileExists: Bool = true,
         count: Int,
-        timeBetweenSamples: TimeAmount
+        timeBetweenSamples: TimeAmount,
+        mode: ProfileRecorderSamplingMode = .wallTime
     ) async throws {
         return try await self.requestSamples(
             outputFilePath: outputFilePath,
             failIfFileExists: failIfFileExists,
             count: count,
             timeBetweenSamples: timeBetweenSamples,
+            mode: mode,
             eventLoop: .singletonMultiThreadedEventLoopGroup.any()
         ).get()
     }
