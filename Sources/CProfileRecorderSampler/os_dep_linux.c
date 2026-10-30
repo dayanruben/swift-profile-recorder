@@ -31,9 +31,10 @@
 #include "interface.h"
 #include "common.h"
 
-// Reads the name and whether SIGPROF is blocked from /proc/self/task/<tid>/stat, one file instead of status and comm.
+// Reads the name, the state ('R' = running or runnable) and whether SIGPROF is blocked from /proc/self/task/<tid>/stat,
+// one file instead of status and comm.
 // Returns: 0 on success, -1 on error.
-static int swipr_read_thread_stat(swipr_os_dep_thread_id tid, char *name, size_t name_size, bool *sigprof_blocked) {
+static int swipr_read_thread_stat(swipr_os_dep_thread_id tid, char *name, size_t name_size, char *state, bool *sigprof_blocked) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/self/task/%d/stat", tid);
 
@@ -72,6 +73,8 @@ static int swipr_read_thread_stat(swipr_os_dep_thread_id tid, char *name, size_t
         field++;
     }
     unsigned long long mask = strtoull(field, NULL, 10);
+    // Field 3 is the state; read once the walk above shows the fields after the name exist.
+    *state = name_end[2];
 
     memcpy(name, name_start, name_length);
     name[name_length] = '\0';
@@ -79,7 +82,7 @@ static int swipr_read_thread_stat(swipr_os_dep_thread_id tid, char *name, size_t
     return 0;
 }
 
-struct thread_info *swipr_os_dep_create_thread_list(size_t *all_threads_count) {
+struct thread_info *swipr_os_dep_create_thread_list(size_t *all_threads_count, enum swipr_sampling_mode mode) {
     struct thread_info *all_threads = calloc(sizeof(struct thread_info), SWIPR_MAX_MUTATOR_THREADS);
     if (!all_threads) {
         return NULL;
@@ -112,12 +115,16 @@ struct thread_info *swipr_os_dep_create_thread_list(size_t *all_threads_count) {
         pid_t tid = atol(ent->d_name);
         if (tid != 0 && tid != my_tid) {
             struct thread_info *thread = &all_threads[next_index];
-            bool sigprof_blocked = false;
-            if (swipr_read_thread_stat(tid, thread->ti_name, sizeof(thread->ti_name), &sigprof_blocked) != 0) {
-                thread->ti_name[0] = '\0';
-            } else if (sigprof_blocked) {
-                // Skip threads that have SIGPROF blocked
-                continue;
+            // CPU mode reads this in swipr_signal_thread instead: the state goes stale for threads that run in bursts.
+            if (mode == SWIPR_SAMPLING_WALL) {
+                bool sigprof_blocked = false;
+                char state = 0;
+                if (swipr_read_thread_stat(tid, thread->ti_name, sizeof(thread->ti_name), &state, &sigprof_blocked) != 0) {
+                    thread->ti_name[0] = '\0';
+                } else if (sigprof_blocked) {
+                    // Skip threads that have SIGPROF blocked
+                    continue;
+                }
             }
             next_index++;
             thread->ti_id = tid;
@@ -269,13 +276,27 @@ int swipr_os_dep_sample_prepare(size_t num_threads, struct thread_info *all_thre
     return 0;
 }
 
-static void swipr_signal_thread(int i, struct thread_info *all_threads, swipr_os_dep_deadline tick_deadline) {
+static void swipr_signal_thread(int i, struct thread_info *all_threads, swipr_os_dep_deadline tick_deadline,
+                                enum swipr_sampling_mode mode) {
     swipr_precondition(all_threads[i].ti_id != 0);
     swipr_os_dep_deadline now = swipr_os_dep_create_deadline(0);
     if (now.tv_sec > tick_deadline.tv_sec
         || (now.tv_sec == tick_deadline.tv_sec && now.tv_nsec >= tick_deadline.tv_nsec)) {
         g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
         return;
+    }
+    if (mode == SWIPR_SAMPLING_CPU) {
+        // Read right before signalling; a state read while listing goes stale for threads that run in short bursts.
+        bool sigprof_blocked = false;
+        char state = 0;
+        if (swipr_read_thread_stat(all_threads[i].ti_id, all_threads[i].ti_name, sizeof(all_threads[i].ti_name), &state,
+                                   &sigprof_blocked) != 0) {
+            all_threads[i].ti_name[0] = '\0';
+        }
+        if (sigprof_blocked || state != 'R') {
+            g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id = 0;
+            return;
+        }
     }
     UNSAFE_DEBUG("signalling thread %lu\n", (uintptr_t)all_threads[i].ti_id);
     if (swipr_os_dep_kill(all_threads[i].ti_id, SIGPROF) != 0) {
@@ -285,12 +306,12 @@ static void swipr_signal_thread(int i, struct thread_info *all_threads, swipr_os
 }
 
 void swipr_os_dep_sample_threads(size_t num_threads, struct thread_info *all_threads, struct swipr_minidump *minidumps,
-                                 struct timespec start_time) {
+                                 struct timespec start_time, enum swipr_sampling_mode mode) {
     int err;
     // Threads not signalled once a tick has spent this long are skipped, so stragglers can't stretch a tick to minutes.
     swipr_os_dep_deadline tick_deadline = swipr_os_dep_create_deadline(SWIPR_NSEC_PER_SEC);
     if (num_threads > 0) {
-        swipr_signal_thread(0, all_threads, tick_deadline);
+        swipr_signal_thread(0, all_threads, tick_deadline, mode);
     }
     for (int i=0; i<num_threads; i++) {
         swipr_os_dep_thread_id thread_id = g_swipr_c2ms.c2ms_c2ms[i].c2m_thread_id;
@@ -313,7 +334,7 @@ void swipr_os_dep_sample_threads(size_t num_threads, struct thread_info *all_thr
         // The next signal's delivery overlaps this unwind. Sent only once thread i is parked or skipped, and thread i
         // is released before the next wait: a parked thread can hold a lock the next one needs to take the signal.
         if (i + 1 < num_threads) {
-            swipr_signal_thread(i + 1, all_threads, tick_deadline);
+            swipr_signal_thread(i + 1, all_threads, tick_deadline, mode);
         }
         if (thread_id == 0) {
             continue;
